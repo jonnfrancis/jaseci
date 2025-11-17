@@ -2,7 +2,7 @@
 
 Task manager implementation using the byLLM library.
 
-<img src="https://github.com/jonnfrancis/jonnfrancis/blob/main/johnfrancisdev.png" align="center" style="width: 100%" />
+<img src="https://res.cloudinary.com/dxvygt0ay/image/upload/v1763367621/bandicam_2025-11-17_11-06-54-894_eqdbbs.jpg" align="center" style="width: 100%" />
 
 ## Folder Overview
 - `assets/` - UI screenshots and diagrams
