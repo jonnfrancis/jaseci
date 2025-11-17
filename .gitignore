@@ -1,0 +1,9 @@
+__pycache__/
+.env
+outputs/
+_codegen/
+*.pyc
+venv/
+node_modules/
+jac-test/
+jac-env/
