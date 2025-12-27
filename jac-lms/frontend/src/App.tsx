@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import Learn from "./pages/Learn";
 import Progress from "./pages/Progress";
 import Navbar from "./components/Navbar";
+import SignIn from "./pages/SignIn";
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/learn" element={<Learn />} />
         <Route path="/progress" element={<Progress />} />
+        <Route path="/signin" element={<SignIn />} />
       </Routes>
     </BrowserRouter>
   );

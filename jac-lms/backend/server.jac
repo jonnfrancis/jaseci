@@ -50,6 +50,17 @@ walker initialize_learning_graph {
     has user: User = None;
 
     can initialize with `root entry {
+        if self.user != None {
+            if not hasattr(self.user, "__jac__") {
+                # Assume dict with user_id field
+                user_nodes = [root --> (`?User)](?user_id == self.user["user_id"]);
+                if len(user_nodes) > 0 {
+                    self.user = user_nodes[0];
+                } else {
+                    self.user = root ++> User(user_id=self.user["user_id"], name=self.user.get("name", ""));
+                }
+            }
+        }
         # Create topics, lessons, and link them
         if not [root --> (`?Topic)] {
             jac_basics = root ++> Topic(
@@ -245,25 +256,6 @@ walker progress_tracker {
                 disengage;
             }
         } elif self.quiz != None {
-            if not hasattr(self.quiz, "__jac__") {
-                print("Error: self.quiz is not a Jac node but a dict or other type. Attempting conversion...");
-                # Attempt to convert dict to Jac node by querying existing nodes matching quiz_id if available
-                if "quiz_id" in self.quiz {
-                    quiz_nodes = [root --> (`?Quiz)](?quiz_id == self.quiz["quiz_id"]);
-                    if len(quiz_nodes) > 0 {
-                        self.quiz = quiz_nodes[0];
-                        print("Conversion successful: self.quiz set to existing Jac node.");
-                    } else {
-                        print("Cannot convert: Quiz node not found with quiz_id.");
-                        report {"error": "Invalid quiz object"};
-                        disengage;
-                    }
-                } else {
-                    print("Cannot convert: 'quiz_id' not found in dict.");
-                    report {"error": "Invalid quiz object"};
-                    disengage;
-                }
-            }
             print("Looking for topics related to quiz:", self.quiz.quiz_id);
             quizes = [root --> (`?Quiz)](?quiz_id == self.quiz.quiz_id);
             if len(quizes) == 0 {
@@ -289,21 +281,24 @@ walker progress_tracker {
         
 
         # Find or create the MASTERY edge from User to Topic
-        mastery_edges = [self.user ->:MASTERY:-> topic];
+        mastery_edges = [edge self.user ->:MASTERY:-> topic];
         print(mastery_edges);
         mastery = None;
         if len(mastery_edges) == 0 {
             mastery = self.user +>:MASTERY(score=0.0, attempts=0, last_updated="" ):+> topic;
+            edges = [edge self.user ->:MASTERY:-> topic];
+            print("User mastery edges with score 0.0:", type(edges));
         } else {
             mastery = mastery_edges[0];
         }
-        print("Mastery edge found/created.", len(mastery));
+        print("Mastery edge found/created.", mastery);
 
         # Update mastery score based on performance - simple weighted average
-        old_score = mastery.score;
-        old_attempts = mastery.attempts;
+        # Ensure proper type handling for score and attempts
+        old_score = float(mastery.score);
+        old_attempts = int(mastery.attempts);
         new_attempts = old_attempts + 1;
-        new_score = (old_score * old_attempts + self.score) / new_attempts;
+        new_score = (old_score * old_attempts + float(self.score)) / new_attempts;
         print("Mastery score updated from", old_score, "to", new_score);
 
         # Update the mastery edge properties
@@ -316,7 +311,7 @@ walker progress_tracker {
         if self.lesson != None {
             completed_edges = [self.user ->:COMPLETED:-> self.lesson];
             if len(completed_edges) == 0 {
-                self.user +>:COMPLETED:completed_at=self.completed_at :+> self.lesson;
+                self.user +>:COMPLETED(completed_at=self.completed_at):+> self.lesson;
             }
         }
         print("Lesson completion recorded.");
@@ -386,7 +381,7 @@ walker unlock_next_lesson {
             # Check if user mastery score for all prerequisites is above or equal to threshold
             can_unlock = True;
             for prereq in prereqs {
-                mastery_edges = [self.user ->:MASTERY:-> prereq];
+                mastery_edges = [edge self.user ->:MASTERY:-> prereq];
                 if len(mastery_edges) == 0 {
                     can_unlock = False;
                     break;
@@ -406,11 +401,11 @@ walker unlock_next_lesson {
                     if lesson.lesson_id not in unique_lessons {
                         unique_lessons[lesson.lesson_id] = {
                             "topic": topic.title,
-                            "topic_difficulty": topic.difficulty,
                             "lesson_id": lesson.lesson_id,
                             "lesson_title": lesson.title,
                             "lesson_content": lesson.content,
-                            "starter_code": lesson.starter_code 
+                            "starter_code": lesson.starter_code,
+                            "topic_difficulty": topic.difficulty
                         };
                     }
                 }
@@ -430,7 +425,7 @@ walker unlock_next_lesson {
 }
 
 walker generate_quiz {
-    has topic: Topic;
+    has topic: string;
     has mastery_score: float;
 
     can create_quiz with `root entry {
@@ -441,30 +436,30 @@ walker generate_quiz {
             report {"error": "Topic not specified"};
             disengage;
         }
-        if not hasattr(self.topic, "__jac__") {
-            print("Error: self.topic is not a Jac node but a dict or other type. Attempting conversion...");
-            # Attempt to convert dict to Jac node by querying existing nodes matching topic_id if available
-            if "topic_id" in self.topic {
-                topic_nodes = [root --> (`?Topic)](?topic_id == self.topic["topic_id"]);
-                if len(topic_nodes) > 0 {
-                    self.topic = topic_nodes[0];
-                    print("Conversion successful: self.topic set to existing Jac node.");
-                } else {
-                    # Spawn a new Topic node with the dict values if possible
-                    print("No existing Topic node found with topic_id. Creating new Topic node.");
-                    self.topic = root ++> Topic(
-                        topic_id = self.topic.get("topic_id", ""),
-                        title = self.topic.get("title", ""),
-                        difficulty = self.topic.get("difficulty", 0)
-                    );
-                    print("New Topic node created.");
-                }
-            } else {
-                print("Cannot convert: 'topic_id' not found in dict.");
-                report {"error": "Invalid topic object"};
-                disengage;
-            }
-        }
+        # if not hasattr(self.topic, "__jac__") {
+        #     print("Error: self.topic is not a Jac node but a dict or other type. Attempting conversion...");
+        #     # Attempt to convert dict to Jac node by querying existing nodes matching topic_id if available
+        #     if "topic_id" in self.topic {
+        #         topic_nodes = [root --> (`?Topic)](?topic_id == self.topic["topic_id"]);
+        #         if len(topic_nodes) > 0 {
+        #             self.topic = topic_nodes[0];
+        #             print("Conversion successful: self.topic set to existing Jac node.");
+        #         } else {
+        #             # Spawn a new Topic node with the dict values if possible
+        #             print("No existing Topic node found with topic_id. Creating new Topic node.");
+        #             self.topic = root ++> Topic(
+        #                 topic_id = self.topic.get("topic_id", ""),
+        #                 title = self.topic.get("title", ""),
+        #                 difficulty = self.topic.get("difficulty", 0)
+        #             );
+        #             print("New Topic node created.");
+        #         }
+        #     } else {
+        #         print("Cannot convert: 'topic_id' not found in dict.");
+        #         report {"error": "Invalid topic object"};
+        #         disengage;
+        #     }
+        # }
 
         # Determine difficulty level based on mastery_score
         difficulty = "";
@@ -486,7 +481,7 @@ walker generate_quiz {
         - The quiz should prepare them to reason about code, not just definitions.
 
         Topic:
-        - Title: "{self.topic.title}"
+        - Title: "{self.topic}"
         - Difficulty level: "{difficulty}"
 
         Instructions:
@@ -526,9 +521,9 @@ walker generate_quiz {
 }
 
 walker evaluate_answer {
-    has topic: Topic;
+    has topic: string;
     has questions: list[str];
-    has learner_answer: str;
+    has learner_answer: string;
 
     can evaluate with `root entry {
         print(f"Type of self.topic: {type(self.topic)}");
@@ -536,30 +531,6 @@ walker evaluate_answer {
             print("Error: topic is None, cannot proceed.");
             report {"error": "Topic not specified"};
             disengage;
-        }
-        if not hasattr(self.topic, "__jac__") {
-            print("Error: self.topic is not a Jac node but a dict or other type. Attempting conversion...");
-            # Attempt to convert dict to Jac node by querying existing nodes matching topic_id if available
-            if "topic_id" in self.topic {
-                topic_nodes = [root --> (`?Topic)](?topic_id == self.topic["topic_id"]);
-                if len(topic_nodes) > 0 {
-                    self.topic = topic_nodes[0];
-                    print("Conversion successful: self.topic set to existing Jac node.");
-                } else {
-                    # Spawn a new Topic node with the dict values if possible
-                    print("No existing Topic node found with topic_id. Creating new Topic node.");
-                    self.topic = root ++> Topic(
-                        topic_id = self.topic.get("topic_id", ""),
-                        title = self.topic.get("title", ""),
-                        difficulty = self.topic.get("difficulty", 0)
-                    );
-                    print("New Topic node created.");
-                }
-            } else {
-                print("Cannot convert: 'topic_id' not found in dict.");
-                report {"error": "Invalid topic object"};
-                disengage;
-            }
         }
 
         # Compose prompt for LLM to evaluate learner's free-text answer
@@ -572,7 +543,7 @@ walker evaluate_answer {
         - Evaluation should focus on conceptual correctness, structure, and intent.
 
         Topic:
-        - "{self.topic.title}"
+        - "{self.topic}"
 
         Quiz Questions:
         {self.questions}
@@ -608,7 +579,8 @@ walker evaluate_answer {
 
         {{
         "score": 0.0,
-        "feedback": "string"
+        "feedback": "string",
+        "correct": "boolean"
         }}
         """;
 
@@ -674,7 +646,7 @@ walker get_skill_map {
             prereq_ids = [p.topic_id for p in prereqs];
 
             # Get the user's mastery edge to this topic, if it exists
-            mastery_edges = [self.user ->:MASTERY:-> topic];
+            mastery_edges = [edge self.user ->:MASTERY:-> topic];
             mastery_score = 0.0;
             if len(mastery_edges) > 0 {
                 mastery_score = mastery_edges[0].score;
@@ -683,7 +655,7 @@ walker get_skill_map {
             # Determine if topic is unlocked: all prerequisites mastery >= threshold
             unlocked = True;
             for prereq in prereqs {
-                prereq_mastery_edges = [self.user ->:MASTERY:-> prereq];
+                prereq_mastery_edges = [edge self.user ->:MASTERY:-> prereq];
                 if len(prereq_mastery_edges) == 0 or prereq_mastery_edges[0].score < self.threshold {
                     unlocked = False;
                     break;

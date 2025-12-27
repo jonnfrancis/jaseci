@@ -9,14 +9,15 @@ interface Props {
 }
 
 export default function CodeWorkspace({ onRun, loading, starterCode }: Props) {
+  console.log("Starter code:", starterCode);
   const [code, setCode] = useState<string>(starterCode || `walker hello_world {
-  can run with entry {
-    report "Hello from Jaseci!";
-  }
-}`);
+    can run with entry {
+      report "Hello from Jaseci!";
+    }
+  }`);
 
   return (
-    <main className="col-span-6 bg-surface rounded-xl p-4 flex flex-col">
+    <main className="col-span-6 rounded-xl p-4 flex flex-col">
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-semibold">Editor</h2>
 

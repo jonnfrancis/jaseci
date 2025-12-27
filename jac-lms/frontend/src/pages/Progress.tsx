@@ -13,12 +13,18 @@ export default function Progress() {
   const [skills, setSkills] = useState<SkillNode[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const userId = localStorage.getItem("userId");
+  const username = localStorage.getItem("username");
+
   useEffect(() => {
     async function loadSkillMap() {
       try {
         // Calling your Jaseci walker
         const response = await spawn<JaseciResponse>("get_skill_map", {
-          user: { user_id: "user_123", name: "John Doe" },
+          user: {
+            user_id: userId || "user_123",
+            name: username || "John Doe",
+          },
         });
 
         // Mapping logic: Accessing reports[0].topics from your JSON structure

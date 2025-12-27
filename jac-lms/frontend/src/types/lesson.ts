@@ -4,4 +4,5 @@ export interface Lesson {
   title: string;
   content: string;
   starter_code: string;
+  topic_difficulty?: number;
 }

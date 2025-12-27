@@ -14,8 +14,8 @@ const JASECI_BASE_URL =
 export async function spawn<TResponse>(
   walker: string,
   payload: Record<string, unknown> = {},
-  token?: string
 ): Promise<TResponse> {
+  const token = localStorage.getItem("token");
   const res = await fetch(`${JASECI_BASE_URL}/walker/${walker}`, {
     method: "POST",
     headers: {

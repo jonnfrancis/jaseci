@@ -26,21 +26,26 @@ export default function Learn() {
   const [loading, setLoading] = useState(false);
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [mastery, setMastery] = useState<number | null>(null);
+
+  const userId = localStorage.getItem("userId");
+  const username = localStorage.getItem("username");
 
   useEffect(() => {
     async function loadLesson() {
-      const response = await spawn<UnlockLessonResponse[]>(
+      const response = await spawn<UnlockLessonResponse>(
         "unlock_next_lesson",
         {
-          "user": {
-            "user_id": "user_123",
-            "name": "John Doe"
-          }
+          user: {
+            user_id: userId || "user_123",
+            name: username || "John Doe",
+          },
         }
       );
 
+      const lessonData = response?.reports[0]?.unlocked_lessons[0];
 
-      const lessonData = response?.reports[0]?.unlocked_lessons[0]
+      console.log("Unlocked lesson data:", lessonData);
 
       if (!lessonData) {
         throw new Error("No unlocked lesson returned");
@@ -52,6 +57,7 @@ export default function Learn() {
         title: lessonData.lesson_title,
         content: lessonData.lesson_content,
         starter_code: lessonData.starter_code,
+        topic_difficulty: lessonData.topic_difficulty,
       });
     }
 
@@ -59,38 +65,122 @@ export default function Learn() {
   }, []);
 
   useEffect(() => {
+    async function fetchMastery() {
+      if (!lesson) return;
+
+      const response = await spawn<{ reports: { topics: any[] }[] }>(
+        "get_skill_map",
+        {
+          user : {
+            user_id: userId || "user_123",
+            name: username || "John Doe",
+          }
+        }
+      );
+      const topics = response?.reports?.[0]?.topics || [];
+
+      const currentTopic = topics.find(
+        (topic) => topic.title === lesson.topic
+      );
+
+
+      if (currentTopic) {
+        console.log(`Mastery for topic '${lesson.topic}':`, currentTopic.mastery);
+        setMastery(currentTopic.mastery);
+      } else {
+        console.log(`No mastery data found for topic '${lesson.topic}'.`);
+      }
+    }
+
+    fetchMastery();
+  }, [lesson]);
+
+  useEffect(() => {
     if (!lesson) return;
+    if (mastery === null) return;
+    console.log("Fetching quiz for lesson:", lesson.title, "with mastery:", mastery);
 
     async function loadQuiz() {
-      const quizData = await spawn<Quiz>(
+      const response = await spawn<{ reports: { quiz: { difficulty: string; questions: string[] } }[] }>(
         "generate_quiz",
         {
           topic: lesson?.topic,
-          lesson_id: lesson?.lesson_id,
+          mastery_score: mastery,
         }
       );
 
-      setQuiz(quizData);
+      const quizData = response?.reports?.[0]?.quiz;
+
+      if (quizData) {
+        console.log("Generated quiz data:", quizData);
+        setQuiz({
+          difficulty: quizData.difficulty,
+          questions: quizData.questions,
+        });
+      } else {
+        console.log("No quiz data returned.");
+      }
     }
 
     loadQuiz();
-  }, [lesson]);
-
-
-
+  }, [lesson, mastery]);
 
   async function handleRun(code: string) {
+    if (!lesson || !quiz) return;
+
     setLoading(true);
+
     try {
+      // 1. evaluate_answer
       const result = await spawn<EvaluateAnswerResponse>(
         "evaluate_answer",
         {
-          user_id: "demo_user",
-          lesson_id: "walkers_intro",
-          code,
+          topic: lesson.topic,
+          questions: quiz.questions,
+          learner_answer: code,
         }
       );
-      setFeedback(result);
+      setFeedback(result?.reports[0]);
+
+      console.log("Evaluation result:", result);
+
+      
+      // 2. progress_tracker
+      await spawn("progress_tracker", {
+      user: {
+        user_id: userId || "user_123",
+        name: username || "John Doe",
+      },
+      lesson: {
+        lesson_id: lesson.lesson_id,
+      },
+      score: result?.reports[0]?.score || 0,
+      completed_at: new Date().toISOString(),
+    });
+      // 3. unlock_next_lesson
+       const unlockResponse = await spawn<UnlockLessonResponse[]>(
+      "unlock_next_lesson",
+      {
+        user: {
+          user_id: userId || "user_123",
+          name: username || "John Doe",
+        },
+      }
+    );
+      // 4. update UI
+      const nextLesson =
+      unlockResponse?.reports[0]?.unlocked_lessons[0];
+
+    if (nextLesson) {
+      setLesson({
+        lesson_id: nextLesson.lesson_id,
+        topic: nextLesson.topic,
+        title: nextLesson.lesson_title,
+        content: nextLesson.lesson_content,
+        starter_code: nextLesson.starter_code,
+        topic_difficulty: nextLesson.topic_difficulty,
+      });
+    }
     } catch (err) {
       console.error(err);
       setFeedback({
@@ -106,7 +196,11 @@ export default function Learn() {
   return (
     <LearningWorkspace>
       <LessonPanel lesson={lesson} quiz={quiz} />
-      <CodeWorkspace starterCode={lesson?.starter_code} onRun={handleRun} loading={loading} />
+      <CodeWorkspace
+        starterCode={lesson?.starter_code}
+        onRun={handleRun}
+        loading={loading}
+      />
       <QuizPanel feedback={feedback} loading={loading} />
     </LearningWorkspace>
   );
