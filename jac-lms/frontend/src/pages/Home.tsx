@@ -13,7 +13,7 @@ export default function Home() {
           A Scrimba-style learning platform powered by Jaseci + AI.
         </p>
         <Link
-          to="/learn"
+          to="/signin"
           className="inline-block bg-accent text-black px-6 py-3 rounded-xl font-semibold"
         >
           <Button variant="glass" icon={ArrowRight}>

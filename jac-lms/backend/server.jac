@@ -108,27 +108,191 @@ walker initialize_learning_graph {
         lesson1 = root ++> Lesson(
             lesson_id="jac_intro",
             title="Intro to Jac Syntax",
-            content="Learn basic Jac syntax and structure.",
+            content="""Jac is an AI-first, graph-based programming language designed for Object-Spatial Programming (OSP).
+It treats all data as nodes and edges in a graph, and behavior as walkers that traverse these graphs.
+
+## Key Concepts:
+- Nodes: Entities holding data and behavior.
+- Edges: Directed connections between nodes, can hold data.
+- Walkers: Programs that traverse nodes and edges to perform computations.
+
+## Basic Syntax:
+- Node declarations with properties using `has` keyword.
+- Edge declarations to model relationships.
+- Walkers to define traversal logic.
+- Ability methods (`can`) on walkers and nodes.
+- Use of `spawn` to start walkers.
+
+## Example:
+
+```jac
+node Person {
+    has name: str;
+    has age: int;
+}
+
+edge Friend {}
+
+walker Greeter {
+    can greet with Person entry {
+        print(f"Hello, {here.name}! You are {here.age} years old.");
+    }
+}
+
+with entry {
+    # Create a node
+    alice = root ++> Person(name="Alice", age=30)[0];
+
+    # Spawn the walker to greet
+    Greeter() spawn alice;
+}
+```
+""",
             starter_code="node Example { has str name; }"
         );
         lesson2 = root ++> Lesson(
             lesson_id="walker_intro",
             title="Your First Walker",
-            content="Walkers control logic and traversal in Jac.",
+            content="""This lesson introduces the concept of Walkers in Jac, which are mobile
+programs that traverse the graph of nodes and edges to perform computations.
+
+Walkers are fundamental for interacting with and processing Jac graphs.
+They carry their own state and can define abilities (methods) triggered
+on visiting nodes or edges.
+
+## Key Concepts:
+- Walkers are declared with the `walker` keyword.
+- Abilities are declared with `can <ability_name> with <context>`.
+- The context often specifies node types or special entry points like `root entry`.
+- Walkers can be spawned from nodes to start traversal.
+
+### Example:
+```jac
+node Person {
+    has name: str;
+}
+
+walker Greeter {
+    # Ability to greet a Person node when walker enters it
+    can greet with Person entry {
+        print(f"Hello, {here.name}! Welcome to Jac Walkers.");
+    }
+
+    # Entry ability from root node to start greeting
+    can start with `root entry {
+        # Find all Person nodes connected to root and greet them
+        for person_node in [root --> (`?Person)] {
+            # Spawn this walker on each person node to greet
+            Greeter() spawn person_node;
+        }
+    }
+}
+
+with entry {
+    # Create some Person nodes connected to root
+    alice = root ++> Person(name="Alice")[0];
+    bob = root ++> Person(name="Bob")[0];
+
+    # Spawn the Greeter walker from root to start the greeting process
+    Greeter() spawn root;
+}
+```
+""",
             starter_code="walker hello { start { std.out('Hello Jaseci'); } }"
         );
         lesson3 = root ++> Lesson(
             lesson_id="osp_intro",
             title="Modeling with OSP",
-            content="Nodes and edges form the backbone of Jaseci.",
+            content="""This lesson introduces Object-Spatial Programming (OSP) in Jac, a core paradigm
+that represents data and software as graphs of nodes and edges with traversal behavior.
+
+OSP is a fundamental shift from traditional object-oriented programming, enabling
+explicit modeling of relationships and dynamic computations over graph structures.
+
+## Key Concepts:
+- Nodes: Represent entities with data and behavior.
+- Edges: Directed relationships connecting nodes, can have attributes.
+- Walkers: Mobile programs that traverse nodes and edges, performing computations.
+
+## Modeling with OSP:
+- Define node and edge classes to capture entities and their relationships.
+- Use walkers to navigate and compute over the object graph.
+- Represent complex systems naturally as graphs.
+
+### Example:
+```jac
+node A {
+    has val: int = 0;
+}
+
+node B {
+    has val: int = 0;
+}
+
+edge edge_ab {}
+
+walker W {
+    can create with `root entry {
+        # Create nodes and connect them with edges
+        a = here ++> A(val=5)[0];
+        b = here ++> B(val=10)[0];
+        a +>:edge_ab:+> b;
+        print(f"Created node A with val {a.val} and node B with val {b.val}");
+    }
+}
+
+with entry {
+    # Spawn walker to build graph model
+    root spawn W();
+}
+```
+""",
             starter_code="node A {}; node B {}; A -[edge]-> B;"
         );
         lesson4 = root ++> Lesson(
             lesson_id="byllm_intro",
             title="Intro to byLLM",
-            content="Use LLMs as first-class citizens in Jac.",
+            content="""This lesson introduces the byLLM integration in Jac, enabling AI-first programming by
+leveraging large language models (LLMs) as first-class citizens within Jac walkers and nodes.
+
+## Key Concepts:
+- byLLM functions: Define methods that delegate computation or content generation to LLMs.
+- Method annotations like `by llm(method="ReAct")` specify LLM usage with reasoning chains.
+- Agents: Walkers or nodes enhanced with AI abilities for dynamic reasoning and generation.
+- Integration allows generating content, quiz questions, evaluating answers, and more.
+
+### Example:
+```jac
+import from byllm.lib { Model }
+
+glob llm = Model(model_name="gemini/gemini-2.5-flash", verbose=False);
+
+node Lesson {
+    has lesson_id: str;
+    has title: str;
+    has content: str;
+
+    # LLM method to generate content given a topic
+    def generate_content(topic: str) -> str by llm(method="ReAct");
+}
+
+walker byllm_demo {
+    can run with `root entry {
+        lesson = root ++> Lesson(lesson_id="byllm_intro", title="Intro to byLLM & Agents", content="")[0];
+        lesson.content = lesson.generate_content(lesson.title);
+        print("Generated content:");
+        print(lesson.content);
+    }
+}
+
+with entry {
+    root spawn byllm_demo();
+}
+```
+""",
             starter_code="@byllm(prompt='Explain walkers') func explain() {}"
         );
+        
         print("Lessons created.");
 
         # link lessons to topics

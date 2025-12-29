@@ -7,6 +7,7 @@ import { spawn } from "../lib/jaseci";
 import type { EvaluateAnswerResponse } from "../types/evaluation";
 import type { Lesson } from "../types/lesson";
 import type { Quiz } from "../types/quiz";
+import { LessonUnlockToast } from "../components/LessonUnlocked";
 
 interface UnlockLessonResponse {
   reports: {
@@ -27,6 +28,8 @@ export default function Learn() {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [mastery, setMastery] = useState<number | null>(null);
+  const [previousLessonId, setPreviousLessonId] = useState<string | null>(null);
+  const [lessonUnlocked, setLessonUnlocked] = useState(false);
 
   const userId = localStorage.getItem("userId");
   const username = localStorage.getItem("username");
@@ -43,7 +46,7 @@ export default function Learn() {
         }
       );
 
-      const lessonData = response?.reports[0]?.unlocked_lessons[0];
+      const lessonData = response?.reports[0]?.unlocked_lessons?.[response?.reports[0]?.unlocked_lessons.length - 1];
 
       console.log("Unlocked lesson data:", lessonData);
 
@@ -169,9 +172,10 @@ export default function Learn() {
     );
       // 4. update UI
       const nextLesson =
-      unlockResponse?.reports[0]?.unlocked_lessons[0];
+      unlockResponse?.reports[0]?.unlocked_lessons?.[unlockResponse?.reports[0]?.unlocked_lessons.length - 1];
 
-    if (nextLesson) {
+    if (nextLesson && nextLesson.lesson_id !== lesson.lesson_id) {
+      setPreviousLessonId(lesson.lesson_id);
       setLesson({
         lesson_id: nextLesson.lesson_id,
         topic: nextLesson.topic,
@@ -180,6 +184,9 @@ export default function Learn() {
         starter_code: nextLesson.starter_code,
         topic_difficulty: nextLesson.topic_difficulty,
       });
+
+      setLessonUnlocked(true);
+      setTimeout(() => setLessonUnlocked(false), 1800);
     }
     } catch (err) {
       console.error(err);
@@ -202,6 +209,7 @@ export default function Learn() {
         loading={loading}
       />
       <QuizPanel feedback={feedback} loading={loading} />
+      <LessonUnlockToast visible={lessonUnlocked} />
     </LearningWorkspace>
   );
 }
