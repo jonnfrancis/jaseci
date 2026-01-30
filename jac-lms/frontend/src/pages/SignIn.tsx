@@ -45,7 +45,11 @@ export default function UserAuth() {
         
         if (data?.token) {
           localStorage.setItem("token", data.token);
-          localStorage.setItem("username", data.username);
+
+          await spawn("initialize_learning_graph", { 
+            user_id: userId
+          });
+          
           navigate("/learn");
         }
       } else {
@@ -56,11 +60,10 @@ export default function UserAuth() {
         if (userId) localStorage.setItem("userId", userId);
         if (data?.token) {
           localStorage.setItem("token", data.token);
-          localStorage.setItem("username", data.username);
           
           // Initialize Graph
           await spawn("initialize_learning_graph", { 
-            user: { user_id: userId, name: values.username } 
+            user_id: userId
           });
           
           navigate("/learn");

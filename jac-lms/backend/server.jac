@@ -47,19 +47,11 @@ edge COMPLETED {
 
 walker initialize_learning_graph {
 
-    has user: User = None;
+    has user_id: string;
 
     can initialize with `root entry {
-        if self.user != None {
-            if not hasattr(self.user, "__jac__") {
-                # Assume dict with user_id field
-                user_nodes = [root --> (`?User)](?user_id == self.user["user_id"]);
-                if len(user_nodes) > 0 {
-                    self.user = user_nodes[0];
-                } else {
-                    self.user = root ++> User(user_id=self.user["user_id"], name=self.user.get("name", ""));
-                }
-            }
+        if self.user_id != None {
+            user = [root --> (`?User)](?user_id == self.user_id)[0];
         }
         # Create topics, lessons, and link them
         if not [root --> (`?Topic)] {
@@ -310,19 +302,17 @@ with entry {
         }
         print("Lessons linked to topics.");
 
-        print(type(self.user));
 
-        print(f"Type of self.user after lookup: {type(self.user)}");
 
-        if self.user != None {
-            if hasattr(self.user, "__jac__") {
+        if self.user_id != None {
+            if hasattr(user, "__jac__") {
                 for topic in [root --> (`?Topic)] {
-                    if not [self.user ->:MASTERY:-> topic] {
-                        self.user +>:MASTERY(score=0.0, attempts=0, last_updated="") :+> topic;
+                    if not [user ->:MASTERY:-> topic] {
+                        user +>:MASTERY(score=0.0, attempts=0, last_updated="") :+> topic;
                     }
                 }
             } else {
-                print("Error: self.user is not a Jac node but a dict or other type.");
+                print("Error: user is not a Jac node but a dict or other type.");
             }
         }
 
@@ -330,108 +320,38 @@ with entry {
     }
 
     obj __specs__ {
-        static has auth: bool = False;                # No authentication required
+        static has auth: bool = True;                # No authentication required
     }
 }
 
 walker progress_tracker {
 
-    has user: User;
-    has lesson: Lesson = None;
-    has quiz: Quiz = None;
+    has user_id: string;
+    has lesson_id: string;
+    has quiz_id: string = "";
     has score: float = 0.0;
     has completed_at: str = "";
 
     can submit with `root entry { 
-        if self.user == None {
+        if self.user_id == None {
             report {"error": "User not specified"};
             disengage;
         }
-        # Defensive type check for self.user
-        print(f"Type of self.user: {type(self.user)}");
-        if not hasattr(self.user, "__jac__") {
-            print("Error: self.user is not a Jac node but a dict or other type. Attempting conversion...");
-            # Attempt to convert dict to Jac node by querying existing nodes matching user_id if available
-            if "user_id" in self.user {
-                user_nodes = [root --> (`?User)](?user_id == self.user["user_id"]);
-                if len(user_nodes) > 0 {
-                    self.user = user_nodes[0];
-                    print("Conversion successful: self.user set to existing Jac node.");
-                } else {
-                    # Spawn a new User node with the dict values if possible
-                    print("No existing User node found with user_id. Creating new User node.");
-                    self.user = root ++> User(
-                        user_id = self.user.get("user_id", ""),
-                        name = self.user.get("name", ""),
-                    );
-                    print("New User node created.");
-                }
-            } else {
-                print("Cannot convert: 'user_id' not found in dict.");
-                report {"error": "Invalid user object"};
-                disengage;
-            }
-        }
-        print("Tracking progress for user:", self.user.user_id);
+        user = [root --> (`?User)](?user_id == self.user_id)[0];
 
         # Determine the topic related either by Lesson or Quiz
         topic = None;
-        if self.lesson != None {
-            if not hasattr(self.lesson, "__jac__") {
-                print("Error: self.lesson is not a Jac node but a dict or other type. Attempting conversion...");
-                # Attempt to convert dict to Jac node by querying existing nodes matching lesson_id if available
-                if "lesson_id" in self.lesson {
-                    lesson_nodes = [root --> (`?Lesson)](?lesson_id == self.lesson["lesson_id"]);
-                    if len(lesson_nodes) > 0 {
-                        self.lesson = lesson_nodes[0];
-                        print("Conversion successful: self.lesson set to existing Jac node.");
-                    } else {
-                        # Spawn a new Lesson node with the dict values if possible
-                        print("No existing Lesson node found with lesson_id. Creating new Lesson node.");
-                        self.lesson = root ++> Lesson(
-                            lesson_id = self.lesson.get("lesson_id", ""),
-                            title = self.lesson.get("title", ""),
-                            content = self.lesson.get("content", ""),
-                            starter_code = self.lesson.get("starter_code", "")
-                        );
-                        print("New Lesson node created.");
-                    }
-                } else {
-                    print("Cannot convert: 'lesson_id' not found in dict.");
-                    report {"error": "Invalid lesson object"};
-                    disengage;
-                }
-            }
-            print("Looking for topics related to lesson:", self.lesson.title);
-            lessons = [root --> (`?Lesson)](?lesson_id == self.lesson.lesson_id);
-            if len(lessons) == 0 {
-                report {"error": "Lesson not found in graph"};
-                disengage;
-            }
-            lesson_node = lessons[0];
+        if self.lesson_id != None {
+            lesson_nodes = [root --> (`?Lesson)](?lesson_id == self.lesson_id);
+            lesson_node = lesson_nodes[0];
             topics = [lesson_node <-:HAS_LESSON:<- (`?Topic)];
             print("Found topics for lesson:", len(topics));
             
             if len(topics) > 0 {
                 topic = topics[0];
             } else {
-                print("No related Topic found for Lesson:", self.lesson.title);
+                print("No related Topic found for Lesson:", lesson_node.title);
                 report {"error": "No related Topic found for Lesson"};
-                disengage;
-            }
-        } elif self.quiz != None {
-            print("Looking for topics related to quiz:", self.quiz.quiz_id);
-            quizes = [root --> (`?Quiz)](?quiz_id == self.quiz.quiz_id);
-            if len(quizes) == 0 {
-                report {"error": "Quiz not found in graph"};
-                disengage;
-            }
-            quiz_node = quizes[0];
-            topics = [quiz_node <-:HAS_QUIZ:<- (`?Topic)];
-            if len(topics) > 0 {
-                topic = topics[0];
-            } else {
-                report {"error": "No related Topic found for Quiz"};
                 disengage;
             }
         }
@@ -445,12 +365,12 @@ walker progress_tracker {
         
 
         # Find or create the MASTERY edge from User to Topic
-        mastery_edges = [edge self.user ->:MASTERY:-> topic];
+        mastery_edges = [edge user ->:MASTERY:-> topic];
         print(mastery_edges);
         mastery = None;
         if len(mastery_edges) == 0 {
-            mastery = self.user +>:MASTERY(score=0.0, attempts=0, last_updated="" ):+> topic;
-            edges = [edge self.user ->:MASTERY:-> topic];
+            mastery = user +>:MASTERY(score=0.0, attempts=0, last_updated="" ):+> topic;
+            edges = [edge user ->:MASTERY:-> topic];
             print("User mastery edges with score 0.0:", type(edges));
         } else {
             mastery = mastery_edges[0];
@@ -472,23 +392,22 @@ walker progress_tracker {
         print("Mastery edge properties updated.");
 
         # Mark the lesson as completed by adding COMPLETED edge from User to Lesson if lesson submitted
-        if self.lesson != None {
-            completed_edges = [self.user ->:COMPLETED:-> self.lesson];
+        if self.lesson_id != None {
+            completed_edges = [user ->:COMPLETED:-> lesson_node];
             if len(completed_edges) == 0 {
-                self.user +>:COMPLETED(completed_at=self.completed_at):+> self.lesson;
+                user +>:COMPLETED(completed_at=self.completed_at):+> lesson_node;
             }
         }
         print("Lesson completion recorded.");
 
         # Prepare structured feedback dictionary
         feedback = {
-            "user_id": self.user.user_id,
+            "user_id": user.user_id,
             "topic_id": topic.topic_id,
             "topic_title": topic.title,
             "new_mastery_score": new_score,
             "total_attempts": new_attempts,
-            "completed_lesson_id": self.lesson.lesson_id if self.lesson != None else None,
-            "completed_quiz_id": self.quiz.quiz_id if self.quiz != None else None,
+            "completed_lesson_id": lesson_node.lesson_id if self.lesson_id != None else None,
             "completion_time": self.completed_at,
         };
 
@@ -496,48 +415,24 @@ walker progress_tracker {
     }
 
     obj __specs__ {
-        static has auth: bool = False;                # No authentication required
+        static has auth: bool = True;                # No authentication required
     }
 }
 
 walker unlock_next_lesson {
-    has user: User;
+    has user_id: string;
     has threshold: float = 0.6;
 
     can get_unlocked_lessons with `root entry {
         unlocked_lessons = [];
 
-        print(f"Type of self.user: {type(self.user)}");
-        
-        if self.user == None {
+        if self.user_id == None {
             print("Error: user is None, cannot proceed.");
             report {"error": "User not specified"};
             disengage;
         }
 
-        if not hasattr(self.user, "__jac__") {
-            print("Error: self.user is not a Jac node but a dict or other type. Attempting conversion...");
-            # Attempt to convert dict to Jac node by querying existing nodes matching user_id if available
-            if "user_id" in self.user {
-                user_nodes = [root --> (`?User)](?user_id == self.user["user_id"]);
-                if len(user_nodes) > 0 {
-                    self.user = user_nodes[0];
-                    print("Conversion successful: self.user set to existing Jac node.");
-                } else {
-                    # Spawn a new User node with the dict values if possible
-                    print("No existing User node found with user_id. Creating new User node.");
-                    self.user = root ++> User(
-                        user_id = self.user.get("user_id", ""),
-                        name = self.user.get("name", ""),
-                    );
-                    print("New User node created.");
-                }
-            } else {
-                print("Cannot convert: 'user_id' not found in dict.");
-                report {"error": "Invalid user object"};
-                disengage;
-            }
-        }
+        user = [root --> (`?User)](?user_id == self.user_id)[0];
 
         for topic in [root --> (`?Topic)] {
             prereqs = [topic ->:PREREQUISITE:->];
@@ -545,7 +440,7 @@ walker unlock_next_lesson {
             # Check if user mastery score for all prerequisites is above or equal to threshold
             can_unlock = True;
             for prereq in prereqs {
-                mastery_edges = [edge self.user ->:MASTERY:-> prereq];
+                mastery_edges = [edge user ->:MASTERY:-> prereq];
                 if len(mastery_edges) == 0 {
                     can_unlock = False;
                     break;
@@ -584,7 +479,7 @@ walker unlock_next_lesson {
     }
 
     obj __specs__ {
-        static has auth: bool = False;                # No authentication required
+        static has auth: bool = True;                # No authentication required
     }
 }
 
@@ -765,42 +660,20 @@ walker evaluate_answer {
 }
 
 walker get_skill_map {
-    has user: User; 
+    has user_id: string; 
     has threshold: float = 0.6;  
 
     # The main ability to generate the skill map snapshot
     can snapshot with `root entry {
         topics_list = [];
 
-        print(f"Type of self.user: {type(self.user)}");
-        if self.user == None {
+        if self.user_id == None {
             print("Error: user is None, cannot proceed.");
             report {"error": "User not specified"};
             disengage;
         }
-        if not hasattr(self.user, "__jac__") {
-            print("Error: self.user is not a Jac node but a dict or other type. Attempting conversion...");
-            # Attempt to convert dict to Jac node by querying existing nodes matching user_id if available
-            if "user_id" in self.user {
-                user_nodes = [root --> (`?User)](?user_id == self.user["user_id"]);
-                if len(user_nodes) > 0 {
-                    self.user = user_nodes[0];
-                    print("Conversion successful: self.user set to existing Jac node.");
-                } else {
-                    # Spawn a new User node with the dict values if possible
-                    print("No existing User node found with user_id. Creating new User node.");
-                    self.user = root ++> User(
-                        user_id = self.user.get("user_id", ""),
-                        name = self.user.get("name", ""),
-                    );
-                    print("New User node created.");
-                }
-            } else {
-                print("Cannot convert: 'user_id' not found in dict.");
-                report {"error": "Invalid user object"};
-                disengage;
-            }
-        }
+        
+        user = [root --> (`?User)](?user_id == self.user_id)[0];
 
 
         # Iterate over all topics in the root graph
@@ -810,7 +683,7 @@ walker get_skill_map {
             prereq_ids = [p.topic_id for p in prereqs];
 
             # Get the user's mastery edge to this topic, if it exists
-            mastery_edges = [edge self.user ->:MASTERY:-> topic];
+            mastery_edges = [edge user ->:MASTERY:-> topic];
             mastery_score = 0.0;
             if len(mastery_edges) > 0 {
                 mastery_score = mastery_edges[0].score;
@@ -819,7 +692,7 @@ walker get_skill_map {
             # Determine if topic is unlocked: all prerequisites mastery >= threshold
             unlocked = True;
             for prereq in prereqs {
-                prereq_mastery_edges = [edge self.user ->:MASTERY:-> prereq];
+                prereq_mastery_edges = [edge user ->:MASTERY:-> prereq];
                 if len(prereq_mastery_edges) == 0 or prereq_mastery_edges[0].score < self.threshold {
                     unlocked = False;
                     break;
@@ -844,7 +717,7 @@ walker get_skill_map {
     }
 
     obj __specs__ {
-        static has auth: bool = False;  # No authentication required
+        static has auth: bool = True;  # No authentication required
     }
 }
 

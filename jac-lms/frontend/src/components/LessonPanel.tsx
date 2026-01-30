@@ -30,7 +30,6 @@ const lessonVariants = {
 };
 
 export default function LessonPanel({ lesson, quiz }: Props) {
-  if (!lesson) return <EmptyLessonState />;
 
   return (
     <AnimatePresence mode="wait">
@@ -64,7 +63,7 @@ export default function LessonPanel({ lesson, quiz }: Props) {
           <motion.section
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }} 
+            transition={{ delay: 0.25 }} 
             className="flex-1 space-y-4
           ">
             <div className="flex items-center gap-2 px-1 text-slate-400">
@@ -135,13 +134,7 @@ export default function LessonPanel({ lesson, quiz }: Props) {
           )}
         </motion.aside>
       ): (
-      <motion.div
-        key="empty"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
-        <EmptyLessonState />
-      </motion.div>
+      <EmptyLessonState />
     )}
     </AnimatePresence>
   );
@@ -149,11 +142,11 @@ export default function LessonPanel({ lesson, quiz }: Props) {
 
 function EmptyLessonState() {
   return (
-    <aside className="col-span-3 flex flex-col items-center justify-center text-center p-10 bg-white/5 rounded-2xl border border-dashed border-white/10">
+    <motion.aside key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="col-span-3 flex flex-col items-center justify-center text-center p-10 bg-white/5 rounded-2xl border border-dashed border-white/10">
       <div className="bg-white/5 p-4 rounded-full mb-4">
         <BookOpen className="text-slate-600" size={32} />
       </div>
       <p className="text-slate-500 font-medium italic">Select a lesson to begin</p>
-    </aside>
+    </motion.aside>
   );
 }

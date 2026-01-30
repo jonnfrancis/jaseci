@@ -26,10 +26,10 @@ export default function QuizPanel({ feedback, loading }: Props) {
             </p>
           </div>
         ) : !feedback ? (
-          <div className="text-center py-10 border border-dashed border-white/10 rounded-2xl bg-white/[0.02]">
+          <div className="text-center py-10 border border-dashed border-white/10 rounded-2xl bg-white/2">
             <Lightbulb className="mx-auto text-slate-600 mb-3" size={28} />
             <p className="text-slate-500 text-sm italic font-sans px-4">
-              Submit your answer to receive real-time feedback.
+              Submit your reflection answers to receive real-time feedback.
             </p>
           </div>
         ) : (

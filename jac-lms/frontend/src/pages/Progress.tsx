@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { spawn } from "../lib/jaseci";
 import type { SkillNode } from "../types/skill";
 import { CheckCircle2, Lock, LayoutGrid, Trophy } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 interface JaseciResponse {
   reports: Array<{
@@ -9,22 +10,45 @@ interface JaseciResponse {
   }>;
 }
 
+const gridVariants = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.15,
+    },
+  },
+};
+
+const cardVariants = {
+  hidden: {
+    opacity: 0,
+    y: 14,
+    scale: 0.98,
+  },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.35,
+      ease: "easeOut",
+    },
+  },
+};
+
 export default function Progress() {
   const [skills, setSkills] = useState<SkillNode[]>([]);
   const [loading, setLoading] = useState(true);
 
   const userId = localStorage.getItem("userId");
-  const username = localStorage.getItem("username");
 
   useEffect(() => {
     async function loadSkillMap() {
       try {
         // Calling your Jaseci walker
         const response = await spawn<JaseciResponse>("get_skill_map", {
-          user: {
-            user_id: userId || "user_123",
-            name: username || "John Doe",
-          },
+          user_id: userId || "user_123",
         });
 
         // Mapping logic: Accessing reports[0].topics from your JSON structure
@@ -61,16 +85,30 @@ export default function Progress() {
       </header>
 
       {/* Skills Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {skills.length > 0 ? (
-          skills.map((skill) => <SkillCard key={skill.topic_id} skill={skill} />)
-        ) : (
-          <div className="col-span-full text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
-            <LayoutGrid className="mx-auto text-slate-600 mb-4" size={48} />
-            <p className="text-slate-400">No skill data available yet.</p>
-          </div>
-        )}
-      </div>
+      <AnimatePresence>
+        <motion.div variants={gridVariants} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {skills.length > 0 ? (
+            skills.map((skill) => (
+            <motion.div
+              key={skill.topic_id}
+              variants={cardVariants}
+              initial="hidden"
+              animate="show"
+              style={{
+                filter: skill.unlocked ? "none" : "grayscale(30%)",
+              }}
+            >
+              <SkillCard skill={skill} />
+            </motion.div>
+          ))
+          ) : (
+            <div className="col-span-full text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
+              <LayoutGrid className="mx-auto text-slate-600 mb-4" size={48} />
+              <p className="text-slate-400">No skill data available yet.</p>
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
@@ -109,9 +147,11 @@ function SkillCard({ skill }: { skill: SkillNode }) {
           <span className="text-white font-mono">{masteryPercentage}%</span>
         </div>
         <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-          <div 
+          <motion.div 
             className="h-full bg-linear-to-r from-primary to-blue-500 transition-all duration-1000 ease-out"
-            style={{ width: `${masteryPercentage}%` }}
+            initial={{ width: 0 }}
+            animate={{ width: `${masteryPercentage}%` }}
+            transition={{ duration: 0.9, ease: "easeOut", delay: 0.2}}
           />
         </div>
       </div>

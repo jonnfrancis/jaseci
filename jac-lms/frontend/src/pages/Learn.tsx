@@ -32,17 +32,13 @@ export default function Learn() {
   const [lessonUnlocked, setLessonUnlocked] = useState(false);
 
   const userId = localStorage.getItem("userId");
-  const username = localStorage.getItem("username");
 
   useEffect(() => {
     async function loadLesson() {
       const response = await spawn<UnlockLessonResponse>(
         "unlock_next_lesson",
         {
-          user: {
-            user_id: userId || "user_123",
-            name: username || "John Doe",
-          },
+          user_id: userId || "user_123",
         }
       );
 
@@ -62,6 +58,7 @@ export default function Learn() {
         starter_code: lessonData.starter_code,
         topic_difficulty: lessonData.topic_difficulty,
       });
+      setPreviousLessonId(lessonData.lesson_id);
     }
 
     loadLesson();
@@ -71,13 +68,10 @@ export default function Learn() {
     async function fetchMastery() {
       if (!lesson) return;
 
-      const response = await spawn<{ reports: { topics: any[] }[] }>(
+      const response = await spawn<{ reports: { topics: { title: string; mastery: number }[] }[] }>(
         "get_skill_map",
         {
-          user : {
-            user_id: userId || "user_123",
-            name: username || "John Doe",
-          }
+          user_id: userId || "user_123",
         }
       );
       const topics = response?.reports?.[0]?.topics || [];
@@ -147,47 +141,39 @@ export default function Learn() {
 
       console.log("Evaluation result:", result);
 
-      
+
       // 2. progress_tracker
       await spawn("progress_tracker", {
-      user: {
         user_id: userId || "user_123",
-        name: username || "John Doe",
-      },
-      lesson: {
         lesson_id: lesson.lesson_id,
-      },
-      score: result?.reports[0]?.score || 0,
-      completed_at: new Date().toISOString(),
-    });
+        score: result?.reports[0]?.score || 0,
+        completed_at: new Date().toISOString(),
+      });
       // 3. unlock_next_lesson
-       const unlockResponse = await spawn<UnlockLessonResponse[]>(
-      "unlock_next_lesson",
-      {
-        user: {
+      const unlockResponse = await spawn<UnlockLessonResponse>(
+        "unlock_next_lesson",
+        {
           user_id: userId || "user_123",
-          name: username || "John Doe",
-        },
-      }
-    );
+        }
+      );
       // 4. update UI
       const nextLesson =
-      unlockResponse?.reports[0]?.unlocked_lessons?.[unlockResponse?.reports[0]?.unlocked_lessons.length - 1];
+        unlockResponse?.reports[0]?.unlocked_lessons?.[unlockResponse?.reports[0]?.unlocked_lessons.length - 1];
 
-    if (nextLesson && nextLesson.lesson_id !== lesson.lesson_id) {
-      setPreviousLessonId(lesson.lesson_id);
-      setLesson({
-        lesson_id: nextLesson.lesson_id,
-        topic: nextLesson.topic,
-        title: nextLesson.lesson_title,
-        content: nextLesson.lesson_content,
-        starter_code: nextLesson.starter_code,
-        topic_difficulty: nextLesson.topic_difficulty,
-      });
+      if (nextLesson && nextLesson.lesson_id !== previousLessonId) {
+        setPreviousLessonId(nextLesson.lesson_id);
+        setLesson({
+          lesson_id: nextLesson.lesson_id,
+          topic: nextLesson.topic,
+          title: nextLesson.lesson_title,
+          content: nextLesson.lesson_content,
+          starter_code: nextLesson.starter_code,
+          topic_difficulty: nextLesson.topic_difficulty,
+        });
 
-      setLessonUnlocked(true);
-      setTimeout(() => setLessonUnlocked(false), 1800);
-    }
+        setLessonUnlocked(true);
+        setTimeout(() => setLessonUnlocked(false), 1800);
+      }
     } catch (err) {
       console.error(err);
       setFeedback({
