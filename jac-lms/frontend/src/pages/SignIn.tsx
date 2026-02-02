@@ -47,7 +47,8 @@ export default function UserAuth() {
           localStorage.setItem("token", data.token);
 
           await spawn("initialize_learning_graph", { 
-            user_id: userId
+            user_id: userId,
+            name: values.username
           });
           
           navigate("/learn");
@@ -63,7 +64,8 @@ export default function UserAuth() {
           
           // Initialize Graph
           await spawn("initialize_learning_graph", { 
-            user_id: userId
+            user_id: userId,
+            name: values.username
           });
           
           navigate("/learn");

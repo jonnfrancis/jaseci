@@ -45,285 +45,6 @@ edge COMPLETED {
     has completed_at: str;
 }
 
-walker initialize_learning_graph {
-
-    has user_id: string;
-
-    can initialize with `root entry {
-        if self.user_id != None {
-            user = [root --> (`?User)](?user_id == self.user_id)[0];
-        }
-        # Create topics, lessons, and link them
-        if not [root --> (`?Topic)] {
-            jac_basics = root ++> Topic(
-                topic_id="t1",
-                title="Jac Basics",
-                difficulty=1
-            );
-            walkers = root ++> Topic(
-                topic_id="t2",
-                title="Understanding Walkers",
-                difficulty=2
-            );
-            OSP_graphs = root ++> Topic(
-                topic_id="t3",
-                title="OSP Graphs",
-                difficulty=3
-            );
-            byllm = root ++> Topic(
-                topic_id="t4",
-                title="byLLM & Agents",
-                difficulty=4
-            );
-        } else {
-            jac_basics = [root --> (`?Topic)](?title == "Jac Basics")[0];
-            walkers = [root --> (`?Topic)](?title == "Understanding Walkers")[0];
-            OSP_graphs = [root --> (`?Topic)](?title == "OSP Graphs")[0];
-            byllm = [root --> (`?Topic)](?title == "byLLM & Agents")[0];
-        }
-
-        print("Topics set up.");
-
-        #connect topics with prerequisites
-        if not [walkers ->:PREREQUISITE:-> jac_basics] {
-            walkers +>:PREREQUISITE(strength=0.9):+> jac_basics;
-        }
-        if not [OSP_graphs ->:PREREQUISITE:-> walkers] {
-            OSP_graphs +>:PREREQUISITE(strength=0.9):+> walkers;
-        }
-        if not [byllm ->:PREREQUISITE:-> OSP_graphs] {
-            byllm +>:PREREQUISITE(strength=0.9):+> OSP_graphs;
-        }
-        print("Prerequisite relationships established.");
-
-        # create lessons
-        lesson1 = root ++> Lesson(
-            lesson_id="jac_intro",
-            title="Intro to Jac Syntax",
-            content="""Jac is an AI-first, graph-based programming language designed for Object-Spatial Programming (OSP).
-It treats all data as nodes and edges in a graph, and behavior as walkers that traverse these graphs.
-
-## Key Concepts:
-- Nodes: Entities holding data and behavior.
-- Edges: Directed connections between nodes, can hold data.
-- Walkers: Programs that traverse nodes and edges to perform computations.
-
-## Basic Syntax:
-- Node declarations with properties using `has` keyword.
-- Edge declarations to model relationships.
-- Walkers to define traversal logic.
-- Ability methods (`can`) on walkers and nodes.
-- Use of `spawn` to start walkers.
-
-## Example:
-
-```jac
-node Person {
-    has name: str;
-    has age: int;
-}
-
-edge Friend {}
-
-walker Greeter {
-    can greet with Person entry {
-        print(f"Hello, {here.name}! You are {here.age} years old.");
-    }
-}
-
-with entry {
-    # Create a node
-    alice = root ++> Person(name="Alice", age=30)[0];
-
-    # Spawn the walker to greet
-    Greeter() spawn alice;
-}
-```
-""",
-            starter_code="node Example { has str name; }"
-        );
-        lesson2 = root ++> Lesson(
-            lesson_id="walker_intro",
-            title="Your First Walker",
-            content="""This lesson introduces the concept of Walkers in Jac, which are mobile
-programs that traverse the graph of nodes and edges to perform computations.
-
-Walkers are fundamental for interacting with and processing Jac graphs.
-They carry their own state and can define abilities (methods) triggered
-on visiting nodes or edges.
-
-## Key Concepts:
-- Walkers are declared with the `walker` keyword.
-- Abilities are declared with `can <ability_name> with <context>`.
-- The context often specifies node types or special entry points like `root entry`.
-- Walkers can be spawned from nodes to start traversal.
-
-### Example:
-```jac
-node Person {
-    has name: str;
-}
-
-walker Greeter {
-    # Ability to greet a Person node when walker enters it
-    can greet with Person entry {
-        print(f"Hello, {here.name}! Welcome to Jac Walkers.");
-    }
-
-    # Entry ability from root node to start greeting
-    can start with `root entry {
-        # Find all Person nodes connected to root and greet them
-        for person_node in [root --> (`?Person)] {
-            # Spawn this walker on each person node to greet
-            Greeter() spawn person_node;
-        }
-    }
-}
-
-with entry {
-    # Create some Person nodes connected to root
-    alice = root ++> Person(name="Alice")[0];
-    bob = root ++> Person(name="Bob")[0];
-
-    # Spawn the Greeter walker from root to start the greeting process
-    Greeter() spawn root;
-}
-```
-""",
-            starter_code="walker hello { start { std.out('Hello Jaseci'); } }"
-        );
-        lesson3 = root ++> Lesson(
-            lesson_id="osp_intro",
-            title="Modeling with OSP",
-            content="""This lesson introduces Object-Spatial Programming (OSP) in Jac, a core paradigm
-that represents data and software as graphs of nodes and edges with traversal behavior.
-
-OSP is a fundamental shift from traditional object-oriented programming, enabling
-explicit modeling of relationships and dynamic computations over graph structures.
-
-## Key Concepts:
-- Nodes: Represent entities with data and behavior.
-- Edges: Directed relationships connecting nodes, can have attributes.
-- Walkers: Mobile programs that traverse nodes and edges, performing computations.
-
-## Modeling with OSP:
-- Define node and edge classes to capture entities and their relationships.
-- Use walkers to navigate and compute over the object graph.
-- Represent complex systems naturally as graphs.
-
-### Example:
-```jac
-node A {
-    has val: int = 0;
-}
-
-node B {
-    has val: int = 0;
-}
-
-edge edge_ab {}
-
-walker W {
-    can create with `root entry {
-        # Create nodes and connect them with edges
-        a = here ++> A(val=5)[0];
-        b = here ++> B(val=10)[0];
-        a +>:edge_ab:+> b;
-        print(f"Created node A with val {a.val} and node B with val {b.val}");
-    }
-}
-
-with entry {
-    # Spawn walker to build graph model
-    root spawn W();
-}
-```
-""",
-            starter_code="node A {}; node B {}; A -[edge]-> B;"
-        );
-        lesson4 = root ++> Lesson(
-            lesson_id="byllm_intro",
-            title="Intro to byLLM",
-            content="""This lesson introduces the byLLM integration in Jac, enabling AI-first programming by
-leveraging large language models (LLMs) as first-class citizens within Jac walkers and nodes.
-
-## Key Concepts:
-- byLLM functions: Define methods that delegate computation or content generation to LLMs.
-- Method annotations like `by llm(method="ReAct")` specify LLM usage with reasoning chains.
-- Agents: Walkers or nodes enhanced with AI abilities for dynamic reasoning and generation.
-- Integration allows generating content, quiz questions, evaluating answers, and more.
-
-### Example:
-```jac
-import from byllm.lib { Model }
-
-glob llm = Model(model_name="gemini/gemini-2.5-flash", verbose=False);
-
-node Lesson {
-    has lesson_id: str;
-    has title: str;
-    has content: str;
-
-    # LLM method to generate content given a topic
-    def generate_content(topic: str) -> str by llm(method="ReAct");
-}
-
-walker byllm_demo {
-    can run with `root entry {
-        lesson = root ++> Lesson(lesson_id="byllm_intro", title="Intro to byLLM & Agents", content="")[0];
-        lesson.content = lesson.generate_content(lesson.title);
-        print("Generated content:");
-        print(lesson.content);
-    }
-}
-
-with entry {
-    root spawn byllm_demo();
-}
-```
-""",
-            starter_code="@byllm(prompt='Explain walkers') func explain() {}"
-        );
-        
-        print("Lessons created.");
-
-        # link lessons to topics
-        if not [jac_basics ->:HAS_LESSON:-> lesson1] {
-            jac_basics +>:HAS_LESSON:+> lesson1;
-        }
-        if not [walkers ->:HAS_LESSON:-> lesson2] {
-            walkers +>:HAS_LESSON:+> lesson2;
-        }
-        if not [OSP_graphs ->:HAS_LESSON:-> lesson3] {
-            OSP_graphs +>:HAS_LESSON:+> lesson3;
-        }
-        if not [byllm ->:HAS_LESSON:-> lesson4] {
-            byllm +>:HAS_LESSON:+> lesson4;
-        }
-        print("Lessons linked to topics.");
-
-
-
-        if self.user_id != None {
-            if hasattr(user, "__jac__") {
-                for topic in [root --> (`?Topic)] {
-                    if not [user ->:MASTERY:-> topic] {
-                        user +>:MASTERY(score=0.0, attempts=0, last_updated="") :+> topic;
-                    }
-                }
-            } else {
-                print("Error: user is not a Jac node but a dict or other type.");
-            }
-        }
-
-        report "Learning graph initialized.";
-    }
-
-    obj __specs__ {
-        static has auth: bool = True;                # No authentication required
-    }
-}
-
 walker progress_tracker {
 
     has user_id: string;
@@ -718,6 +439,838 @@ walker get_skill_map {
 
     obj __specs__ {
         static has auth: bool = True;  # No authentication required
+    }
+}
+
+walker initialize_learning_graph {
+
+    has user_id: string;
+    has name: string = "Learner";
+
+    # Helper to get or create a topic by title and id
+    def get_or_create_topic(topic_id: str, title: str, difficulty: int) -> Topic {
+        topics = [root --> (`?Topic)](?title == title);
+        if len(topics) > 0 {
+            return topics[0];
+        }
+        return root ++> Topic(topic_id=topic_id, title=title, difficulty=difficulty);
+    }
+
+    # Helper to get or create a lesson by lesson_id and title
+    def get_or_create_lesson(lesson_id: str, title: str, content: str, starter_code: str) -> Lesson {
+        lessons = [root --> (`?Lesson)](?lesson_id == lesson_id);
+        if len(lessons) > 0 {
+            return lessons[0];
+        }
+        return root ++> Lesson(
+            lesson_id=lesson_id,
+            title=title,
+            content=content,
+            starter_code=starter_code
+        );
+    }
+
+
+    can initialize with `root entry {
+        if self.user_id != None {
+            user_nodes = [root --> (`?User)](?user_id == self.user_id);
+            if len(user_nodes) > 0 {
+                user = user_nodes[0];
+            } else {
+                user = root ++> User(user_id=self.user_id, name=self.name);
+            }
+        }
+        print("User initialized.");
+
+        # Create topics, lessons, and link them
+        basics = self.get_or_create_topic("t1", "Jac Basics", 1);
+        functions = self.get_or_create_topic("t2", "Functions and Control Flow", 2);
+        objects = self.get_or_create_topic("t3", "Objects and Classes", 3);
+        relationships = self.get_or_create_topic("t4", "Relationships and Graphs", 4);
+        walkers = self.get_or_create_topic("t5", "Understanding Walkers", 5);
+        abilities = self.get_or_create_topic("t6", "Abilities and Events", 6);
+        pattern_matching = self.get_or_create_topic("t7", "Pattern Matching", 7);
+        byllm = self.get_or_create_topic("t8", "byLLM & AI Integration", 8);
+        advanced_osp = self.get_or_create_topic("t9", "Advanced OSP Concepts", 9);
+        app_dev = self.get_or_create_topic("t10", "Building Apps and Programs", 10);
+
+        print("Topics set up.");
+
+        #connect topics with prerequisites
+        prerequisites = [
+            (functions, basics),
+            (objects, functions),
+            (relationships, objects),
+            (walkers, relationships),
+            (abilities, walkers),
+            (pattern_matching, abilities),
+            (byllm, pattern_matching),
+            (advanced_osp, byllm),
+            (app_dev, advanced_osp)
+        ];
+
+        for (src, dst) in prerequisites {
+            if not [src ->:PREREQUISITE:-> dst] {
+                src +>:PREREQUISITE(strength=0.9):+> dst;
+            }
+        }
+        print("Prerequisite relationships established.");
+
+        # create lessons
+        lesson1 = self.get_or_create_lesson(
+            "jac_intro",
+            "Intro to Jac Syntax",
+            """Jac is an AI-first, graph-based programming language designed for Object-Spatial Programming (OSP).
+It treats all data as nodes and edges in a graph, and behavior as walkers that traverse these graphs.
+
+## Key Concepts:
+- Nodes: Entities holding data and behavior.
+- Edges: Directed connections between nodes, can hold data.
+- Walkers: Programs that traverse nodes and edges to perform computations.
+
+## Basic Syntax:
+- Node declarations with properties using `has` keyword.
+- Edge declarations to model relationships.
+- Walkers to define traversal logic.
+- Ability methods (`can`) on walkers and nodes.
+- Use of `spawn` to start walkers.
+
+## Example:
+
+```jac
+node Person {
+    has name: str;
+    has age: int;
+}
+
+edge Friend {}
+
+walker Greeter {
+    can greet with Person entry {
+        print(f"Hello, {here.name}! You are {here.age} years old.");
+    }
+}
+
+with entry {
+    # Create a node
+    alice = root ++> Person(name="Alice", age=30)[0];
+
+    # Spawn the walker to greet
+    Greeter() spawn alice;
+}
+```
+""",
+            "node Example { has str name; }"
+        );
+        
+        lesson2 = self.get_or_create_lesson(
+            "jac_functions_control_flow",
+            "Functions and Control Flow in Jac",
+            """This lesson covers how to organize your code using functions and control flow statements in Jac.
+
+## Functions in Jac:
+Functions allow you to group code into reusable blocks that you can call by name. This helps keep code clean and manageable.
+
+### Defining Functions:
+```jac
+def greet(name: str) {
+    print(f"Hello, {name}!");
+}
+```
+
+### Calling Functions: 
+```jac
+with entry {
+    greet("Alice");
+}
+```
+
+## Control Flow Statements:
+Control flow directs the execution path of your program. Jac supports conditionals and loops.
+
+### If-Else Statements:
+```jac
+with entry {
+    x: int = 10;
+
+    if x < 5 {
+        print("small");
+    } elif x < 15 {
+        print("medium");
+    } else {
+        print("large");
+    }
+}
+```
+
+### Pattern Matching:
+Pattern matching lets you branch logic based on matching values or patterns.
+```jac
+with entry {
+    value: int = 2;
+
+    match value {
+        case 1:
+            print("one");
+        case 2:
+            print("two");
+        case _:
+            print("other");
+    }
+}
+
+### For Loops:
+For loops allow you to iterate over collections.
+```jac
+with entry {
+    items: list[str] = ["a", "b", "c"];
+    for item in items {
+        print(item);
+    }
+
+    for i = 0 to i < 5 by i += 1 {
+        print(i);
+    }
+}
+```
+
+### While Loops:
+Jac supports while loops for repeated execution while a condition is true.
+```jac
+with entry {
+    i: int = 0;
+    while i < 3 {
+        print(i);
+        i += 1;
+    }
+}
+```
+
+""",
+            """ def greet(name: str) { print(f"Hello, {name}!"); }
+with entry { greet("Jac learner"); } """
+        );
+        lesson3 = self.get_or_create_lesson(
+            "jac_objects_classes",
+            "Objects and Classes in Jac",
+            """This lesson introduces object-oriented programming concepts in Jac, focusing on nodes as classes and their properties and methods.
+
+## Nodes as Classes:
+In Jac, nodes represent classes or objects. You define a node type with properties using the `has` keyword.
+
+### Defining Nodes (Classes):
+```jac 
+node Person {
+    has name: str;
+    has age: int;
+}
+``` 
+This defines a `Person` node with two properties: `name` (a string) and `age` (an integer).
+
+### Creating Node Instances:
+You can create instances of nodes connected to another node (like `root`):
+```jac
+with entry {
+    alice = root ++> Person(name="Alice", age=30)[0];
+}
+```
+
+### Inheritance with `isa`:
+Jac supports inheritance using the `isa` keyword, allowing nodes to inherit properties and methods from other nodes.
+```jac
+node Animal {
+    has name: str;
+}
+
+node Dog isa Animal {
+    can bark {
+        print(f"Woof! My name is {self.name}");
+    }
+}
+```
+Here, `Dog` inherits the `name` property from `Animal` and adds the ability to `bark`.
+
+### Using Methods and Abilities on Nodes:
+You can define methods (called abilities) on nodes by declaring can blocks inside the node:
+```jac
+node Counter {
+    has count: int = 0;
+
+    can increment {
+        self.count += 1;
+        print(f"Count is now {self.count}");
+    }
+}
+```
+
+### Example: Using Objects and Abilities
+```jac
+walker test_objects {
+    can run with `root entry {
+        alice = root ++> Person(name="Alice", age=25)[0];
+        dog = root ++> Dog(name="Fido")[0];
+        dog.bark();
+    }
+}
+```
+""",
+            """ node Person { has str name; has int age; }
+
+node Animal { has str name; }
+
+node Dog isa Animal { can bark { print(f"Woof! My name is {self.name}"); } }
+
+with entry { alice = root ++> Person(name="Alice", age=30)[0]; dog = root ++> Dog(name="Fido")[0]; dog.bark(); }"""
+        );
+        lesson4 = self.get_or_create_lesson(
+            "jac_relationships_graphs",
+            "Relationships and Graphs in Jac",
+            """This lesson introduces how to model relationships and graphs in Jac using nodes and edges.
+
+## Nodes and Edges:
+
+### Node Definition:
+Nodes represent entities or objects in a graph.
+```jac
+node Person {
+    has name: str;
+    has age: int = 0;
+}
+```
+
+### Edge Definition:
+Edges represent directed relationships between nodes.
+```jac
+edge Friend {
+    has since: int;
+    has strength: float = 1.0;
+}
+```
+
+### Modeling Relationships:
+You connect nodes with edges to represent relationships, e.g., friendship.
+```jac
+walker RelationshipExplorer {
+    can explore with Person entry {
+        # Traverse outgoing Friend edges to connected persons
+        friends = [->:Friend:->];
+        for friend in friends {
+            print(f"{here.name} is friends with {friend.name} since {here:Friend.since}");
+        }
+    }
+}
+```
+
+### Graph Traversal:
+Jac uses walkers to visit nodes and edges in a graph.
+#### Basic Traversal:
+```jac
+with entry {
+    # Start traversal at root nodes
+    visit [->];
+}
+```
+
+#### Filtering:
+You can filter nodes or edges by attributes.
+```jac
+# Filter friends since 2020
+recent_friends = [->:Friend:since > 2020:->];
+```
+This lesson helps you understand the core concepts of Object-Spatial Programming (OSP) in Jac by modeling and traversing graphs. """,
+            """node Person { has name: str; has age: int = 0; }
+
+edge Friend { has since: int; has strength: float = 1.0; }
+
+walker RelationshipExplorer { can explore with Person entry { friends = [->:Friend:->]; for friend in friends { print(f"{here.name} is friends with {friend.name} since {here:Friend.since}"); } } }
+
+with entry { visit [->]; } """
+        );
+        lesson5 = self.get_or_create_lesson(
+            "jac_understanding_walkers",
+            "Understanding Walkers in Jac",
+            """This lesson introduces walkers, which are mobile computation agents that traverse the graph and execute logic at each node.
+
+## What are Walkers?
+Walkers are special objects designed to navigate nodes and edges in a Jac graph, performing computations or triggering behaviors as they go.
+
+## Defining a Walker:
+You define a walker similar to an object but with traversal abilities.
+
+```jac
+walker Greeter {
+    can start with `root entry {
+        visit [-->];  # Visit nodes connected to root
+    }
+
+    can greet with Person entry {
+        print(f\"Hello, {here.name}!\");
+        here.visited = True;
+    }
+}
+```
+- `can start with root entry`: Entry ability where the walker begins.
+- `visit [-->];`: Traverses outgoing edges to connected nodes.
+- `can greet with Person entry`: Ability triggered at nodes of type `Person`.
+
+### Using Walkers:
+You spawn walkers at nodes to start their traversal.
+```jac
+with entry {
+    alice = Person(name="Alice");
+    bob = Person(name="Bob");
+
+    root ++> alice;
+    alice ++> bob;
+
+    root spawn Greeter();
+}
+```
+
+### Key Points
+- Walkers move through graphs visiting nodes and edges.
+- They can have multiple abilities triggered at different node types.
+- Use `visit` to control traversal.
+- `report` continues execution after reporting a value; `return` stops.
+
+This lesson helps you understand how to implement and use walkers for graph traversal and computation in Jac. """,
+            """ node Person { has name: str; has visited: bool = False; }
+
+walker Greeter { can start with `root entry { visit [-->]; }
+
+can greet with Person entry {
+    print(f"Hello, {here.name}!");
+    here.visited = True;
+}
+}
+
+with entry { alice = Person(name="Alice"); bob = Person(name="Bob");
+
+root ++> alice;
+alice ++> bob;
+
+root spawn Greeter();
+} """
+        );
+        lesson6 = self.get_or_create_lesson(
+            "jac_abilities_events",
+            "Abilities and Events in Jac",
+            """This lesson introduces abilities, special methods on nodes and walkers that define behaviors triggered by events such as entering or exiting nodes.
+
+## What are Abilities?
+Abilities are special methods that define reactive behavior on nodes or walkers. They are triggered by events like entering or exiting a node or walker starting.
+
+## Ability Syntax:
+```jac
+can ability_name with [Node_Type] [entry|exit] {
+    // Ability logic here
+}
+```
+
+- `can ability_name`: Defines an ability.
+- `with [Node_Type] [entry|exit]`: Specifies trigger conditions. `Node_Type` is optional.
+- `entry`: Triggers when walker enters a node.
+- `exit`: Triggers when walker exits a node.
+
+## Node Abilities:
+Nodes can have callable abilities (methods) or visit-dependent abilities triggered by walkers.
+
+```jac
+node TestNode {
+    has value: int;
+
+    def callable {
+        print(f"Callable on {self}");
+    }
+
+    can log_entry with entry {
+        print(f"Some walker entered node {self}");
+    }
+
+    can log_specific_walker_entry with test_walker entry {
+        print(f"{here} entered node {self}");
+        here.callable();
+    }
+}
+```
+
+## Walker Abilities:
+Walkers can define abilities that trigger on entry or exit of nodes they visit.
+```jac
+walker TestWalker {
+    can on_entry with entry {
+        print("Walker entry");
+    }
+
+    can on_root_entry with `root entry {
+        print("Walker entered root");
+        visit [-->];
+    }
+
+    can on_node_entry with Node entry {
+        print(f"Node value: {here.value}");
+    }
+
+    can on_node_exit with Node exit {
+        print(f"Exiting node {here.value}");
+    }
+
+    can on_exit with exit {
+        print("Walker exit");
+    }
+}
+```
+
+## Common Ability Patterns
+- Root entry abilities for setup and traversal start.
+- Node-specific abilities triggered when walker visits specific node types.
+- Abilities can report data or perform side effects.
+
+Abilities enable reactive, event-driven programming in Jac, essential for graph traversal, AI agents, and event handling.
+
+""",
+            """ node TestNode { has value: int;
+
+def callable {
+    print(f"Callable on {self}");
+}
+
+can log_entry with entry {
+    print(f"Some walker entered node {self}");
+}
+
+can log_specific_walker_entry with TestWalker entry {
+    print(f"{here} entered node {self}");
+    here.callable();
+}
+}
+
+walker TestWalker { can on_entry with entry { print("Walker entry"); }
+
+can on_root_entry with `root entry {
+    print("Walker entered root");
+    visit [-->];
+}
+
+can on_node_entry with TestNode entry {
+    print(f"Node value: {here.value}");
+}
+
+can on_node_exit with TestNode exit {
+    print(f"Exiting node {here.value}");
+}
+
+can on_exit with exit {
+    print("Walker exit");
+}
+}
+
+with entry { test_node = TestNode(value=42); root ++> test_node;
+
+root spawn TestWalker();
+} """ 
+        );
+        lesson7 = self.get_or_create_lesson(
+             "jac_pattern_matching",
+            "Pattern Matching in Jac",
+            """This lesson covers pattern matching in Jac, a powerful control flow construct that lets you branch logic based on matching values or complex patterns.
+
+## What is Pattern Matching?
+Pattern matching is a way to check a value against a series of patterns and execute code based on which pattern matches.
+
+## Basic Syntax:
+```jac
+with entry {
+    value: int = 2;
+
+    match value {
+        case 1:
+            print("one");
+        case 2:
+            print("two");
+        case _:
+            print("other");
+    }
+}
+```
+- `match` keyword starts the pattern matching block.
+- `case` specifies each pattern to match.
+- `_` is the wildcard pattern matching anything else.
+
+## Pattern Matching Features:
+- Supports matching literals (e.g., numbers, strings).
+- Supports attribute pattern matching (e.g., `case a.b.c`).
+- Can destructure complex data structures.
+
+### Example: Matching with Attributes
+```jac
+with entry {
+    obj = SomeNode();
+
+    match obj {
+        case SomeNode.attribute:
+            print("Matched SomeNode attribute pattern");
+        case _:
+            print("Default case");
+    }
+}
+```
+
+## Why Use Pattern Matching?
+
+- Cleaner and clearer branching logic compared to multiple if-else.
+- More expressive matching on complex data structures.
+
+This lesson helps you understand how to use Jac's match/case syntax for effective control flow based on patterns. """,
+            """ with entry { value: int = 2;
+
+match value {
+    case 1:
+        print("one");
+    case 2:
+        print("two");
+    case _:
+        print("other");
+}
+} """
+        );
+        lesson8 = self.get_or_create_lesson(
+             "jac_byllm_ai_integration",
+            "byLLM & AI Integration in Jac",
+            """This lesson introduces the byLLM feature in Jac that allows native integration of Large Language Models (LLMs) in your programs.
+
+## What is byLLM?
+
+- `by llm()` is a method modifier indicating the implementation of a method is done by a Large Language Model.
+- It enables seamless AI integration for functions, methods, and walkers.
+- Jac generates the necessary prompts and handles interactions with LLMs automatically.
+
+## Syntax:
+
+```jac
+def method_name(params) -> return_type by llm();
+```
+
+## Example: LLM-powered method in a node
+```jac
+node AIResponder {
+    def generate_response(prompt: str) -> str by llm();
+}
+```
+
+## Example: Walker using LLM-powered methods
+```jac
+walker ChatAgent {
+    has prompt: str;
+    has response: str = "";
+
+    can start with `root entry {
+        self.response = here.generate_response(self.prompt);
+        print(f"AI Response: {self.response}");
+    }
+}
+```
+
+### Benefits of byLLM
+
+- Simplifies calling AI models from Jac code.
+- Enables building AI-native applications with minimal boilerplate.
+- Supports complex AI behaviors as native Jac methods.
+
+This lesson helps you understand how to leverage Jac's AI integration features to build intelligent applications with LLMs. """,
+            """ node AIResponder { def generate_response(prompt: str) -> str by llm(); }
+
+walker ChatAgent { has prompt: str; has response: str = "";
+
+can start with `root entry {
+    self.response = here.generate_response(self.prompt);
+    print(f"AI Response: {self.response}");
+}
+}
+
+with entry { root spawn ChatAgent(prompt="Hello, Jac with AI!"); } """ 
+        );
+        lesson9 = self.get_or_create_lesson(
+            "jac_advanced_osp_concepts",
+            "Advanced Object-Spatial Programming Concepts",
+            """This lesson dives into advanced Object-Spatial Programming (OSP) concepts in Jac, focusing on the powerful graph-based programming model.
+
+## What is Object-Spatial Programming (OSP)?
+OSP is Jac's unique programming paradigm where data and computation coexist in a graph.
+
+- Objects (nodes) represent entities.
+- Relationships (edges) connect nodes.
+- Walkers are mobile computations that traverse and act on the graph.
+
+## Node-Walker Architecture
+Jac programs are organized with nodes (data) and walkers (actions).
+
+### Nodes
+Nodes hold attributes and define behaviors.
+
+### Walkers
+Walkers traverse nodes and edges, executing abilities triggered by events.
+
+## Graph-Based Programming
+OSP leverages explicit relationships to enable spatial computation.
+
+- Computation moves to data instead of fetching data to computation.
+- Enables distributed, asynchronous, and reactive programming.
+
+## Advanced Usage
+
+- Use typed edges to model complex relationships.
+- Design walkers with multiple abilities for flexible traversals.
+- Combine abilities and AI integrations (by llm) for intelligent agents.
+
+## Benefits
+
+- Clear separation of data and behavior.
+- Scalable and modular program design.
+- Natural fit for AI, simulations, and distributed systems.
+
+This lesson helps you master Jac's advanced graph-based programming techniques for building sophisticated AI-native applications.
+""",
+    """
+node Entity {
+    has name: str;
+    has description: str = "";
+}
+
+edge Relation {
+    has relation_type: str;
+    has strength: float = 1.0;
+}
+
+walker AdvancedWalker {
+    can start with `root entry {
+        print("Starting advanced traversal...");
+        visit [-->];
+    }
+
+    can act with Entity entry {
+        print(f"Visiting entity: {here.name} - {here.description}");
+    }
+}
+
+with entry {
+    e1 = Entity(name="Node1", description="First node");
+    e2 = Entity(name="Node2", description="Second node");
+
+    root ++> e1;
+    e1 ++> e2;
+
+    root spawn AdvancedWalker();
+}
+"""
+);
+        lesson10 = self.get_or_create_lesson(
+                "jac_building_apps_programs",
+                "Building Apps and Programs in Jac",
+                """This lesson guides you through building applications and programs using Jac's unique Object-Spatial Programming (OSP) model.
+
+## Getting Started with Jac Projects
+- Organize your Jac code into nodes (data), walkers (behavior), and abilities (events).
+- Use modules and imports to structure large projects.
+- Define clear entry points using walkers with `root entry` abilities.
+
+## Combining Nodes and Walkers
+- Nodes hold your data and state.
+- Walkers traverse nodes and edges, executing logic and updating state.
+- Abilities on nodes and walkers enable event-driven programming.
+
+## Example: Simple To-Do App
+```jac
+node Task {
+    has description: str;
+    has done: bool = False;
+
+    can mark_done with entry {
+        self.done = True;
+        print(f"Task done: {self.description}");
+    }
+}
+
+walker TaskManager {
+    can start with `root entry {
+        tasks = [-->(`?Task)];
+        for task in tasks {
+            if not task.done {
+                print(f"Pending: {task.description}");
+                task.mark_done();
+            }
+        }
+    }
+}
+```
+
+## Deployment and Integration
+
+- Jac programs can be deployed on backend servers or compiled to frontend.
+- Integrate with AI models using by llm() for intelligent behavior.
+- Use Jac's full-stack capabilities to build seamless AI-native applications.
+
+This lesson prepares you to build complete, interactive Jac programs leveraging its powerful graph-based and AI-integrated features. """,
+            """ node Task { has description: str; has done: bool = False;
+
+can mark_done with entry {
+    self.done = True;
+    print(f"Task done: {self.description}");
+}
+}
+
+walker TaskManager { can start with root entry { tasks = [-->(?Task)]; for task in tasks { if not task.done { print(f"Pending: {task.description}"); task.mark_done(); } } } }
+
+with entry { t1 = Task(description="Write Jac LMS content"); t2 = Task(description="Test Jac lessons");
+
+root ++> t1;
+root ++> t2;
+
+root spawn TaskManager();
+} """
+        );
+        
+        print("Lessons created.");
+
+        # link lessons to topics
+        topic_lesson_pairs = [
+            (basics, lesson1),
+            (functions, lesson2),
+            (objects, lesson3),
+            (relationships, lesson4),
+            (walkers, lesson5),
+            (abilities, lesson6),
+            (pattern_matching, lesson7),
+            (byllm, lesson8),
+            (advanced_osp, lesson9),
+            (app_dev, lesson10)
+        ];
+        for (topic, lesson) in topic_lesson_pairs {
+            if not [topic ->:HAS_LESSON:-> lesson] {
+                topic +>:HAS_LESSON:+> lesson;
+            }
+        }
+        print("Lessons linked to topics.");
+
+
+
+        if self.user_id != None {
+            if hasattr(user, "__jac__") {
+                for topic in [root --> (`?Topic)] {
+                    if not [user ->:MASTERY:-> topic] {
+                        user +>:MASTERY(score=0.0, attempts=0, last_updated="") :+> topic;
+                    }
+                }
+            } else {
+                print("Error: user is not a Jac node but a dict or other type.");
+            }
+        }
+
+        report "Learning graph initialized.";
+    }
+
+    obj __specs__ {
+        static has auth: bool = True;                # No authentication required
     }
 }
 
