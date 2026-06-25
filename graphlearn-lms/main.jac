@@ -3,6 +3,8 @@
 Combines server-side endpoints with the client-side UI.
 """
 
+import type from lib.domain.index { Learner }
+
 # Client-side UI
 cl {
     import from .frontend { app as ClientApp }
