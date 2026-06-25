@@ -35,7 +35,7 @@ All AI-powered functions must:
 
 Do not use raw prompt strings scattered throughout the codebase.
 
-Centralize reusable AI functions inside `jac/ai/utilities.jac`.
+Centralize reusable AI functions inside `lib/ai/utilities.jac`.
 
 Examples include:
 
