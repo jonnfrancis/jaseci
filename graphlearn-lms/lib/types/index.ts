@@ -1,14 +1,30 @@
 export type AssessmentStatus = "draft" | "active" | "completed";
+export type AssessmentQuestionType = "multiple_choice" | "short_answer";
+export type AssessmentDifficulty = "beginner" | "intermediate" | "advanced";
 
-export type AssessmentQuestion = Record<string, string>;
+export interface AssessmentOption {
+  id: string;
+  label: string;
+  value: string;
+}
+
+export interface AssessmentQuestion {
+  id: string;
+  question_text: string;
+  question_type: AssessmentQuestionType;
+  skill: string;
+  difficulty: AssessmentDifficulty;
+  options: AssessmentOption[];
+}
 
 export interface Assessment {
   id: string;
+  learner_id: string;
   title: string;
   description: string;
   status: AssessmentStatus;
+  created_at: string;
   questions: AssessmentQuestion[];
-  createdAt: string;
 }
 
 export interface Learner {

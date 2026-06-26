@@ -3,12 +3,18 @@
 import from edges.domain_edges { Prerequisite, assigned, completed, mastered, teaches }
 import from nodes.assessment {
     Assessment,
+    AssessmentAttempt,
+    AssessmentAttemptLink,
+    AssessmentAttemptResponseLink,
+    AssessmentAttemptStatus,
     AssessmentDifficulty,
     AssessmentOption,
     AssessmentOptionLink,
     AssessmentQuestion,
     AssessmentQuestionLink,
     AssessmentQuestionType,
+    AssessmentResponse,
+    AssessmentResponseQuestionLink,
     AssessmentStatus
 }
 import from nodes.challenge { Challenge }

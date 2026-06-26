@@ -6,6 +6,12 @@ enum AssessmentStatus: str {
     completed = "completed"
 }
 
+enum AssessmentAttemptStatus: str {
+    draft = "draft",
+    in_progress = "in_progress",
+    submitted = "submitted"
+}
+
 enum AssessmentQuestionType: str {
     multiple_choice = "multiple_choice",
     short_answer = "short_answer"
@@ -42,6 +48,45 @@ node Assessment {
     has questions: list[AssessmentQuestion] = [];
 }
 
+obj StoredQuestionResponse {
+    has question_id: str;
+    has question_type: AssessmentQuestionType;
+    has selected_option_id: str = "";
+    has short_answer: str = "";
+}
+
+node AssessmentSubmission {
+    has id: str;
+    has assessment_id: str;
+    has learner_id: str;
+    has submitted_at: str;
+    has responses: list[StoredQuestionResponse] = [];
+}
+
+node AssessmentAttempt {
+    has id: str;
+    has learner_id: str;
+    has assessment_id: str;
+    has status: AssessmentAttemptStatus;
+    has submitted_at: str;
+    has completed_at: str;
+}
+
+node AssessmentResponse {
+    has id: str;
+    has question_id: str;
+    has answer_value: str;
+    has response_type: AssessmentQuestionType;
+}
+
 edge AssessmentQuestionLink: Assessment --> AssessmentQuestion {}
 
 edge AssessmentOptionLink: AssessmentQuestion --> AssessmentOption {}
+
+edge LearnerAssessmentAttemptLink {}
+
+edge AssessmentAttemptLink: Assessment --> AssessmentAttempt {}
+
+edge AssessmentAttemptResponseLink: AssessmentAttempt --> AssessmentResponse {}
+
+edge AssessmentResponseQuestionLink: AssessmentResponse --> AssessmentQuestion {}
