@@ -14,6 +14,7 @@ enum AssessmentAttemptStatus: str {
 
 enum AssessmentQuestionType: str {
     multiple_choice = "multiple_choice",
+    multi_select = "multi_select",
     short_answer = "short_answer"
 }
 
@@ -35,7 +36,11 @@ node AssessmentQuestion {
     has question_type: AssessmentQuestionType;
     has skill: str;
     has difficulty: AssessmentDifficulty;
+    has skill_ids: list[str] = [];
     has options: list[AssessmentOption] = [];
+    has answer_key: list[str] = [];
+    has possible_points: int = 1;
+    has short_answer_strategy: str = "";
 }
 
 node Assessment {
@@ -45,6 +50,8 @@ node Assessment {
     has description: str;
     has status: AssessmentStatus;
     has created_at: str;
+    has scoring_strategy: str = "exact_match";
+    has short_answer_strategy: str = "exact_match";
     has questions: list[AssessmentQuestion] = [];
 }
 
@@ -79,6 +86,38 @@ node AssessmentResponse {
     has response_type: AssessmentQuestionType;
 }
 
+obj AssessmentScore {
+    has earned_points: int;
+    has possible_points: int;
+    has percentage: int;
+}
+
+obj QuestionResult {
+    has question_id: str;
+    has correct: bool;
+    has earned_points: int;
+    has possible_points: int;
+}
+
+obj SkillSignal {
+    has skill_id: str;
+    has correct_count: int;
+    has incorrect_count: int;
+    has accuracy: float;
+}
+
+node AssessmentEvaluation {
+    has id: str;
+    has assessment_id: str;
+    has assessment_attempt_id: str;
+    has learner_id: str;
+    has score: AssessmentScore;
+    has evaluation_version: str;
+    has created_at: str;
+    has question_results: list[QuestionResult] = [];
+    has skill_signals: list[SkillSignal] = [];
+}
+
 edge AssessmentQuestionLink: Assessment --> AssessmentQuestion {}
 
 edge AssessmentOptionLink: AssessmentQuestion --> AssessmentOption {}
@@ -90,3 +129,5 @@ edge AssessmentAttemptLink: Assessment --> AssessmentAttempt {}
 edge AssessmentAttemptResponseLink: AssessmentAttempt --> AssessmentResponse {}
 
 edge AssessmentResponseQuestionLink: AssessmentResponse --> AssessmentQuestion {}
+
+edge AssessmentEvaluationLink: AssessmentAttempt --> AssessmentEvaluation {}

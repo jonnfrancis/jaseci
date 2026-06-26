@@ -8,6 +8,8 @@ import from nodes.assessment {
     AssessmentAttemptResponseLink,
     AssessmentAttemptStatus,
     AssessmentDifficulty,
+    AssessmentEvaluation,
+    AssessmentEvaluationLink,
     AssessmentOption,
     AssessmentOptionLink,
     AssessmentQuestion,
@@ -15,7 +17,10 @@ import from nodes.assessment {
     AssessmentQuestionType,
     AssessmentResponse,
     AssessmentResponseQuestionLink,
-    AssessmentStatus
+    AssessmentScore,
+    AssessmentStatus,
+    QuestionResult,
+    SkillSignal
 }
 import from nodes.challenge { Challenge }
 import from nodes.learner { Learner }

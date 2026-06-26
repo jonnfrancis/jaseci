@@ -27,6 +27,10 @@ import from walkers.submit_assessment {
     submit_assessment
 }
 
+def _unique_id(prefix: str) -> str {
+    return f"{prefix}-{len([root -->][?:Assessment]) + 1}";
+}
+
 def _seed_assessment(learner_id: str, assessment_id: str) -> Assessment {
     root ++> Learner(
         id=learner_id,
@@ -69,10 +73,12 @@ def _seed_assessment(learner_id: str, assessment_id: str) -> Assessment {
 }
 
 test "submit assessment creates attempt responses and graph links" {
-    assessment = _seed_assessment("submit-success-learner", "submit-success-assessment");
+    assessment_id = _unique_id("submit-success-assessment");
+    learner_id = f"{assessment_id}-learner";
+    assessment = _seed_assessment(learner_id, assessment_id);
 
     result = root spawn submit_assessment(
-        learner_id="submit-success-learner",
+        learner_id=learner_id,
         assessment_id=assessment.id,
         submitted_at="2026-06-26T10:00:00Z",
         responses=[
@@ -97,7 +103,7 @@ test "submit assessment creates attempt responses and graph links" {
     assert attempt.completed_at == "2026-06-26T10:00:00Z";
 
     retrieved_attempt = get_attempt(attempt.id);
-    assert retrieved_attempt != None;
+    assert retrieved_attempt is not None;
     responses = get_attempt_responses(attempt.id);
     assert len(responses) == 2;
     assert responses[0].question_id == f"{assessment.id}-q1";
@@ -105,21 +111,24 @@ test "submit assessment creates attempt responses and graph links" {
     assert len([attempt ->:AssessmentAttemptResponseLink:->][?:AssessmentResponse]) == 2;
     assert len([responses[0] ->:AssessmentResponseQuestionLink:->][?:AssessmentQuestion]) == 1;
     assert len([assessment ->:AssessmentAttemptLink:->][?:AssessmentAttempt]) == 1;
-    assert len([root -->[?:Learner, id == "submit-success-learner"][0] ->:LearnerAssessmentAttemptLink:->][?:AssessmentAttempt]) == 1;
-    assert len(get_learner_attempts("submit-success-learner")) == 1;
+    learner = [root -->][?:Learner, id == learner_id][0];
+    assert len([learner ->:LearnerAssessmentAttemptLink:->][?:AssessmentAttempt]) == 1;
+    assert len(get_learner_attempts(learner_id)) == 1;
     assert len(get_assessment_attempts(assessment.id)) == 1;
 }
 
 test "submit assessment rejects invalid assessment" {
+    assessment_id = _unique_id("submit-invalid-assessment");
+    learner_id = f"{assessment_id}-learner";
     root ++> Learner(
-        id="submit-invalid-assessment-learner",
+        id=learner_id,
         name="Invalid Assessment Learner",
         createdAt="2026-06-26",
         updatedAt="2026-06-26"
     );
 
     result = root spawn submit_assessment(
-        learner_id="submit-invalid-assessment-learner",
+        learner_id=learner_id,
         assessment_id="missing-assessment",
         submitted_at="2026-06-26T10:00:00Z",
         responses=[]
@@ -130,7 +139,8 @@ test "submit assessment rejects invalid assessment" {
 }
 
 test "submit assessment rejects invalid learner" {
-    assessment = _seed_assessment("submit-invalid-learner-owner", "submit-invalid-learner-assessment");
+    assessment_id = _unique_id("submit-invalid-learner-assessment");
+    assessment = _seed_assessment(f"{assessment_id}-owner", assessment_id);
 
     result = root spawn submit_assessment(
         learner_id="missing-learner",
@@ -144,10 +154,12 @@ test "submit assessment rejects invalid learner" {
 }
 
 test "submit assessment rejects invalid question references" {
-    assessment = _seed_assessment("submit-invalid-question-learner", "submit-invalid-question-assessment");
+    assessment_id = _unique_id("submit-invalid-question-assessment");
+    learner_id = f"{assessment_id}-learner";
+    assessment = _seed_assessment(learner_id, assessment_id);
 
     result = root spawn submit_assessment(
-        learner_id="submit-invalid-question-learner",
+        learner_id=learner_id,
         assessment_id=assessment.id,
         submitted_at="2026-06-26T10:00:00Z",
         responses=[
@@ -160,6 +172,6 @@ test "submit assessment rejects invalid question references" {
     );
 
     assert len(result.reports) == 0;
-    assert len([root -->][?:AssessmentAttempt, assessment_id == assessment.id]) == 0;
+    assert len([assessment ->:AssessmentAttemptLink:->][?:AssessmentAttempt]) == 0;
     assert result.errors[0].code == "invalid_question";
 }

@@ -33,12 +33,19 @@ def get_attempt(attempt_id: str) -> AssessmentAttempt | None {
             return attempt;
         }
     }
+    for assessment in [root -->][?:Assessment] {
+        for attempt in [assessment ->:AssessmentAttemptLink:->][?:AssessmentAttempt] {
+            if attempt.id == attempt_id {
+                return attempt;
+            }
+        }
+    }
     return None;
 }
 
 def get_attempt_responses(attempt_id: str) -> list[AssessmentResponse] {
     attempt = get_attempt(attempt_id);
-    if attempt == None {
+    if attempt is None {
         return [];
     }
     return [attempt ->:AssessmentAttemptResponseLink:->][?:AssessmentResponse];
@@ -47,14 +54,14 @@ def get_attempt_responses(attempt_id: str) -> list[AssessmentResponse] {
 def get_learner_attempts(learner_id: str) -> list[AssessmentAttempt] {
     attempts: list[AssessmentAttempt] = [];
     for learner in [root -->][?:Learner, id == learner_id] {
-        attempts = attempts + [learner -->][?:AssessmentAttempt];
+        attempts = attempts + [learner ->:LearnerAssessmentAttemptLink:->][?:AssessmentAttempt];
     }
     return attempts;
 }
 
 def get_assessment_attempts(assessment_id: str) -> list[AssessmentAttempt] {
     assessment = _find_assessment(assessment_id);
-    if assessment == None {
+    if assessment is None {
         return [];
     }
     return [assessment ->:AssessmentAttemptLink:->][?:AssessmentAttempt];
@@ -125,7 +132,7 @@ def _validate_submission(
     responses: list[AssessmentResponseInput]
 ) -> list[AssessmentSubmissionError] {
     errors: list[AssessmentSubmissionError] = [];
-    if assessment == None {
+    if assessment is None {
         errors = errors + [
             AssessmentSubmissionError(
                 code="invalid_assessment",
@@ -133,7 +140,7 @@ def _validate_submission(
             )
         ];
     }
-    if learner == None {
+    if learner is None {
         errors = errors + [
             AssessmentSubmissionError(
                 code="invalid_learner",
@@ -141,7 +148,7 @@ def _validate_submission(
             )
         ];
     }
-    if assessment == None or learner == None {
+    if assessment is None or learner is None {
         return errors;
     }
 
@@ -169,7 +176,7 @@ def _validate_submission(
         }
 
         question = _find_question(assessment, response.question_id);
-        if question == None {
+        if question is None {
             errors = errors + [
                 AssessmentSubmissionError(
                     code="invalid_question",
@@ -233,8 +240,16 @@ walker submit_assessment {
             return;
         }
 
-        prior_count = len([root -->][?:AssessmentAttempt, learner_id == self.learner_id, assessment_id == self.assessment_id]);
-        attempt = (assessment +>:AssessmentAttemptLink:+> AssessmentAttempt(
+        assessments = [root -->][?:Assessment, id == self.assessment_id];
+        learners = [root -->][?:Learner, id == self.learner_id];
+        if len(assessments) == 0 or len(learners) == 0 {
+            return;
+        }
+        assessment_node = assessments[0];
+        learner_node = learners[0];
+
+        prior_count = len([assessment_node ->:AssessmentAttemptLink:->][?:AssessmentAttempt]);
+        attempt = (assessment_node +>:AssessmentAttemptLink:+> AssessmentAttempt(
             id=f"{self.assessment_id}-attempt-{prior_count + 1}",
             learner_id=self.learner_id,
             assessment_id=self.assessment_id,
@@ -242,19 +257,21 @@ walker submit_assessment {
             submitted_at=self.submitted_at,
             completed_at=self.submitted_at
         ))[0];
-        learner +>:LearnerAssessmentAttemptLink:+> attempt;
+        learner_node +>:LearnerAssessmentAttemptLink:+> attempt;
 
         response_index = 0;
         for submitted_response in self.responses {
             response_index += 1;
-            question = _find_question(assessment, submitted_response.question_id);
-            response = (attempt +>:AssessmentAttemptResponseLink:+> AssessmentResponse(
-                id=f"{attempt.id}-response-{response_index}",
-                question_id=submitted_response.question_id,
-                answer_value=submitted_response.answer_value,
-                response_type=submitted_response.response_type
-            ))[0];
-            response +>:AssessmentResponseQuestionLink:+> question;
+            question = _find_question(assessment_node, submitted_response.question_id);
+            if question is not None {
+                response = (attempt +>:AssessmentAttemptResponseLink:+> AssessmentResponse(
+                    id=f"{attempt.id}-response-{response_index}",
+                    question_id=submitted_response.question_id,
+                    answer_value=submitted_response.answer_value,
+                    response_type=submitted_response.response_type
+                ))[0];
+                response +>:AssessmentResponseQuestionLink:+> question;
+            }
         }
 
         report attempt;

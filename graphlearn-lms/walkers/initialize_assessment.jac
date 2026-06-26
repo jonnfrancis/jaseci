@@ -58,12 +58,116 @@ walker initialize_assessment {
     has target_role: str = "";
     has assessment_length: int = 5;
     has created_at: str = "";
+    has selected_language: str = "";
     has reports: list[Assessment] = [];
 
     can create with Root entry {
         prior_count = len([root -->[?:Assessment, learner_id == self.learner_id]]);
         assessment_id = f"{self.learner_id}-assessment-{prior_count + 1}";
         created_at_value = self.created_at if self.created_at != "" else "generated";
+
+        if self.selected_language == "Python" or self.selected_language == "Jac" {
+            language = self.selected_language;
+            assessment = (root ++> Assessment(
+                id=assessment_id,
+                learner_id=self.learner_id,
+                title=f"{language} readiness assessment",
+                description=f"A short assessment covering foundational {language} concepts.",
+                status=AssessmentStatus.active,
+                created_at=created_at_value,
+                short_answer_strategy="normalized_text_match"
+            ))[0];
+
+            for learner in [root -->[?:Learner, id == self.learner_id]] {
+                learner +>:assigned:+> assessment;
+            }
+
+            if language == "Python" {
+                q1 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
+                    id=f"{assessment_id}-q1",
+                    question_text="Which keyword defines a function in Python?",
+                    question_type=AssessmentQuestionType.multiple_choice,
+                    skill="Python Functions",
+                    difficulty=AssessmentDifficulty.beginner,
+                    possible_points=1
+                ))[0];
+                q1o1 = (q1 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q1.id}-o1", label="def", value="def"))[0];
+                q1 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q1.id}-o2", label="func", value="func");
+                q1 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q1.id}-o3", label="let", value="let");
+                q1.options = [q1o1] + [q1 ->:AssessmentOptionLink:->][?:AssessmentOption, id != q1o1.id];
+                q1.answer_key = [q1o1.id];
+
+                q2 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
+                    id=f"{assessment_id}-q2",
+                    question_text="What value does range(3) produce when iterated?",
+                    question_type=AssessmentQuestionType.multiple_choice,
+                    skill="Python Control Flow",
+                    difficulty=AssessmentDifficulty.beginner,
+                    possible_points=1
+                ))[0];
+                q2 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q2.id}-o1", label="1, 2, 3", value="1, 2, 3");
+                q2o2 = (q2 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q2.id}-o2", label="0, 1, 2", value="0, 1, 2"))[0];
+                q2 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q2.id}-o3", label="0, 1, 2, 3", value="0, 1, 2, 3");
+                q2.options = [q2 ->:AssessmentOptionLink:->][?:AssessmentOption];
+                q2.answer_key = [q2o2.id];
+
+                q3 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
+                    id=f"{assessment_id}-q3",
+                    question_text="Name the Python data type used for true or false values.",
+                    question_type=AssessmentQuestionType.short_answer,
+                    skill="Python Fundamentals",
+                    difficulty=AssessmentDifficulty.beginner,
+                    answer_key=["bool", "boolean"],
+                    possible_points=1,
+                    short_answer_strategy="normalized_text_match"
+                ))[0];
+                assessment.questions = [q1, q2, q3];
+            } else {
+                q1 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
+                    id=f"{assessment_id}-q1",
+                    question_text="Which Jac construct moves behavior through graph nodes?",
+                    question_type=AssessmentQuestionType.multiple_choice,
+                    skill="Jac Walkers",
+                    difficulty=AssessmentDifficulty.beginner,
+                    possible_points=1
+                ))[0];
+                q1o1 = (q1 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q1.id}-o1", label="Walker", value="walker"))[0];
+                q1 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q1.id}-o2", label="Enum", value="enum");
+                q1 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q1.id}-o3", label="Package", value="package");
+                q1.options = [q1 ->:AssessmentOptionLink:->][?:AssessmentOption];
+                q1.answer_key = [q1o1.id];
+
+                q2 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
+                    id=f"{assessment_id}-q2",
+                    question_text="What Jac archetype represents persistent graph data?",
+                    question_type=AssessmentQuestionType.multiple_choice,
+                    skill="Jac Nodes",
+                    difficulty=AssessmentDifficulty.beginner,
+                    possible_points=1
+                ))[0];
+                q2 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q2.id}-o1", label="Walker", value="walker");
+                q2o2 = (q2 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q2.id}-o2", label="Node", value="node"))[0];
+                q2 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q2.id}-o3", label="Ability", value="ability");
+                q2.options = [q2 ->:AssessmentOptionLink:->][?:AssessmentOption];
+                q2.answer_key = [q2o2.id];
+
+                q3 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
+                    id=f"{assessment_id}-q3",
+                    question_text="Name the graph relationship construct used to connect Jac nodes.",
+                    question_type=AssessmentQuestionType.short_answer,
+                    skill="Jac Edges",
+                    difficulty=AssessmentDifficulty.beginner,
+                    answer_key=["edge", "edges"],
+                    possible_points=1,
+                    short_answer_strategy="normalized_text_match"
+                ))[0];
+                assessment.questions = [q1, q2, q3];
+            }
+
+            report assessment;
+            return;
+        }
+
         generated = generate_initial_assessment(
             self.learner_goals,
             self.learner_interests,

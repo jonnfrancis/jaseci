@@ -1,7 +1,7 @@
 """Global application shell for GraphLearn LMS."""
 
-import from "..features.assessment.pages.AssessmentPage" { AssessmentPage }
+import from "..features.landing.pages.LandingPage" { LandingPage }
 
 def:pub AppShell() -> JsxElement {
-    return <AssessmentPage />;
+    return <LandingPage />;
 }

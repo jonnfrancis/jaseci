@@ -1,6 +1,8 @@
 # Progress Tracker
 Update this file whenever the current phase, active feature, or implementation state changes.
 ## Current Phase
+- Feature 09 landingpage-ui is now in progress. Scope is limited to the Phase 1 assessment journey: landing page, Python/Jac track selection, assessment start, assessment UI, submission, evaluation, results display, refresh recovery, and failure states. Do not implement mastery, learner progression, adaptive assessments, roadmaps, challenges, tutoring, recommendations, achievements, authentication, or additional languages.
+- Feature 08 evaluate-assessment has been implemented (evaluation domain records, scoring service, walker orchestration, idempotent persistence, skill evidence signals, and focused tests). Scope remains limited to deterministic evaluation only: no mastery, learner model, progression, recommendation, learning plan, unlocking, or assessment generation updates.
 - Feature 07 submit-assessment persistence has been implemented (walker, domain nodes, validation, graph links, retrieval helpers, and mock tests). Scope remains limited to persistence only: no scoring, grading, mastery calculation, roadmap generation, recommendations, or learner feedback.
 - Feature 06 assessment-taking UI is implemented: dedicated `features/assessment/` module, UI-safe assessment views, centralized response state, validation, progress tracking, multiple-choice and short-answer rendering, submission success/failure states, and save-only answer persistence.
  Confirmed the assessment domain node foundation already exists in `nodes/assessment.jac` with `Assessment`, `AssessmentQuestion`, `AssessmentOption`, and assessment-specific enums.
@@ -31,7 +33,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## In Progress
 
-- No active feature work in progress. Ready to choose the next isolated feature spec after resolving or accepting the existing Windows client-build permission limitation.
+- Feature 09 landingpage-ui: continue implementation from the active landing page work. The language-template initialization path and assessment journey service are being wired before replacing the static app shell with the `/` assessment journey UI.
 
 ## Next Up
 
@@ -39,6 +41,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Open Questions
 
+- `09-landingpage-ui.md` asks to read `context/domain-context.md` and `context/assessment-context.md`, but those files are not present; implementation is proceeding from `AGENTS.md`, project overview, architecture, UI context, code standards, AI workflow rules, progress tracker, and the implemented assessment modules.
 - `05-initialize-assessment.md` asks to read `context/ai-context.md` and `context/domain-context.md`, but those files are not present; implementation is proceeding from `AGENTS.md`, project overview, architecture, code standards, AI workflow rules, and the Feature 05 spec.
 - The system `jac` shim at `C:\Python\Python39\Scripts\jac.exe` still returns non-zero without diagnostics; use the project venv `.\.jac\venv\Scripts\jac.exe` with UTF-8 output enabled.
 - `jac install` can time out during npm install; direct Bun install from `.jac/client/configs` completed after package extraction/linking.
@@ -55,6 +58,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Session Notes
 
+- Feature 09 continuation: continuing implementation from the active landingpage-ui work. The language-template initialization path and assessment journey service are being wired before replacing the static app shell with the `/` assessment journey UI.
+- Feature 08: Implemented `evaluate_assessment` walker, `lib/assessment/evaluation.jac` scoring services, `AssessmentEvaluation`, `AssessmentScore`, `QuestionResult`, `SkillSignal`, and `AssessmentEvaluationLink` domain persistence.
+- Feature 08 idempotency strategy is "return existing evaluation" for the same submitted attempt; repeated evaluation returns the original evaluation record and timestamp rather than replacing it.
+- Feature 08 tests at `lib/assessment/tests/evaluate_assessment_test.jac` cover all-correct, all-incorrect, mixed skill signals, short-answer normalization, idempotent repeated evaluation, and invalid assessment handling.
+- Feature 07: Implemented `submit_assessment` walker, `AssessmentAttempt` and `AssessmentResponse` persistence models, validation rules, graph links, retrieval helpers, and mock tests.
 - Feature 06 was implemented with a dedicated `features/assessment/` client module and `services/assessment.sv.jac` save-only service boundary.
 - For Feature 06, `jac check services/assessment.sv.jac`, `jac check nodes/assessment.jac`, and `jac check main.jac` passed with UTF-8 output enabled.
 - Feature 06 forbidden-scope scan over `features/assessment`, `services/assessment.sv.jac`, and `nodes/assessment.jac` found no scoring, evaluation, mastery, roadmap, or recommendation terms.
@@ -70,6 +78,3 @@ Update this file whenever the current phase, active feature, or implementation s
 - Full `jac test -v` is blocked by the existing client module import issue: `No module named 'frontend.cl'; 'frontend' is not a package`.
 - For `05-initialize-assessment.md`, `jac check nodes/assessment.jac`, `jac check lib/ai/utilities.jac`, `jac check walkers/initialize_assessment.jac`, `jac check lib/ai/tests/assessment_test.jac`, `jac check lib/ai/schemas.jac`, `jac check lib/domain/index.jac`, `jac check main.jac`, `tsc --noEmit`, `jac test lib/ai/tests/assessment_test.jac -v`, `jac test lib/ai/tests/ai_test.jac -v`, and the no-score/no-roadmap scope scan passed.
 - MockLLM test runs emitted LiteLLM network fallback warnings for the remote model cost map, then used the local backup and completed without API keys.
- - Feature 07: Implemented `submit_assessment` walker (walkers/submit_assessment.jac), created/confirmed `AssessmentAttempt` and `AssessmentResponse` domain nodes and typed edges in `nodes/assessment.jac`, and added retrieval helpers `get_attempt`, `get_attempt_responses`, `get_learner_attempts`, and `get_assessment_attempts` within the walker.
- - Added mock tests for submission persistence at `lib/assessment/tests/submit_assessment_test.jac` covering successful submission, invalid assessment, invalid learner, and invalid question references.
- - The service `services/assessment.sv.jac` continues to provide `submit_assessment_responses` which stores `AssessmentSubmission` records for UI-facing save-only behavior; `submit_assessment` walker creates normalized `AssessmentAttempt` and `AssessmentResponse` graph entities for durable persistence.
