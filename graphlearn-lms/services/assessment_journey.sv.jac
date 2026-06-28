@@ -26,6 +26,7 @@ import from services.assessment {
     QuestionResponsePayload
 }
 import from walkers.evaluate_assessment { evaluate_assessment }
+import from walkers.generate_roadmap { generate_roadmap }
 import from walkers.initialize_assessment { initialize_assessment }
 import from walkers.submit_assessment {
     AssessmentResponseInput,
@@ -73,6 +74,8 @@ obj AssessmentJourneyState {
     has learner_id: str = JOURNEY_LEARNER_ID;
     has assessment_id: str = "";
     has attempt_id: str = "";
+    has evaluation_id: str = "";
+    has roadmap_id: str = "";
     has assessment: AssessmentView | None = None;
     has evaluation: AssessmentEvaluationView | None = None;
     has error_message: str = "";
@@ -95,13 +98,13 @@ def:pub supported_language_tracks() -> list[LanguageTrackView] {
     ];
 }
 
-def _ensure_journey_learner() -> Learner {
-    for learner in [root -->][?:Learner, id == JOURNEY_LEARNER_ID] {
+def _ensure_journey_learner(learner_id: str, learner_name: str = "Assessment Learner") -> Learner {
+    for learner in [root -->][?:Learner, id == learner_id] {
         return learner;
     }
     return (root ++> Learner(
-        id=JOURNEY_LEARNER_ID,
-        name="Assessment Learner",
+        id=learner_id,
+        name=learner_name,
         createdAt="phase-1",
         updatedAt="phase-1"
     ))[0];
@@ -168,10 +171,10 @@ def _assessment_to_view(assessment: Assessment) -> AssessmentView {
     );
 }
 
-def _latest_assessment() -> Assessment | None {
+def _latest_assessment(learner_id: str) -> Assessment | None {
     latest: Assessment | None = None;
     for assessment in [root -->][?:Assessment] {
-        if assessment.learner_id == JOURNEY_LEARNER_ID {
+        if assessment.learner_id == learner_id {
             latest = assessment;
         }
     }
@@ -244,8 +247,10 @@ def _state_for_assessment(
             return AssessmentJourneyState(
                 status="results",
                 selected_language=_language_from_assessment(assessment),
+                learner_id=assessment.learner_id,
                 assessment_id=assessment.id,
                 attempt_id=attempt.id,
+                evaluation_id=evaluation.id,
                 assessment=_assessment_to_view(assessment),
                 evaluation=_evaluation_to_view(assessment, attempt, evaluation),
                 error_message=error_message
@@ -254,6 +259,7 @@ def _state_for_assessment(
         return AssessmentJourneyState(
             status=status,
             selected_language=_language_from_assessment(assessment),
+            learner_id=assessment.learner_id,
             assessment_id=assessment.id,
             attempt_id=attempt.id,
             assessment=_assessment_to_view(assessment),
@@ -263,6 +269,7 @@ def _state_for_assessment(
     return AssessmentJourneyState(
         status=status,
         selected_language=_language_from_assessment(assessment),
+        learner_id=assessment.learner_id,
         assessment_id=assessment.id,
         assessment=_assessment_to_view(assessment),
         error_message=error_message
@@ -286,22 +293,32 @@ def _answer_value_from_payload(response: dict[str, str]) -> str {
     return response["short_answer"];
 }
 
-def:pub load_assessment_journey() -> AssessmentJourneyState {
-    assessment = _latest_assessment();
+def:pub load_assessment_journey(learner_id: str = JOURNEY_LEARNER_ID) -> AssessmentJourneyState {
+    if learner_id.strip() == "" {
+        return AssessmentJourneyState(status="unauthenticated", error_message="Log in to continue your assessment journey.");
+    }
+    assessment = _latest_assessment(learner_id);
     if assessment is None {
-        return AssessmentJourneyState(status="landing");
+        return AssessmentJourneyState(status="landing", learner_id=learner_id);
     }
     return _state_for_assessment(assessment, "assessment");
 }
 
-def:pub start_assessment_journey(language: str) -> AssessmentJourneyState {
+def:pub start_assessment_journey(
+    language: str,
+    learner_id: str = JOURNEY_LEARNER_ID,
+    learner_name: str = "Assessment Learner"
+) -> AssessmentJourneyState {
     if not _language_supported(language) {
         raise Exception("Unsupported assessment language.");
     }
+    if learner_id.strip() == "" {
+        raise Exception("Log in before starting an assessment.");
+    }
 
-    _ensure_journey_learner();
+    _ensure_journey_learner(learner_id, learner_name);
     result = root spawn initialize_assessment(
-        learner_id=JOURNEY_LEARNER_ID,
+        learner_id=learner_id,
         learner_goals=f"Assess readiness for {language}.",
         learner_interests=[language],
         learner_experience_level="beginner",
@@ -318,15 +335,22 @@ def:pub start_assessment_journey(language: str) -> AssessmentJourneyState {
 }
 
 def:pub submit_and_evaluate_assessment(
+    learner_id: str,
     assessment_id: str,
     responses: list[dict[str, str]],
     submitted_at: str
 ) -> AssessmentJourneyState {
+    if learner_id.strip() == "" {
+        raise Exception("Log in before submitting an assessment.");
+    }
     assessments = [root -->][?:Assessment, id == assessment_id];
     if len(assessments) == 0 {
         raise Exception("Assessment is unavailable.");
     }
     assessment = assessments[0];
+    if assessment.learner_id != learner_id {
+        raise Exception("Assessment does not belong to the current learner.");
+    }
 
     response_inputs: list[AssessmentResponseInput] = [];
     for response in responses {
@@ -340,7 +364,7 @@ def:pub submit_and_evaluate_assessment(
     }
 
     submit_result = root spawn submit_assessment(
-        learner_id=assessment.learner_id,
+        learner_id=learner_id,
         assessment_id=assessment.id,
         submitted_at=submitted_at,
         responses=response_inputs
@@ -367,15 +391,22 @@ def:pub submit_and_evaluate_assessment(
 }
 
 def:pub retry_assessment_evaluation(
+    learner_id: str,
     assessment_id: str,
     attempt_id: str,
     evaluated_at: str
 ) -> AssessmentJourneyState {
+    if learner_id.strip() == "" {
+        raise Exception("Log in before evaluating an assessment.");
+    }
     assessments = [root -->][?:Assessment, id == assessment_id];
     if len(assessments) == 0 {
         raise Exception("Assessment is unavailable.");
     }
     assessment = assessments[0];
+    if assessment.learner_id != learner_id {
+        raise Exception("Assessment does not belong to the current learner.");
+    }
 
     evaluation_result = root spawn evaluate_assessment(
         assessment_id=assessment_id,
@@ -390,4 +421,34 @@ def:pub retry_assessment_evaluation(
         );
     }
     return _state_for_assessment(assessment, "results");
+}
+
+def:pub generate_roadmap_for_journey(
+    learner_id: str,
+    assessment_id: str,
+    attempt_id: str,
+    evaluation_id: str,
+    language: str
+) -> AssessmentJourneyState {
+    if learner_id.strip() == "" {
+        raise Exception("Log in before generating a roadmap.");
+    }
+    result = root spawn generate_roadmap(
+        learner_id=learner_id,
+        assessment_id=assessment_id,
+        assessment_attempt_id=attempt_id,
+        assessment_evaluation_id=evaluation_id,
+        language=language
+    );
+    if len(result.errors) > 0 or len(result.reports) == 0 {
+        raise Exception("Unable to generate roadmap.");
+    }
+
+    assessments = [root -->][?:Assessment, id == assessment_id];
+    if len(assessments) == 0 {
+        raise Exception("Assessment is unavailable.");
+    }
+    state = _state_for_assessment(assessments[0], "results");
+    state.roadmap_id = result.reports[0].id;
+    return state;
 }

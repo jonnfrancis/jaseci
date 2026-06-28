@@ -146,6 +146,72 @@ sem AssessmentGenerationResult.title = "The generated assessment title.";
 sem AssessmentGenerationResult.description = "The generated assessment description.";
 sem AssessmentGenerationResult.questions = "The generated assessment questions, including options where appropriate.";
 
+obj RoadmapSkillSignalContext {
+    has skill_id: str;
+    has correct_count: int;
+    has incorrect_count: int;
+    has accuracy: float;
+}
+sem RoadmapSkillSignalContext = "A structured assessment skill signal used to adapt roadmap generation.";
+sem RoadmapSkillSignalContext.skill_id = "The stable skill identifier from the persisted assessment evaluation.";
+sem RoadmapSkillSignalContext.correct_count = "How many evaluated assessment items for this skill were answered correctly.";
+sem RoadmapSkillSignalContext.incorrect_count = "How many evaluated assessment items for this skill were answered incorrectly.";
+sem RoadmapSkillSignalContext.accuracy = "The learner's accuracy for this skill from 0.0 to 1.0.";
+
+obj GeneratedRoadmapLesson {
+    has title: str;
+    has summary: str;
+    has target_skill_ids: list[str];
+    has difficulty: str;
+    has estimated_minutes: int;
+    has order_index: int;
+}
+sem GeneratedRoadmapLesson = "A lesson outline for a personalized roadmap; it must not include full lesson content.";
+sem GeneratedRoadmapLesson.title = "A concise learner-facing lesson title.";
+sem GeneratedRoadmapLesson.summary = "A short lesson outline describing what the learner will study, without full lesson content.";
+sem GeneratedRoadmapLesson.target_skill_ids = "Stable skill identifiers this lesson prepares or practices.";
+sem GeneratedRoadmapLesson.difficulty = "The lesson difficulty, usually beginner, intermediate, or advanced.";
+sem GeneratedRoadmapLesson.estimated_minutes = "Estimated learner time for this lesson in minutes.";
+sem GeneratedRoadmapLesson.order_index = "The one-based order of this lesson within its week.";
+
+obj GeneratedRoadmapMilestone {
+    has title: str;
+    has description: str;
+    has required_skill_ids: list[str];
+}
+sem GeneratedRoadmapMilestone = "A practice-oriented milestone that checks readiness without generating a coding challenge.";
+sem GeneratedRoadmapMilestone.title = "A concise milestone title.";
+sem GeneratedRoadmapMilestone.description = "A short description of the milestone outcome or checkpoint.";
+sem GeneratedRoadmapMilestone.required_skill_ids = "Stable skill identifiers the learner should demonstrate for this milestone.";
+
+obj GeneratedRoadmapWeek {
+    has week_number: int;
+    has title: str;
+    has summary: str;
+    has lessons: list[GeneratedRoadmapLesson];
+    has milestones: list[GeneratedRoadmapMilestone];
+}
+sem GeneratedRoadmapWeek = "One ordered week in a personalized learning roadmap.";
+sem GeneratedRoadmapWeek.week_number = "The one-based week number; weeks must be returned in learning order.";
+sem GeneratedRoadmapWeek.title = "A concise learner-facing title for this week.";
+sem GeneratedRoadmapWeek.summary = "A short overview of the week's learning focus.";
+sem GeneratedRoadmapWeek.lessons = "Ordered lesson outlines for this week, with no full lesson content.";
+sem GeneratedRoadmapWeek.milestones = "Milestones or checkpoints for this week.";
+
+obj RoadmapGenerationResult {
+    has title: str;
+    has description: str;
+    has estimated_weeks: int;
+    has target_level: str;
+    has weeks: list[GeneratedRoadmapWeek];
+}
+sem RoadmapGenerationResult = "A complete personalized roadmap outline generated from assessment evaluation results.";
+sem RoadmapGenerationResult.title = "The roadmap title personalized to the learner's language and current level.";
+sem RoadmapGenerationResult.description = "A concise description of the roadmap's learning arc.";
+sem RoadmapGenerationResult.estimated_weeks = "The estimated duration in whole weeks.";
+sem RoadmapGenerationResult.target_level = "The learner level this roadmap is designed to reach.";
+sem RoadmapGenerationResult.weeks = "The ordered weeks containing lesson outlines and milestones.";
+
 enum AIErrorKind: str {
     AUTHENTICATION = "authentication",
     CONFIGURATION = "configuration",
@@ -340,3 +406,24 @@ sem generate_initial_assessment.learner_experience_level = "The learner's self-d
 sem generate_initial_assessment.target_skills = "Skills the assessment should check.";
 sem generate_initial_assessment.target_role = "The role or outcome the learner is targeting.";
 sem generate_initial_assessment.assessment_length = "The number of assessment questions requested.";
+
+def generate_learning_roadmap_outline(
+    language: str,
+    learner_assessment_summary: str,
+    overall_score: int,
+    skill_signals: list[RoadmapSkillSignalContext],
+    weak_skills: list[str],
+    strong_skills: list[str],
+    target_level: str
+) -> RoadmapGenerationResult by llm(
+    temperature=0.2,
+    max_tokens=2200
+);
+sem generate_learning_roadmap_outline = "Generate a personalized course roadmap outline from persisted assessment evaluation results. Return only structured roadmap metadata, weeks, lesson outlines, and milestones; do not generate full lesson content, coding challenges, mastery updates, unlocks, or dashboard recommendations.";
+sem generate_learning_roadmap_outline.language = "The selected learning language. Supported values are python and jac.";
+sem generate_learning_roadmap_outline.learner_assessment_summary = "A concise summary of the persisted assessment, attempt, score, strong skills, and weak skills.";
+sem generate_learning_roadmap_outline.overall_score = "The learner's overall assessment percentage from 0 to 100.";
+sem generate_learning_roadmap_outline.skill_signals = "Structured skill-level evaluation signals copied from the persisted assessment evaluation.";
+sem generate_learning_roadmap_outline.weak_skills = "Skill identifiers with weak evidence that should be prioritized early.";
+sem generate_learning_roadmap_outline.strong_skills = "Skill identifiers with strong evidence that may allow the roadmap to skip unnecessary basics.";
+sem generate_learning_roadmap_outline.target_level = "The target level the roadmap should help the learner reach.";

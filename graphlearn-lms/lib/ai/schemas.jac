@@ -12,6 +12,11 @@ import from lib.ai.utilities {
     LearningRecommendation,
     LearningSummary,
     RecommendationPriority,
+    GeneratedRoadmapLesson,
+    GeneratedRoadmapMilestone,
+    GeneratedRoadmapWeek,
+    RoadmapGenerationResult,
+    RoadmapSkillSignalContext,
     SkillAnalysis,
     SkillConfidence
 }

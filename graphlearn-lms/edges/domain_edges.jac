@@ -12,5 +12,14 @@ edge mastered {}
 # Represents Learner -> Roadmap and Roadmap -> Lesson.
 edge assigned {}
 
+# Represents Roadmap -> RoadmapWeek, RoadmapWeek -> RoadmapLesson, and RoadmapWeek -> RoadmapMilestone.
+edge contains {}
+
+# Represents RoadmapLesson -> Skill.
+edge targets {}
+
+# Represents RoadmapMilestone -> Skill.
+edge requires {}
+
 # Represents Learner -> Lesson, Learner -> Challenge, and Learner -> Assessment.
 edge completed {}

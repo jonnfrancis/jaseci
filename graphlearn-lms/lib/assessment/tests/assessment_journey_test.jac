@@ -18,10 +18,12 @@ def _response(question_id: str, question_type: str, selected_option_id: str = ""
 }
 
 test "python assessment journey completes end to end" {
-    started = start_assessment_journey("Python");
+    learner_id = "journey-python-learner";
+    started = start_assessment_journey("Python", learner_id, "Python Learner");
     assessment_id = started.assessment_id;
 
     result = submit_and_evaluate_assessment(
+        learner_id,
         assessment_id,
         [
             _response(f"{assessment_id}-q1", "multiple_choice", f"{assessment_id}-q1-o1"),
@@ -40,10 +42,12 @@ test "python assessment journey completes end to end" {
 }
 
 test "jac assessment journey completes end to end" {
-    started = start_assessment_journey("Jac");
+    learner_id = "journey-jac-learner";
+    started = start_assessment_journey("Jac", learner_id, "Jac Learner");
     assessment_id = started.assessment_id;
 
     result = submit_and_evaluate_assessment(
+        learner_id,
         assessment_id,
         [
             _response(f"{assessment_id}-q1", "multiple_choice", f"{assessment_id}-q1-o1"),
@@ -62,8 +66,9 @@ test "jac assessment journey completes end to end" {
 }
 
 test "assessment journey recovers persisted state after start" {
-    started = start_assessment_journey("Python");
-    recovered = load_assessment_journey();
+    learner_id = "journey-recovery-learner";
+    started = start_assessment_journey("Python", learner_id, "Recovery Learner");
+    recovered = load_assessment_journey(learner_id);
 
     assert recovered.status == "assessment";
     assert recovered.assessment_id == started.assessment_id;
@@ -72,11 +77,13 @@ test "assessment journey recovers persisted state after start" {
 }
 
 test "assessment journey rejects invalid submission" {
-    started = start_assessment_journey("Jac");
+    learner_id = "journey-invalid-learner";
+    started = start_assessment_journey("Jac", learner_id, "Invalid Learner");
     failed = False;
 
     try {
         submit_and_evaluate_assessment(
+            learner_id,
             started.assessment_id,
             [
                 _response("not-on-assessment", "multiple_choice", "missing-option")
@@ -91,9 +98,11 @@ test "assessment journey rejects invalid submission" {
 }
 
 test "assessment journey handles evaluation retry failure state" {
-    started = start_assessment_journey("Python");
+    learner_id = "journey-retry-learner";
+    started = start_assessment_journey("Python", learner_id, "Retry Learner");
 
     result = retry_assessment_evaluation(
+        learner_id,
         started.assessment_id,
         "missing-attempt",
         "retry-with-missing-attempt"

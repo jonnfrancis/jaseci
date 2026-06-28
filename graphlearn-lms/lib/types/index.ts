@@ -80,10 +80,56 @@ export interface Mastery {
   updatedAt: string;
 }
 
-export interface Roadmap {
+export type RoadmapStatus = "draft" | "active" | "completed";
+export type RoadmapLessonGenerationStatus = "pending" | "generated";
+
+export interface RoadmapLessonOutline {
   id: string;
-  learnerId: string;
+  roadmap_id: string;
+  week_id: string;
   title: string;
-  lessonIds: string[];
-  createdAt: string;
+  summary: string;
+  target_skill_ids: string[];
+  difficulty: Difficulty;
+  estimated_minutes: number;
+  order_index: number;
+  generation_status: RoadmapLessonGenerationStatus;
 }
+
+export interface RoadmapMilestone {
+  id: string;
+  roadmap_id: string;
+  week_id: string;
+  title: string;
+  description: string;
+  required_skill_ids: string[];
+}
+
+export interface RoadmapWeek {
+  id: string;
+  roadmap_id: string;
+  week_number: number;
+  title: string;
+  summary: string;
+  lessons: RoadmapLessonOutline[];
+  milestones: RoadmapMilestone[];
+}
+
+export interface RoadmapSummary {
+  id: string;
+  learner_id: string;
+  language: "python" | "jac";
+  title: string;
+  description: string;
+  estimated_weeks: number;
+  status: RoadmapStatus;
+  created_at: string;
+  weeks: RoadmapWeek[];
+  lessons: RoadmapLessonOutline[];
+  milestones: RoadmapMilestone[];
+}
+
+export type RoadmapLessonView = RoadmapLessonOutline;
+export type RoadmapMilestoneView = RoadmapMilestone;
+export type RoadmapWeekView = RoadmapWeek;
+export type RoadmapView = RoadmapSummary;
