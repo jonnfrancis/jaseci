@@ -45,6 +45,53 @@ export interface Lesson {
   estimatedMinutes: number;
 }
 
+export type LessonGenerationStatus = "pending" | "generated";
+
+export interface LessonSectionView {
+  id: string;
+  title: string;
+  content: string;
+  order_index: number;
+}
+
+export interface LessonExampleView {
+  id: string;
+  title: string;
+  code: string;
+  explanation: string;
+  order_index: number;
+}
+
+export interface LessonMiniExerciseView {
+  id: string;
+  prompt: string;
+  expected_concept: string;
+  order_index: number;
+}
+
+export interface LessonTakeawayView {
+  id: string;
+  content: string;
+  order_index: number;
+}
+
+export interface GeneratedLessonView {
+  id: string;
+  roadmap_lesson_id: string;
+  learner_id: string;
+  language: "python" | "jac";
+  title: string;
+  summary: string;
+  difficulty: Difficulty;
+  estimated_minutes: number;
+  sections: LessonSectionView[];
+  examples: LessonExampleView[];
+  mini_exercises: LessonMiniExerciseView[];
+  key_takeaways: LessonTakeawayView[];
+  generation_status: LessonGenerationStatus;
+  created_at: string;
+}
+
 export interface Challenge {
   id: string;
   title: string;

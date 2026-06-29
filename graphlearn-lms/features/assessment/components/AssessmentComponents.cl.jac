@@ -115,7 +115,7 @@ def:pub ShortAnswerResponseField(
                 onChange={handle_change}
                 placeholder="Write your answer here."
                 aria-invalid={invalid}
-                className="min-h-36 bg-elevated"
+                className="min-h-36 bg-elevated text-copy-primary caret-brand placeholder:text-copy-muted"
             />
         </div>;
 }
@@ -176,7 +176,7 @@ def:pub AssessmentHeader(assessment: AssessmentView) -> JsxElement {
                             aria-label="Learner identifier"
                             value={assessment.learner_id}
                             readOnly={True}
-                            className="h-8 bg-surface text-xs"
+                            className="h-8 bg-surface text-xs text-copy-primary caret-brand placeholder:text-copy-muted"
                         />
                     </div>
                 </div>

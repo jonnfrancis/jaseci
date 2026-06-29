@@ -19,6 +19,7 @@ import from nodes.assessment {
     AssessmentStatus
 }
 import from nodes.learner { Learner }
+import from nodes.roadmap { Roadmap }
 import from services.assessment {
     AssessmentOptionView,
     AssessmentQuestionView,
@@ -293,6 +294,20 @@ def _answer_value_from_payload(response: dict[str, str]) -> str {
     return response["short_answer"];
 }
 
+def _roadmap_id_from_report(report_value: any) -> str {
+    if isinstance(report_value, Roadmap) {
+        return report_value.id;
+    }
+    report_dict = report_value as dict[str, any];
+    if "roadmap_id" in report_dict {
+        return str(report_dict["roadmap_id"]);
+    }
+    if "id" in report_dict {
+        return str(report_dict["id"]);
+    }
+    return "";
+}
+
 def:pub load_assessment_journey(learner_id: str = JOURNEY_LEARNER_ID) -> AssessmentJourneyState {
     if learner_id.strip() == "" {
         return AssessmentJourneyState(status="unauthenticated", error_message="Log in to continue your assessment journey.");
@@ -446,14 +461,9 @@ def:pub generate_roadmap_for_journey(
         raise Exception("Unable to generate roadmap.");
     }
 
-    roadmap_report: dict = {};
     roadmap_id: str = "";
 
-    roadmap_report = result.reports[0] as dict;
-    print("Generated roadmap report:", roadmap_report);
-
-    roadmap_id = str(roadmap_report["roadmap_id"]);
-    print("Generated roadmap id:", roadmap_id);
+    roadmap_id = _roadmap_id_from_report(result.reports[0]);
 
     if roadmap_id == "" {
         raise Exception("Roadmap was generated but no roadmap id was returned.");
@@ -466,6 +476,5 @@ def:pub generate_roadmap_for_journey(
 
     state = _state_for_assessment(assessments[0], "results");
     state.roadmap_id = roadmap_id;
-    print("Final state with roadmap id:", state);
     return state;
 }

@@ -1,7 +1,7 @@
 """Assessment-taking state management."""
 
 import from "..types.response_models" { AssessmentResponse, QuestionResponse }
-sv import from "....services.assessment" {
+sv import from ....services.assessment {
     AssessmentSubmissionReceipt,
     AssessmentView,
     load_assessment,

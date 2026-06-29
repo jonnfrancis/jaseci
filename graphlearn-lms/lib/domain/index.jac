@@ -24,7 +24,16 @@ import from nodes.assessment {
 }
 import from nodes.challenge { Challenge }
 import from nodes.learner { Learner }
-import from nodes.lesson { Difficulty, Lesson }
+import from nodes.lesson {
+    Difficulty,
+    GeneratedLesson,
+    Lesson,
+    LessonExample,
+    LessonGenerationStatus,
+    LessonMiniExercise,
+    LessonSection,
+    LessonTakeaway
+}
 import from nodes.mastery { Mastery, MasteryScore }
 import from nodes.roadmap {
     Roadmap,

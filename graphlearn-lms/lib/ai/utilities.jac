@@ -212,6 +212,74 @@ sem RoadmapGenerationResult.estimated_weeks = "The estimated duration in whole w
 sem RoadmapGenerationResult.target_level = "The learner level this roadmap is designed to reach.";
 sem RoadmapGenerationResult.weeks = "The ordered weeks containing lesson outlines and milestones.";
 
+obj GeneratedLessonSection {
+    has title: str;
+    has content: str;
+}
+sem GeneratedLessonSection = "One short readable section in a generated LMS lesson.";
+sem GeneratedLessonSection.title = "A concise section title aligned to the lesson objective.";
+sem GeneratedLessonSection.content = "Learner-facing explanatory content for this section, focused and readable.";
+
+obj GeneratedLessonExample {
+    has title: str;
+    has code: str;
+    has explanation: str;
+}
+sem GeneratedLessonExample = "One practical code example for a generated lesson.";
+sem GeneratedLessonExample.title = "A concise learner-facing example title.";
+sem GeneratedLessonExample.code = "Valid code for the requested language that demonstrates the lesson concept.";
+sem GeneratedLessonExample.explanation = "A short explanation of what the code shows and why it matters.";
+
+obj GeneratedLessonMiniExercise {
+    has prompt: str;
+    has expected_concept: str;
+}
+sem GeneratedLessonMiniExercise = "A lightweight ungraded reading-check exercise, not a coding challenge.";
+sem GeneratedLessonMiniExercise.prompt = "A short practice prompt that reinforces the lesson without grading, rubrics, or submission evaluation.";
+sem GeneratedLessonMiniExercise.expected_concept = "The single concept the mini exercise is meant to reinforce.";
+
+obj GeneratedLessonTakeaway {
+    has content: str;
+}
+sem GeneratedLessonTakeaway = "One concise key takeaway from the generated lesson.";
+sem GeneratedLessonTakeaway.content = "A memorable sentence summarizing a concept the learner should retain.";
+
+obj LessonGenerationResult {
+    has sections: list[GeneratedLessonSection];
+    has examples: list[GeneratedLessonExample];
+    has mini_exercises: list[GeneratedLessonMiniExercise];
+    has key_takeaways: list[GeneratedLessonTakeaway];
+}
+sem LessonGenerationResult = "Complete structured content for one on-demand LMS lesson. It must not include final coding challenges, grading rubrics, submission evaluation, mastery updates, unlock instructions, dashboard analytics, or tutor recommendations.";
+sem LessonGenerationResult.sections = "Ordered lesson sections following this structure: brief introduction, concept explanation, practical example, common mistake or misconception, mini exercise, and key takeaways.";
+sem LessonGenerationResult.examples = "Ordered practical code examples aligned to the persisted roadmap lesson outline and target language.";
+sem LessonGenerationResult.mini_exercises = "Ordered ungraded reading-check prompts that reinforce concepts without becoming coding challenges.";
+sem LessonGenerationResult.key_takeaways = "Ordered concise lesson takeaways.";
+
+obj LessonContentContext {
+    has language: str;
+    has lesson_title: str;
+    has lesson_summary: str;
+    has difficulty: str;
+    has estimated_minutes: int;
+    has target_skills: list[str];
+    has learner_assessment_summary: str;
+    has weak_skills: list[str];
+    has strong_skills: list[str];
+    has previous_lesson_titles: list[str];
+}
+sem LessonContentContext = "The complete persisted context for generating one on-demand lesson from a roadmap lesson outline.";
+sem LessonContentContext.language = "The selected learning language. Supported values are python and jac.";
+sem LessonContentContext.lesson_title = "The persisted roadmap lesson title; use it as the source of truth.";
+sem LessonContentContext.lesson_summary = "The persisted roadmap lesson summary; use it as the scope boundary.";
+sem LessonContentContext.difficulty = "The persisted lesson difficulty: beginner, intermediate, or advanced.";
+sem LessonContentContext.estimated_minutes = "The persisted estimated lesson duration in minutes. Beginner lessons should target 8 to 12 minutes, intermediate 10 to 15 minutes, and advanced 12 to 18 minutes.";
+sem LessonContentContext.target_skills = "Persisted skill identifiers targeted by this roadmap lesson.";
+sem LessonContentContext.learner_assessment_summary = "A concise summary of persisted assessment evaluation signals available for personalization, or a note that no evaluation summary was found.";
+sem LessonContentContext.weak_skills = "Skill identifiers where the learner showed weak evidence and may need extra clarity.";
+sem LessonContentContext.strong_skills = "Skill identifiers where the learner showed stronger evidence and can move faster.";
+sem LessonContentContext.previous_lesson_titles = "Earlier lesson titles from the same roadmap that can provide continuity without repeating content.";
+
 enum AIErrorKind: str {
     AUTHENTICATION = "authentication",
     CONFIGURATION = "configuration",
@@ -427,3 +495,10 @@ sem generate_learning_roadmap_outline.skill_signals = "Structured skill-level ev
 sem generate_learning_roadmap_outline.weak_skills = "Skill identifiers with weak evidence that should be prioritized early.";
 sem generate_learning_roadmap_outline.strong_skills = "Skill identifiers with strong evidence that may allow the roadmap to skip unnecessary basics.";
 sem generate_learning_roadmap_outline.target_level = "The target level the roadmap should help the learner reach.";
+
+def generate_lesson_content(context: LessonContentContext) -> LessonGenerationResult by llm(
+    temperature=0.2,
+    max_tokens=2200
+);
+sem generate_lesson_content = "Generate complete structured reading content for one persisted roadmap lesson outline. Personalize to the learner context, keep the lesson short and focused, use the requested language, and return only structured sections, examples, mini exercises, and takeaways. Do not generate coding challenges, grading rubrics, submission evaluation, mastery updates, unlock logic, dashboard analytics, or tutor recommendations.";
+sem generate_lesson_content.context = "The complete persisted lesson-generation context built by the walker from roadmap, learner, skills, and assessment data.";

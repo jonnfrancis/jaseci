@@ -292,7 +292,7 @@ Output:
 
 ---
 
-## Existing Walkers (Found at ../jac-lms/backend/server.jac)
+## Existing Walkers (Found at previous-walkers.jac.md)
 
 Current walkers to retain and extend:
 
@@ -324,11 +324,7 @@ evaluate_submission
 
 Returns graph visualization data.
 
-### initialize_learning_graph
 
-Will evolve into:
-
-initialize_personalized_learning_graph
 
 ---
 
