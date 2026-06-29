@@ -11,6 +11,7 @@ import from "lucide-react" {
     RefreshCcw,
     Sparkles
 }
+import from "@jac/runtime" { Link }
 import from "....components.ui.button" { Button }
 import from "....components.ui.card" {
     Card,
@@ -172,12 +173,12 @@ def:pub RoadmapTimeline(roadmap: RoadmapView) -> JsxElement {
                 <h2 className="text-xl font-semibold text-copy-primary">Course outline</h2>
             </div>
             {for week in roadmap.weeks {
-                <RoadmapWeekCard key={week.id} week={week} />
+                <RoadmapWeekCard key={week.id} week={week} roadmapId={roadmap.id} />
             }}
         </section>;
 }
 
-def:pub RoadmapWeekCard(week: RoadmapWeekView) -> JsxElement {
+def:pub RoadmapWeekCard(week: RoadmapWeekView, roadmapId: str) -> JsxElement {
     return
         <Card className="border-surface-border bg-surface">
             <CardHeader>
@@ -196,7 +197,7 @@ def:pub RoadmapWeekCard(week: RoadmapWeekView) -> JsxElement {
             <CardContent className="grid gap-5">
                 <div className="grid gap-3" aria-label={f"Week {week.week_number} lessons"}>
                     {for lesson in week.lessons {
-                        <RoadmapLessonItem key={lesson.id} lesson={lesson} />
+                        <RoadmapLessonItem key={lesson.id} lesson={lesson} roadmapId={roadmapId} />
                     }}
                 </div>
                 {if len(week.milestones) > 0 {
@@ -211,7 +212,7 @@ def:pub RoadmapWeekCard(week: RoadmapWeekView) -> JsxElement {
         </Card>;
 }
 
-def:pub RoadmapLessonItem(lesson: RoadmapLessonView) -> JsxElement {
+def:pub RoadmapLessonItem(lesson: RoadmapLessonView, roadmapId: str) -> JsxElement {
     status_icon = <CheckCircle2 className="size-4 text-state-success" /> if lesson.generation_status == "generated" else <Circle className="size-4 text-brand" />;
     return
         <article className="rounded-xl border border-surface-border-subtle bg-elevated p-4">
@@ -232,9 +233,17 @@ def:pub RoadmapLessonItem(lesson: RoadmapLessonView) -> JsxElement {
                     <h3 className="mt-3 text-base font-semibold text-copy-primary">{lesson.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-copy-secondary">{lesson.summary}</p>
                 </div>
-                <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-surface-border-subtle bg-surface px-3 py-2 text-sm text-copy-secondary">
-                    {status_icon}
-                    {lesson.generation_status}
+                <div className="flex shrink-0 flex-col gap-2">
+                    <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-surface-border-subtle bg-surface px-3 py-2 text-sm text-copy-secondary">
+                        {status_icon}
+                        {lesson.generation_status}
+                    </div>
+                    <Button asChild={True} variant="outline" className="w-fit">
+                        <Link to={"/roadmap/" + roadmapId + "/lesson/" + lesson.id}>
+                            <BookOpen className="size-4" />
+                            Open lesson
+                        </Link>
+                    </Button>
                 </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2" aria-label="Target skills">

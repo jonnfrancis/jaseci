@@ -69,6 +69,7 @@ obj LessonTakeawayView {
 
 obj GeneratedLessonView {
     has id: str;
+    has roadmap_id: str;
     has roadmap_lesson_id: str;
     has learner_id: str;
     has language: str;
@@ -78,6 +79,7 @@ obj GeneratedLessonView {
     has estimated_minutes: int;
     has generation_status: str;
     has created_at: str;
+    has updated_at: str;
     has sections: list[LessonSectionView] = [];
     has examples: list[LessonExampleView] = [];
     has mini_exercises: list[LessonMiniExerciseView] = [];
@@ -299,7 +301,7 @@ def _takeaway_order(takeaway: LessonTakeaway) -> int {
     return takeaway.order_index;
 }
 
-def _generated_lesson_to_view(lesson: GeneratedLesson) -> GeneratedLessonView {
+def generated_lesson_to_view(lesson: GeneratedLesson) -> GeneratedLessonView {
     section_views: list[LessonSectionView] = [];
     for section in sorted(lesson.sections, key=_section_order) {
         section_views = section_views + [
@@ -350,6 +352,7 @@ def _generated_lesson_to_view(lesson: GeneratedLesson) -> GeneratedLessonView {
 
     return GeneratedLessonView(
         id=lesson.id,
+        roadmap_id=lesson.roadmap_id,
         roadmap_lesson_id=lesson.roadmap_lesson_id,
         learner_id=lesson.learner_id,
         language=lesson.language,
@@ -362,7 +365,8 @@ def _generated_lesson_to_view(lesson: GeneratedLesson) -> GeneratedLessonView {
         mini_exercises=exercise_views,
         key_takeaways=takeaway_views,
         generation_status=lesson.generation_status.value,
-        created_at=lesson.created_at
+        created_at=lesson.created_at,
+        updated_at=lesson.updated_at
     );
 }
 
@@ -430,7 +434,7 @@ walker generate_lesson {
 
         existing = get_generated_lesson(self.learner_id, self.roadmap_lesson_id);
         if existing is not None {
-            report _generated_lesson_to_view(existing);
+            report generated_lesson_to_view(existing);
             return;
         }
 
@@ -543,6 +547,6 @@ walker generate_lesson {
         }
 
         roadmap_lesson.generation_status = RoadmapLessonGenerationStatus.generated;
-        report _generated_lesson_to_view(generated_lesson);
+        report generated_lesson_to_view(generated_lesson);
     }
 }

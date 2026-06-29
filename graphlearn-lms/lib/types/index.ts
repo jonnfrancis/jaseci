@@ -77,6 +77,7 @@ export interface LessonTakeawayView {
 
 export interface GeneratedLessonView {
   id: string;
+  roadmap_id: string;
   roadmap_lesson_id: string;
   learner_id: string;
   language: "python" | "jac";
@@ -90,6 +91,7 @@ export interface GeneratedLessonView {
   key_takeaways: LessonTakeawayView[];
   generation_status: LessonGenerationStatus;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Challenge {
