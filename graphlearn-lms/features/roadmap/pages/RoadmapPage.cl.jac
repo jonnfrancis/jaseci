@@ -8,7 +8,7 @@ import from "...roadmap.components.RoadmapComponents" {
     RoadmapSummaryCards,
     RoadmapTimeline
 }
-sv import from "....services.roadmap" {
+sv import from ....services.roadmap {
     RoadmapView,
     load_roadmap
 }

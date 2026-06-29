@@ -441,14 +441,31 @@ def:pub generate_roadmap_for_journey(
         language=language
     );
     if len(result.errors) > 0 or len(result.reports) == 0 {
+        print("generate_roadmap errors:", result.errors);
+        print("generate_roadmap reports:", result.reports);
         raise Exception("Unable to generate roadmap.");
+    }
+
+    roadmap_report: dict = {};
+    roadmap_id: str = "";
+
+    roadmap_report = result.reports[0] as dict;
+    print("Generated roadmap report:", roadmap_report);
+
+    roadmap_id = str(roadmap_report["roadmap_id"]);
+    print("Generated roadmap id:", roadmap_id);
+
+    if roadmap_id == "" {
+        raise Exception("Roadmap was generated but no roadmap id was returned.");
     }
 
     assessments = [root -->][?:Assessment, id == assessment_id];
     if len(assessments) == 0 {
         raise Exception("Assessment is unavailable.");
     }
+
     state = _state_for_assessment(assessments[0], "results");
-    state.roadmap_id = result.reports[0].id;
+    state.roadmap_id = roadmap_id;
+    print("Final state with roadmap id:", state);
     return state;
 }

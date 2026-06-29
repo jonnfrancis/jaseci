@@ -30,7 +30,7 @@ import from "lucide-react" {
     Send
 }
 import from "..types.response_models" { QuestionResponse }
-sv import from "....services.assessment" { AssessmentQuestionView, AssessmentView }
+sv import from ....services.assessment { AssessmentQuestionView, AssessmentView }
 
 def _response_for_question(responses: list[QuestionResponse], question_id: str) -> QuestionResponse | None {
     for response in responses {

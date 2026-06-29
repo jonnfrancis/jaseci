@@ -13,7 +13,7 @@ import from "..components.AssessmentComponents" {
     AssessmentUnavailableState,
     AssessmentSuccessState
 }
-cl import from "....services.assessment" {
+sv import from ....services.assessment {
     AssessmentSubmissionReceipt,
     AssessmentView
 }

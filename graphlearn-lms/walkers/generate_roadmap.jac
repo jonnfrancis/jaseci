@@ -382,6 +382,11 @@ walker generate_roadmap {
             }
         }
 
-        report roadmap;
+        report {
+            "roadmap_id": roadmap.id,
+            "id": roadmap.id,
+            "title": roadmap.title,
+            "language": roadmap.language,
+        };
     }
 }

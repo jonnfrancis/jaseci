@@ -36,7 +36,7 @@ import from "....lib.journey.journey_state" {
     clear_journey_state,
     save_journey_state
 }
-sv import from "....services.assessment_journey" {
+sv import from ....services.assessment_journey {
     generate_roadmap_for_journey,
     load_assessment_journey,
     retry_assessment_evaluation,
@@ -184,7 +184,6 @@ def:pub AssessmentJourneyPage() -> JsxElement {
         learner_id_val: str = "";
 
         try {
-            session: dict = {};
             session = current_auth_session();
 
             learner_id_raw = session["learner_id"];
@@ -197,11 +196,12 @@ def:pub AssessmentJourneyPage() -> JsxElement {
             print("Learner ID:", learner_id_val);
 
             learner_id_value = learner_id_val;
+            print("Learner ID Value:", learner_id_value);
 
             if str(session["email"] or "") != "" {
                 learner_display_value = str(session["email"]);
             } else {
-                learner_display_value = learner_id_value;
+                learner_display_value = learner_id_val;
             }
 
             learner_display = learner_display_value;
@@ -209,9 +209,9 @@ def:pub AssessmentJourneyPage() -> JsxElement {
             tracks_result = await supported_language_tracks();
             tracks = tracks_result;
 
-            if learner_id_value != "" {
-                print("Loading assessment journey for learner:", learner_id_value);
-                journey = await load_assessment_journey(learner_id_value);
+            if learner_id_val != "" {
+                print("Loading assessment journey for learner:", learner_id_val);
+                journey = await load_assessment_journey(learner_id_val);
                 persist_journey(journey);
             } else {
                 journey = {"status": "landing"};
@@ -390,21 +390,37 @@ def:pub AssessmentJourneyPage() -> JsxElement {
             return;
         }
         generating_roadmap = True;
-        print("Generating roadmap for learner:", learner_id_value);
         try {
-            journey = await generate_roadmap_for_journey(
+            next_journey: any = None;
+            next_roadmap_id: str = "";
+
+            next_journey = await generate_roadmap_for_journey(
                 learner_id_value,
                 journey.assessment_id,
                 journey.attempt_id,
                 journey.evaluation.evaluation_id,
                 journey.selected_language
             );
-            print("Roadmap generated:", journey.roadmap_id);
-            persist_journey(journey);
-            roadmap_id = journey.roadmap_id as str;
+            print("Generated journey returned to client:", next_journey);
+            print("Generated journey roadmap id direct:", next_journey.roadmap_id);
+
+            next_roadmap_id = next_journey.roadmap_id as str;
+            
+            if next_roadmap_id == "" {
+                error_message = "Roadmap generation failed: no roadmap id returned.";
+                generating_roadmap = False;
+                return;
+            }
+            print("Roadmap generated:", next_roadmap_id);
+
+            journey = next_journey;
+            persist_journey(next_journey);
+
+            roadmap_id = next_roadmap_id;
             nav("/roadmap/" + roadmap_id);
-        } except Exception {
-            error_message = "Unable to generate roadmap. Try again.";
+        } except Exception as e {
+            print("Generate roadmap failed:", e);
+            error_message = "Unable to generate roadmap: " + str(e);
         }
         generating_roadmap = False;
     }

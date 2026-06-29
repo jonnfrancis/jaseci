@@ -19,7 +19,7 @@ import from "....components.ui.card" {
     CardHeader,
     CardTitle
 }
-sv import from "....services.roadmap" {
+sv import from ....services.roadmap {
     RoadmapLessonView,
     RoadmapLoadState,
     RoadmapMilestoneView,

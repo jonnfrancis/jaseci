@@ -47,8 +47,7 @@ lib_imports = ["import tailwindcss from '@tailwindcss/vite'"]
 
 [plugins.byllm.model]
 api_key = "${VITE_GEMINI_API_KEY}"                       # Required
-default_model = "${MODEL:-gemini-3.5-flash}"             # With default
-base_url = "${BASE_URL:?Base URL is required}"      # Required with error
+default_model = "gemini/gemini-3.1-flash-lite"             # With default
 
 [plugins.client]
 
