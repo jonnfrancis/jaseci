@@ -237,6 +237,32 @@ def:pub LessonMetadataPanel(lesson: any, readComplete: bool, onComplete: Callabl
         </aside>;
 }
 
+def:pub LessonChallengePanel(
+    starting: bool,
+    errorMessage: str,
+    onStart: Callable[[], None]
+) -> JsxElement {
+    return
+        <aside className="rounded-2xl border border-surface-border bg-surface p-4" aria-label="Coding challenge">
+            <div className="flex items-center gap-2 text-sm font-semibold text-copy-primary">
+                <Code2 className="size-4 text-brand" />
+                Coding challenge
+            </div>
+            <p className="mt-3 text-sm leading-6 text-copy-secondary">
+                Turn this lesson into a hands-on coding task and save your solution for the evaluation step coming next.
+            </p>
+            {if errorMessage != "" {
+                <p className="mt-3 rounded-xl border border-state-error bg-elevated p-3 text-sm text-state-error" role="alert">
+                    {errorMessage}
+                </p>
+            }}
+            <Button className="mt-4 w-full" disabled={starting} onClick={lambda (_e: MouseEvent) { onStart(); }}>
+                <Code2 className="size-4" />
+                {"Creating challenge..." if starting else "Start coding challenge"}
+            </Button>
+        </aside>;
+}
+
 def:pub LessonNavigationActions(
     previousLesson: any,
     nextLesson: any,

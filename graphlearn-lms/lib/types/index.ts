@@ -102,6 +102,79 @@ export interface Challenge {
   difficulty: Difficulty;
 }
 
+export interface ChallengeInstructionView {
+  id: string;
+  content: string;
+  order_index: number;
+}
+
+export interface ChallengeExpectedOutcomeView {
+  id: string;
+  content: string;
+  order_index: number;
+}
+
+export interface ChallengeConstraintView {
+  id: string;
+  content: string;
+  order_index: number;
+}
+
+export interface ChallengeHintView {
+  id: string;
+  content: string;
+  order_index: number;
+}
+
+export interface ChallengeEvaluationCriterionView {
+  id: string;
+  skill_id: string;
+  description: string;
+  weight: number;
+  order_index: number;
+}
+
+export interface GeneratedChallengeView {
+  id: string;
+  learner_id: string;
+  roadmap_id: string;
+  roadmap_lesson_id: string;
+  generated_lesson_id: string;
+  language: "python" | "jac";
+  title: string;
+  prompt: string;
+  difficulty: Difficulty;
+  starter_code: string;
+  created_at: string;
+  updated_at?: string;
+  instructions: ChallengeInstructionView[];
+  expected_outcomes: ChallengeExpectedOutcomeView[];
+  constraints: ChallengeConstraintView[];
+  hints: ChallengeHintView[];
+  evaluation_criteria: ChallengeEvaluationCriterionView[];
+}
+
+export type ChallengeSubmissionStatus = "draft" | "submitted";
+
+export interface ChallengeSubmissionDraft {
+  challenge_id: string;
+  learner_id: string;
+  code: string;
+  language: "python" | "jac";
+  status: ChallengeSubmissionStatus;
+  updated_at?: string;
+}
+
+export interface ChallengeSubmissionView {
+  id: string;
+  challenge_id: string;
+  learner_id: string;
+  code: string;
+  language: "python" | "jac";
+  status: "submitted";
+  submitted_at: string;
+}
+
 export interface Skill {
   id: string;
   name: string;

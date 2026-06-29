@@ -280,6 +280,88 @@ sem LessonContentContext.weak_skills = "Skill identifiers where the learner show
 sem LessonContentContext.strong_skills = "Skill identifiers where the learner showed stronger evidence and can move faster.";
 sem LessonContentContext.previous_lesson_titles = "Earlier lesson titles from the same roadmap that can provide continuity without repeating content.";
 
+obj GeneratedChallengeInstruction {
+    has content: str;
+}
+sem GeneratedChallengeInstruction = "One ordered learner-facing instruction for a generated hands-on coding challenge.";
+sem GeneratedChallengeInstruction.content = "A concise imperative instruction the learner can follow while writing or modifying code.";
+
+obj GeneratedChallengeExpectedOutcome {
+    has content: str;
+}
+sem GeneratedChallengeExpectedOutcome = "One observable outcome expected from a learner's challenge solution.";
+sem GeneratedChallengeExpectedOutcome.content = "A concrete behavior, code structure, or output that should be visible in a correct solution.";
+
+obj GeneratedChallengeConstraint {
+    has content: str;
+}
+sem GeneratedChallengeConstraint = "One safety or scope constraint for a generated coding challenge.";
+sem GeneratedChallengeConstraint.content = "A clear limitation that keeps the task small, local, safe, and aligned to the lesson.";
+
+obj GeneratedChallengeHint {
+    has content: str;
+}
+sem GeneratedChallengeHint = "One optional hint for a generated coding challenge.";
+sem GeneratedChallengeHint.content = "A helpful nudge that supports the learner without giving away the full solution.";
+
+obj GeneratedChallengeEvaluationCriterion {
+    has skill_id: str;
+    has description: str;
+    has weight: float;
+}
+sem GeneratedChallengeEvaluationCriterion = "One structured criterion future AI evaluation can use to grade a submitted coding challenge solution.";
+sem GeneratedChallengeEvaluationCriterion.skill_id = "The stable skill identifier this criterion evaluates; prefer one of the persisted target skills.";
+sem GeneratedChallengeEvaluationCriterion.description = "A specific observable standard for judging learner code.";
+sem GeneratedChallengeEvaluationCriterion.weight = "Relative criterion weight from 0.0 to 1.0; all returned criteria should sum close to 1.0.";
+
+obj ChallengeGenerationResult {
+    has title: str;
+    has prompt: str;
+    has difficulty: str;
+    has starter_code: str;
+    has instructions: list[GeneratedChallengeInstruction];
+    has expected_outcomes: list[GeneratedChallengeExpectedOutcome];
+    has constraints: list[GeneratedChallengeConstraint];
+    has hints: list[GeneratedChallengeHint];
+    has evaluation_criteria: list[GeneratedChallengeEvaluationCriterion];
+}
+sem ChallengeGenerationResult = "Complete structured result for one persisted hands-on coding challenge. It must ask the learner to write or modify code and must not include submissions, code execution, grading results, mastery updates, unlock logic, dashboard analytics, tutor recommendations, filesystem tasks, network calls, package installation, credentials, or system-level operations.";
+sem ChallengeGenerationResult.title = "A concise learner-facing challenge title aligned to the generated lesson.";
+sem ChallengeGenerationResult.prompt = "A practical coding task prompt that requires writing or modifying code in the requested language.";
+sem ChallengeGenerationResult.difficulty = "The challenge difficulty: beginner, intermediate, or advanced.";
+sem ChallengeGenerationResult.starter_code = "Safe starter code in the requested language. Python starter code must be valid Python; Jac starter code should use Jac syntax where practical.";
+sem ChallengeGenerationResult.instructions = "Ordered steps the learner should follow to complete the coding challenge.";
+sem ChallengeGenerationResult.expected_outcomes = "Ordered observable outcomes that a correct solution should satisfy.";
+sem ChallengeGenerationResult.constraints = "Ordered constraints that keep the challenge safe, local, and focused on the lesson.";
+sem ChallengeGenerationResult.hints = "Ordered hints that help without solving the challenge.";
+sem ChallengeGenerationResult.evaluation_criteria = "Ordered weighted criteria future evaluation can apply to a learner's submitted code.";
+
+obj ChallengeGenerationContext {
+    has language: str;
+    has lesson_title: str;
+    has lesson_summary: str;
+    has lesson_difficulty: str;
+    has lesson_sections: list[str];
+    has lesson_examples: list[str];
+    has lesson_mini_exercises: list[str];
+    has target_skills: list[str];
+    has learner_weak_skills: list[str];
+    has learner_strong_skills: list[str];
+    has previous_challenge_titles: list[str];
+}
+sem ChallengeGenerationContext = "Persisted source-of-truth context for generating one hands-on coding challenge from an already generated lesson.";
+sem ChallengeGenerationContext.language = "The selected learning language. Supported values are python and jac.";
+sem ChallengeGenerationContext.lesson_title = "The generated lesson title to align the challenge with.";
+sem ChallengeGenerationContext.lesson_summary = "The generated lesson summary to scope the challenge.";
+sem ChallengeGenerationContext.lesson_difficulty = "The generated lesson difficulty: beginner, intermediate, or advanced.";
+sem ChallengeGenerationContext.lesson_sections = "Ordered generated lesson section titles and content summaries that the challenge should practice.";
+sem ChallengeGenerationContext.lesson_examples = "Ordered generated lesson example titles, code, and explanations to ground starter code and task design.";
+sem ChallengeGenerationContext.lesson_mini_exercises = "Ordered generated lesson mini exercises and expected concepts to build upon without duplicating exactly.";
+sem ChallengeGenerationContext.target_skills = "Persisted roadmap lesson target skill identifiers the challenge should evaluate.";
+sem ChallengeGenerationContext.learner_weak_skills = "Skill identifiers where available assessment evidence suggests the learner may need extra practice.";
+sem ChallengeGenerationContext.learner_strong_skills = "Skill identifiers where available assessment evidence suggests the learner is stronger.";
+sem ChallengeGenerationContext.previous_challenge_titles = "Previously generated challenge titles for this roadmap to avoid repetition.";
+
 enum AIErrorKind: str {
     AUTHENTICATION = "authentication",
     CONFIGURATION = "configuration",
@@ -502,3 +584,10 @@ def generate_lesson_content(context: LessonContentContext) -> LessonGenerationRe
 );
 sem generate_lesson_content = "Generate complete structured reading content for one persisted roadmap lesson outline. Personalize to the learner context, keep the lesson short and focused, use the requested language, and return only structured sections, examples, mini exercises, and takeaways. Do not generate coding challenges, grading rubrics, submission evaluation, mastery updates, unlock logic, dashboard analytics, or tutor recommendations.";
 sem generate_lesson_content.context = "The complete persisted lesson-generation context built by the walker from roadmap, learner, skills, and assessment data.";
+
+def generate_coding_challenge(context: ChallengeGenerationContext) -> ChallengeGenerationResult by llm(
+    temperature=0.2,
+    max_tokens=2200
+);
+sem generate_coding_challenge = "Generate one safe, hands-on coding challenge from a persisted generated lesson. The learner must write or modify code. Return only structured challenge content and future evaluation criteria; do not evaluate submissions, run code, update mastery, unlock lessons, create a workspace UI, require external packages, access files, use network calls, request credentials, or perform dangerous/system-level tasks.";
+sem generate_coding_challenge.context = "The complete challenge-generation context built from the generated lesson, roadmap lesson, target skills, assessment signals, and previous challenges.";

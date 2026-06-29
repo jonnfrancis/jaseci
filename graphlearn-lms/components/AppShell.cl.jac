@@ -4,6 +4,7 @@ import from "@jac/runtime" { AuthGuard, Route, Router, Routes }
 import from "..features.auth.pages.LoginPage" { LoginPage }
 import from "..features.auth.pages.RegisterPage" { RegisterPage }
 import from "..features.assessment.pages.AssessmentJourneyPage" { AssessmentJourneyPage }
+import from "..features.challenge.pages.ChallengeWorkspacePage" { ChallengeWorkspacePage }
 import from "..features.landing.pages.LandingPage" { LandingPage }
 import from "..features.lesson.pages.LessonPage" { LessonPage }
 import from "..features.roadmap.pages.RoadmapPage" { RoadmapPage }
@@ -18,6 +19,7 @@ def:pub AppShell() -> JsxElement {
                 <Route path="/assessment" element={<AssessmentJourneyPage />} />
                 <Route path="/roadmap/:roadmapId" element={<RoadmapPage />} />
                 <Route path="/roadmap/:roadmapId/lesson/:roadmapLessonId" element={<LessonPage />} />
+                <Route path="/roadmap/:roadmapId/lesson/:roadmapLessonId/challenge/:challengeId" element={<ChallengeWorkspacePage />} />
             </Routes>
         </Router>;
 }

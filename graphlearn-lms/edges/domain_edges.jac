@@ -18,6 +18,15 @@ edge contains {}
 # Represents RoadmapLesson -> Skill.
 edge targets {}
 
+# Represents GeneratedChallenge -> Skill.
+edge evaluates {}
+
+# Represents Learner -> ChallengeSubmission.
+edge attempted {}
+
+# Represents ChallengeSubmission -> GeneratedChallenge and GeneratedChallenge -> ChallengeSubmission.
+edge submitted_for {}
+
 # Represents RoadmapMilestone -> Skill.
 edge requires {}
 

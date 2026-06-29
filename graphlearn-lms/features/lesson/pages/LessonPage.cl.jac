@@ -3,6 +3,7 @@
 import from "@jac/runtime" { useNavigate, useParams }
 import from "..components.LessonComponents" {
     LessonCodeExample,
+    LessonChallengePanel,
     LessonErrorState,
     LessonHeader,
     LessonLoadingState,
@@ -17,6 +18,10 @@ import from "....lib.auth.auth_storage" { read_auth_session }
 sv import from ....services.lesson {
     LessonOpenState,
     open_lesson
+}
+sv import from ....services.challenge {
+    ChallengeStartState,
+    start_challenge
 }
 
 def _completion_key(lesson_id: str) -> str {
@@ -46,6 +51,8 @@ def:pub LessonPage() -> JsxElement {
     has copied_example_id: str = "";
     has checked_exercise_ids: list[str] = [];
     has read_complete: bool = False;
+    has challenge_starting: bool = False;
+    has challenge_error: str = "";
 
     params = useParams();
     nav = useNavigate();
@@ -84,6 +91,8 @@ def:pub LessonPage() -> JsxElement {
         failed = False;
         open_state = None;
         copied_example_id = "";
+        challenge_error = "";
+        challenge_starting = False;
         active_section_id = "";
         try {
             open_state = await open_lesson(learner_id, roadmap_id, roadmap_lesson_id);
@@ -134,6 +143,33 @@ def:pub LessonPage() -> JsxElement {
             lesson: any = open_state.lesson;
             localStorage.setItem(_completion_key(str(lesson.id)), "true"); # jac:ignore[W2001,E1030,W6002]
         }
+    }
+
+    async def start_lesson_challenge {
+        if open_state is None or open_state.lesson is None {
+            challenge_error = "Lesson content must load before a challenge can start.";
+            return;
+        }
+        challenge_starting = True;
+        challenge_error = "";
+        try {
+            lesson: any = open_state.lesson;
+            challenge_state: ChallengeStartState = await start_challenge(
+                learner_id,
+                roadmap_id,
+                roadmap_lesson_id,
+                str(lesson.id)
+            );
+            if challenge_state.status == "ready" and challenge_state.challenge is not None {
+                challenge: any = challenge_state.challenge;
+                nav("/roadmap/" + roadmap_id + "/lesson/" + roadmap_lesson_id + "/challenge/" + str(challenge.id));
+            } else {
+                challenge_error = challenge_state.message if challenge_state.message != "" else "Challenge could not be started.";
+            }
+        } except Exception {
+            challenge_error = "Challenge could not be started. Try again.";
+        }
+        challenge_starting = False;
     }
 
     async can with (learner_id, roadmap_id, roadmap_lesson_id) entry {
@@ -282,10 +318,14 @@ def:pub LessonPage() -> JsxElement {
                     </article>
                     <div className="hidden flex-col gap-4 lg:sticky lg:top-6 lg:flex">
                         <LessonMetadataPanel lesson={lesson} readComplete={read_complete} onComplete={mark_complete} />
+                        <LessonChallengePanel starting={challenge_starting} errorMessage={challenge_error} onStart={start_lesson_challenge} />
                         <LessonTakeaways takeaways={lesson.key_takeaways} />
                     </div>
                     <div className="lg:hidden">
                         <LessonMetadataPanel lesson={lesson} readComplete={read_complete} onComplete={mark_complete} />
+                        <div className="mt-4">
+                            <LessonChallengePanel starting={challenge_starting} errorMessage={challenge_error} onStart={start_lesson_challenge} />
+                        </div>
                     </div>
                 </div>
             </div>
