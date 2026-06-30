@@ -247,6 +247,52 @@ export interface Mastery {
   updatedAt: string;
 }
 
+export type MasteryLevel = "beginner" | "developing" | "proficient" | "mastered";
+export type MasterySourceType = "assessment_evaluation" | "submission_evaluation";
+
+export interface UpdatedSkillMastery {
+  skill_id: string;
+  previous_score: number;
+  new_score: number;
+  delta: number;
+  mastery_level: MasteryLevel;
+  evidence_count: number;
+}
+
+export interface MasteryUpdateSummary {
+  learner_id: string;
+  source_type: MasterySourceType;
+  source_id: string;
+  updated_at: string;
+  updated_skills: UpdatedSkillMastery[];
+}
+
+export interface SkillMasteryView {
+  id: string;
+  learner_id: string;
+  skill_id: string;
+  score: number;
+  level: MasteryLevel;
+  evidence_count: number;
+  last_source_type: MasterySourceType | "";
+  last_source_id: string;
+  updated_at: string;
+  created_at: string;
+}
+
+export interface MasteryEvidenceView {
+  id: string;
+  learner_id: string;
+  skill_id: string;
+  source_type: MasterySourceType;
+  source_id: string;
+  signal_score: number;
+  confidence: number;
+  weighted_score: number;
+  evidence_summary: string;
+  created_at: string;
+}
+
 export type RoadmapStatus = "draft" | "active" | "completed";
 export type RoadmapLessonGenerationStatus = "pending" | "generated";
 

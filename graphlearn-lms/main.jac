@@ -16,6 +16,7 @@ import from walkers.generate_roadmap { generate_roadmap }
 import from walkers.initialize_assessment { initialize_assessment }
 import from walkers.submit_challenge { submit_challenge }
 import from walkers.submit_assessment { submit_assessment }
+import from walkers.update_mastery { update_mastery }
 
 # Client-side UI
 cl {

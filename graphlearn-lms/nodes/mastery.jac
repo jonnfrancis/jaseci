@@ -20,3 +20,59 @@ node Mastery {
     has score: MasteryScore;
     has updatedAt: str;
 }
+
+enum MasteryLevel: str {
+    beginner = "beginner",
+    developing = "developing",
+    proficient = "proficient",
+    mastered = "mastered"
+}
+
+enum MasterySourceType: str {
+    assessment_evaluation = "assessment_evaluation",
+    submission_evaluation = "submission_evaluation"
+}
+
+obj UpdatedSkillMasteryRecord {
+    has skill_id: str;
+    has previous_score: int;
+    has new_score: int;
+    has delta: int;
+    has mastery_level: str;
+    has evidence_count: int;
+}
+
+node SkillMastery {
+    has id: str;
+    has learner_id: str;
+    has skill_id: str;
+    has score: int;
+    has level: MasteryLevel;
+    has evidence_count: int;
+    has last_source_type: str;
+    has last_source_id: str;
+    has updated_at: str;
+    has created_at: str;
+}
+
+node MasteryEvidence {
+    has id: str;
+    has learner_id: str;
+    has skill_id: str;
+    has source_type: MasterySourceType;
+    has source_id: str;
+    has signal_score: float;
+    has confidence: float;
+    has weighted_score: float;
+    has evidence_summary: str;
+    has created_at: str;
+}
+
+node MasteryUpdateResult {
+    has id: str;
+    has learner_id: str;
+    has source_type: MasterySourceType;
+    has source_id: str;
+    has updated_at: str;
+    has updated_skills: list[UpdatedSkillMasteryRecord] = [];
+}

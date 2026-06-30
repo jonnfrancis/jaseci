@@ -1,6 +1,6 @@
 """Domain model barrel exports."""
 
-import from edges.domain_edges { Prerequisite, assigned, attempted, completed, contains, evaluated, evaluates, mastered, requires, signals, submitted_for, targets, teaches }
+import from edges.domain_edges { Prerequisite, assigned, attempted, completed, contains, evaluated, evaluates, evidenced_by, mastered, requires, signals, submitted_for, targets, teaches }
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
@@ -49,7 +49,16 @@ import from nodes.lesson {
     LessonSection,
     LessonTakeaway
 }
-import from nodes.mastery { Mastery, MasteryScore }
+import from nodes.mastery {
+    Mastery,
+    MasteryEvidence,
+    MasteryLevel,
+    MasteryScore,
+    MasterySourceType,
+    MasteryUpdateResult,
+    SkillMastery,
+    UpdatedSkillMasteryRecord
+}
 import from nodes.roadmap {
     Roadmap,
     RoadmapLesson,

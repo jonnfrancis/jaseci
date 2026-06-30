@@ -9,6 +9,10 @@ edge teaches {}
 # Represents Learner -> Skill.
 edge mastered {}
 
+# Represents Learner -> MasteryEvidence, MasteryEvidence -> AssessmentEvaluation,
+# and MasteryEvidence -> SubmissionEvaluation.
+edge evidenced_by {}
+
 # Represents Learner -> Roadmap and Roadmap -> Lesson.
 edge assigned {}
 
