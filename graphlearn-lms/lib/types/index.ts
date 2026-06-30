@@ -175,6 +175,51 @@ export interface ChallengeSubmissionView {
   submitted_at: string;
 }
 
+export interface CriterionResultView {
+  id: string;
+  criterion_id: string;
+  skill_id: string;
+  score: number;
+  feedback: string;
+  met: boolean;
+  order_index: number;
+}
+
+export interface SubmissionSkillSignalView {
+  id: string;
+  skill_id: string;
+  score: number;
+  confidence: number;
+  evidence: string;
+  order_index: number;
+}
+
+export type FeedbackItemType = "strength" | "improvement" | "suggestion";
+
+export interface FeedbackItemView {
+  id: string;
+  feedback_type: FeedbackItemType;
+  content: string;
+  order_index: number;
+}
+
+export interface SubmissionEvaluationView {
+  id: string;
+  learner_id: string;
+  challenge_id: string;
+  submission_id: string;
+  language: "python" | "jac";
+  score: number;
+  passed: boolean;
+  feedback_summary: string;
+  criterion_results: CriterionResultView[];
+  skill_signals: SubmissionSkillSignalView[];
+  strengths: string[];
+  improvement_areas: string[];
+  suggested_next_step: string;
+  evaluated_at: string;
+}
+
 export interface Skill {
   id: string;
   name: string;

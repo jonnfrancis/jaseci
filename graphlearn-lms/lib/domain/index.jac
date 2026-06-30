@@ -1,6 +1,6 @@
 """Domain model barrel exports."""
 
-import from edges.domain_edges { Prerequisite, assigned, attempted, completed, contains, evaluates, mastered, requires, submitted_for, targets, teaches }
+import from edges.domain_edges { Prerequisite, assigned, attempted, completed, contains, evaluated, evaluates, mastered, requires, signals, submitted_for, targets, teaches }
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
@@ -31,7 +31,12 @@ import from nodes.challenge {
     ChallengeInstruction,
     ChallengeSubmission,
     ChallengeSubmissionStatus,
-    GeneratedChallenge
+    CriterionResult,
+    FeedbackItem,
+    FeedbackType,
+    GeneratedChallenge,
+    SubmissionEvaluation,
+    SubmissionSkillSignal
 }
 import from nodes.learner { Learner }
 import from nodes.lesson {

@@ -362,6 +362,98 @@ sem ChallengeGenerationContext.learner_weak_skills = "Skill identifiers where av
 sem ChallengeGenerationContext.learner_strong_skills = "Skill identifiers where available assessment evidence suggests the learner is stronger.";
 sem ChallengeGenerationContext.previous_challenge_titles = "Previously generated challenge titles for this roadmap to avoid repetition.";
 
+obj SubmissionEvaluationCriterionContext {
+    has criterion_id: str;
+    has skill_id: str;
+    has description: str;
+    has weight: float;
+}
+sem SubmissionEvaluationCriterionContext = "A persisted coding challenge evaluation criterion that the submission evaluator must score.";
+sem SubmissionEvaluationCriterionContext.criterion_id = "The stable persisted criterion identifier to echo in the criterion result.";
+sem SubmissionEvaluationCriterionContext.skill_id = "The skill identifier this criterion evaluates.";
+sem SubmissionEvaluationCriterionContext.description = "The persisted observable standard for judging the submitted code.";
+sem SubmissionEvaluationCriterionContext.weight = "The persisted relative importance of this criterion.";
+
+obj SubmissionEvaluationContext {
+    has language: str;
+    has challenge_title: str;
+    has challenge_prompt: str;
+    has starter_code: str;
+    has instructions: list[str];
+    has expected_outcomes: list[str];
+    has constraints: list[str];
+    has hints: list[str];
+    has evaluation_criteria: list[SubmissionEvaluationCriterionContext];
+    has submitted_code: str;
+    has lesson_title: str;
+    has lesson_summary: str;
+    has target_skills: list[str];
+}
+sem SubmissionEvaluationContext = "Persisted source-of-truth context for statically evaluating one submitted coding challenge solution without executing code.";
+sem SubmissionEvaluationContext.language = "The submitted challenge language. Supported values are python and jac.";
+sem SubmissionEvaluationContext.challenge_title = "The persisted challenge title.";
+sem SubmissionEvaluationContext.challenge_prompt = "The persisted learner-facing challenge prompt.";
+sem SubmissionEvaluationContext.starter_code = "The original safe starter code shown to the learner.";
+sem SubmissionEvaluationContext.instructions = "Ordered persisted challenge instructions the learner was asked to follow.";
+sem SubmissionEvaluationContext.expected_outcomes = "Ordered persisted outcomes a correct solution should satisfy.";
+sem SubmissionEvaluationContext.constraints = "Ordered persisted constraints the submitted code should respect, especially safety and scope limits.";
+sem SubmissionEvaluationContext.hints = "Ordered persisted hints that were available to the learner; use them only as challenge context.";
+sem SubmissionEvaluationContext.evaluation_criteria = "Ordered persisted criteria that must be scored individually.";
+sem SubmissionEvaluationContext.submitted_code = "The learner's persisted submitted code to review statically; do not execute it.";
+sem SubmissionEvaluationContext.lesson_title = "The generated lesson title linked to this challenge.";
+sem SubmissionEvaluationContext.lesson_summary = "The generated lesson summary linked to this challenge.";
+sem SubmissionEvaluationContext.target_skills = "Persisted target skill identifiers for this challenge and roadmap lesson.";
+
+obj GeneratedCriterionResult {
+    has criterion_id: str;
+    has skill_id: str;
+    has score: float;
+    has feedback: str;
+    has met: bool;
+}
+sem GeneratedCriterionResult = "Structured score and feedback for one persisted challenge evaluation criterion.";
+sem GeneratedCriterionResult.criterion_id = "The exact persisted criterion id being evaluated.";
+sem GeneratedCriterionResult.skill_id = "The skill id connected to the criterion.";
+sem GeneratedCriterionResult.score = "Criterion score from 0.0 to 1.0 based on static review of submitted code.";
+sem GeneratedCriterionResult.feedback = "Specific, actionable feedback tied to this criterion and the submitted code.";
+sem GeneratedCriterionResult.met = "Whether the submitted solution satisfies this criterion well enough to count as met.";
+
+obj GeneratedSkillSignal {
+    has skill_id: str;
+    has score: float;
+    has confidence: float;
+    has evidence: str;
+}
+sem GeneratedSkillSignal = "Evidence-only signal about learner performance on one skill from this submitted challenge.";
+sem GeneratedSkillSignal.skill_id = "The skill identifier this signal describes.";
+sem GeneratedSkillSignal.score = "Skill performance score from 0.0 to 1.0 inferred from the submitted code.";
+sem GeneratedSkillSignal.confidence = "Confidence from 0.0 to 1.0 that the submitted code supports this signal.";
+sem GeneratedSkillSignal.evidence = "Concrete evidence from the submitted code and challenge requirements.";
+
+obj GeneratedFeedbackItem {
+    has feedback_type: str;
+    has content: str;
+}
+sem GeneratedFeedbackItem = "One structured learner-facing feedback item.";
+sem GeneratedFeedbackItem.feedback_type = "One of strength, improvement, or suggestion.";
+sem GeneratedFeedbackItem.content = "Specific, encouraging, actionable feedback tied to the challenge requirements.";
+
+obj SubmissionEvaluationResult {
+    has score: int;
+    has feedback_summary: str;
+    has criterion_results: list[GeneratedCriterionResult];
+    has skill_signals: list[GeneratedSkillSignal];
+    has feedback_items: list[GeneratedFeedbackItem];
+    has suggested_next_step: str;
+}
+sem SubmissionEvaluationResult = "Complete structured static review of a persisted coding challenge submission. It must not include mastery updates, lesson unlocking, roadmap progress, retry challenge generation, code execution output, shell operations, filesystem access, package installation, network calls, or tutor chat.";
+sem SubmissionEvaluationResult.score = "Overall score from 0 to 100 representing how well the submitted solution meets the challenge requirements; 70 or higher means passed but not mastered.";
+sem SubmissionEvaluationResult.feedback_summary = "A concise summary of what the learner did well and what to improve.";
+sem SubmissionEvaluationResult.criterion_results = "One result for each persisted evaluation criterion, using the exact criterion ids.";
+sem SubmissionEvaluationResult.skill_signals = "Evidence-only skill signals for future mastery and recommendation systems; do not claim mastery.";
+sem SubmissionEvaluationResult.feedback_items = "Structured strengths, improvements, and suggestions for learner-facing feedback.";
+sem SubmissionEvaluationResult.suggested_next_step = "One concrete next learning or revision action for the learner.";
+
 enum AIErrorKind: str {
     AUTHENTICATION = "authentication",
     CONFIGURATION = "configuration",
@@ -591,3 +683,10 @@ def generate_coding_challenge(context: ChallengeGenerationContext) -> ChallengeG
 );
 sem generate_coding_challenge = "Generate one safe, hands-on coding challenge from a persisted generated lesson. The learner must write or modify code. Return only structured challenge content and future evaluation criteria; do not evaluate submissions, run code, update mastery, unlock lessons, create a workspace UI, require external packages, access files, use network calls, request credentials, or perform dangerous/system-level tasks.";
 sem generate_coding_challenge.context = "The complete challenge-generation context built from the generated lesson, roadmap lesson, target skills, assessment signals, and previous challenges.";
+
+def evaluate_code_submission(context: SubmissionEvaluationContext) -> SubmissionEvaluationResult by llm(
+    temperature=0.1,
+    max_tokens=2200
+);
+sem evaluate_code_submission = "Statically evaluate one persisted coding challenge submission against the persisted challenge definition. Return only structured scoring, feedback, criterion results, skill signals, and next-step guidance. Do not execute code, request execution, access files, use shell commands, install packages, make network calls, update mastery, unlock lessons, update roadmap progress, generate retry challenges, or create tutor chat.";
+sem evaluate_code_submission.context = "The complete persisted submission-evaluation context built from the generated challenge, linked lesson, target skills, evaluation criteria, and submitted code.";

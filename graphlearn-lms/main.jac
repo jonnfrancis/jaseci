@@ -9,6 +9,7 @@ import from services.assessment_journey { generate_roadmap_for_journey }
 import from services.lesson { open_lesson }
 import from services.roadmap { load_roadmap }
 import from walkers.evaluate_assessment { evaluate_assessment }
+import from walkers.evaluate_submission { evaluate_submission }
 import from walkers.generate_challenge { generate_challenge }
 import from walkers.generate_lesson { generate_lesson }
 import from walkers.generate_roadmap { generate_roadmap }

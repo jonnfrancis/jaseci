@@ -7,6 +7,12 @@ enum ChallengeSubmissionStatus: str {
     submitted = "submitted"
 }
 
+enum FeedbackType: str {
+    strength = "strength",
+    improvement = "improvement",
+    suggestion = "suggestion"
+}
+
 node Challenge {
     has id: str;
     has title: str;
@@ -82,4 +88,51 @@ node ChallengeSubmission {
     has submitted_at: str;
     has created_at: str;
     has updated_at: str;
+}
+
+node SubmissionEvaluation {
+    has id: str;
+    has learner_id: str;
+    has challenge_id: str;
+    has submission_id: str;
+    has language: str;
+    has score: int;
+    has passed: bool;
+    has feedback_summary: str;
+    has suggested_next_step: str;
+    has evaluation_version: str;
+    has evaluated_at: str;
+    has created_at: str;
+    has criterion_results: list[CriterionResult] = [];
+    has skill_signals: list[SubmissionSkillSignal] = [];
+    has feedback_items: list[FeedbackItem] = [];
+}
+
+node CriterionResult {
+    has id: str;
+    has evaluation_id: str;
+    has criterion_id: str;
+    has skill_id: str;
+    has score: float;
+    has feedback: str;
+    has met: bool;
+    has order_index: int;
+}
+
+node SubmissionSkillSignal {
+    has id: str;
+    has evaluation_id: str;
+    has skill_id: str;
+    has score: float;
+    has confidence: float;
+    has evidence: str;
+    has order_index: int;
+}
+
+node FeedbackItem {
+    has id: str;
+    has evaluation_id: str;
+    has feedback_type: FeedbackType;
+    has content: str;
+    has order_index: int;
 }

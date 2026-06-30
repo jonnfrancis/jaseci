@@ -21,6 +21,13 @@ edge targets {}
 # Represents GeneratedChallenge -> Skill.
 edge evaluates {}
 
+# Represents Learner -> SubmissionEvaluation, GeneratedChallenge -> SubmissionEvaluation,
+# and ChallengeSubmission -> SubmissionEvaluation.
+edge evaluated {}
+
+# Represents SubmissionEvaluation -> SubmissionSkillSignal.
+edge signals {}
+
 # Represents Learner -> ChallengeSubmission.
 edge attempted {}
 

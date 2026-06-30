@@ -12,6 +12,8 @@ import from lib.ai.utilities {
     GeneratedChallengeExpectedOutcome,
     GeneratedChallengeHint,
     GeneratedChallengeInstruction,
+    GeneratedCriterionResult,
+    GeneratedFeedbackItem,
     GeneratedOption,
     GeneratedQuestion,
     GeneratedQuestionDifficulty,
@@ -28,8 +30,12 @@ import from lib.ai.utilities {
     GeneratedRoadmapLesson,
     GeneratedRoadmapMilestone,
     GeneratedRoadmapWeek,
+    GeneratedSkillSignal,
     RoadmapGenerationResult,
     RoadmapSkillSignalContext,
     SkillAnalysis,
-    SkillConfidence
+    SkillConfidence,
+    SubmissionEvaluationContext,
+    SubmissionEvaluationCriterionContext,
+    SubmissionEvaluationResult
 }

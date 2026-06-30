@@ -363,7 +363,9 @@ def:pub AssessmentSubmitDialog(
             </DialogTrigger>
             <DialogContent className="rounded-3xl bg-subtle">
                 <DialogHeader>
-                    <DialogTitle>Submit assessment</DialogTitle>
+                    <DialogTitle className="text-lg font-semibold">
+                        Submit assessment
+                    </DialogTitle>
                     <DialogDescription>
                         Your answers will be saved for later learner-outcome workflows.
                     </DialogDescription>
