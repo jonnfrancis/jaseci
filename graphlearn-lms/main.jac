@@ -13,6 +13,7 @@ import from walkers.evaluate_submission { evaluate_submission }
 import from walkers.generate_challenge { generate_challenge }
 import from walkers.generate_lesson { generate_lesson }
 import from walkers.generate_roadmap { generate_roadmap }
+import from walkers.get_skill_map { get_skill_map }
 import from walkers.initialize_assessment { initialize_assessment }
 import from walkers.submit_challenge { submit_challenge }
 import from walkers.submit_assessment { submit_assessment }

@@ -293,6 +293,46 @@ export interface MasteryEvidenceView {
   created_at: string;
 }
 
+export type SkillMapStatus = "locked" | "available" | "in_progress" | "mastered";
+export type SkillMapEdgeType = "prerequisite" | "teaches" | "reinforces";
+
+export interface SkillMapSummary {
+  total_skills: number;
+  mastered_count: number;
+  proficient_count: number;
+  developing_count: number;
+  beginner_count: number;
+  average_mastery: number;
+}
+
+export interface SkillMapSkill {
+  skill_id: string;
+  name: string;
+  description: string;
+  category: string;
+  mastery_score: number;
+  mastery_level: MasteryLevel;
+  status: SkillMapStatus;
+  evidence_count: number;
+  target_lesson_ids: string[];
+}
+
+export interface SkillMapEdge {
+  from_skill_id: string;
+  to_skill_id: string;
+  type: SkillMapEdgeType;
+}
+
+export interface SkillMapView {
+  learner_id: string;
+  language: "python" | "jac";
+  roadmap_id: string;
+  summary: SkillMapSummary;
+  skills: SkillMapSkill[];
+  edges: SkillMapEdge[];
+  generated_at: string;
+}
+
 export type RoadmapStatus = "draft" | "active" | "completed";
 export type RoadmapLessonGenerationStatus = "pending" | "generated";
 
