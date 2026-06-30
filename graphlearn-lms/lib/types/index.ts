@@ -386,3 +386,61 @@ export type RoadmapLessonView = RoadmapLessonOutline;
 export type RoadmapMilestoneView = RoadmapMilestone;
 export type RoadmapWeekView = RoadmapWeek;
 export type RoadmapView = RoadmapSummary;
+
+export type LessonUnlockState = "locked" | "available" | "in_progress" | "completed";
+export type RoadmapProgressStatus = "not_started" | "in_progress" | "completed";
+export type ProgressionEventType =
+  | "lesson_unlocked"
+  | "lesson_completed"
+  | "roadmap_started"
+  | "roadmap_completed";
+export type ProgressionSourceType = "lesson_completion" | "submission_evaluation" | "manual_check";
+
+export interface LessonProgressView {
+  roadmap_lesson_id: string;
+  title: string;
+  status: LessonUnlockState;
+  unlock_reason: string;
+  locked_reason: string;
+  completed_at: string;
+  unlocked_at: string;
+}
+
+export interface RoadmapProgressView {
+  id: string;
+  learner_id: string;
+  roadmap_id: string;
+  total_lessons: number;
+  completed_lessons: number;
+  available_lessons: number;
+  locked_lessons: number;
+  percent_complete: number;
+  current_roadmap_lesson_id: string;
+  status: RoadmapProgressStatus;
+  updated_at: string;
+}
+
+export interface ProgressionEventView {
+  id: string;
+  learner_id: string;
+  roadmap_id: string;
+  roadmap_lesson_id: string;
+  event_type: ProgressionEventType;
+  source_type: ProgressionSourceType | "";
+  source_id: string;
+  message: string;
+  created_at: string;
+}
+
+export interface ProgressionResult {
+  learner_id: string;
+  roadmap_id: string;
+  current_lesson: LessonProgressView | null;
+  newly_unlocked_lessons: LessonProgressView[];
+  locked_lessons: LessonProgressView[];
+  completed_lessons: LessonProgressView[];
+  roadmap_progress: RoadmapProgressView | null;
+  events: ProgressionEventView[];
+  roadmap_completed: boolean;
+  message: string;
+}

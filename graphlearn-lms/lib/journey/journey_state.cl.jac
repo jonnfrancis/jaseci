@@ -35,6 +35,10 @@ def:pub read_journey_state() -> JourneyRecoveryState {
     );
 }
 
+def:pub read_journey_language() -> str {
+    return _read(JOURNEY_LANGUAGE_KEY);
+}
+
 def:pub save_journey_state(
     selected_language: str,
     assessment_id: str,
@@ -56,4 +60,3 @@ def:pub clear_journey_state() {
     localStorage.removeItem(JOURNEY_EVALUATION_KEY); # jac:ignore[W2001,E1030,W6002]
     localStorage.removeItem(JOURNEY_ROADMAP_KEY); # jac:ignore[W2001,E1030,W6002]
 }
-

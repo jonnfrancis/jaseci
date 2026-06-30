@@ -8,6 +8,7 @@ import from "lucide-react" {
     Clock,
     Flag,
     Map,
+    Network,
     RefreshCcw,
     Sparkles
 }
@@ -124,6 +125,12 @@ def:pub RoadmapHeader(roadmap: RoadmapView) -> JsxElement {
                         <Clock className="size-3.5 text-brand" />
                         {roadmap.estimated_weeks} weeks
                     </span>
+                    <Button asChild={True} variant="outline">
+                        <Link to={"/roadmap/" + roadmap.id + "/skill-map"}>
+                            <Network className="size-4" />
+                            Skill map
+                        </Link>
+                    </Button>
                 </div>
             </div>
         </header>;

@@ -43,3 +43,16 @@ edge requires {}
 
 # Represents Learner -> Lesson, Learner -> Challenge, and Learner -> Assessment.
 edge completed {}
+
+# Represents Learner -> LessonProgress and Learner -> RoadmapProgress.
+edge progresses {}
+
+# Represents Roadmap -> LessonProgress, RoadmapLesson -> LessonProgress,
+# and Roadmap -> RoadmapProgress.
+edge tracks {}
+
+# Represents RoadmapLesson -> LessonProgress when a lesson becomes available.
+edge unlocked {}
+
+# Represents ProgressionEvent ownership/context links.
+edge belongs_to {}

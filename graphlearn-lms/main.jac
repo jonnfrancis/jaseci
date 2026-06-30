@@ -8,6 +8,7 @@ import from services.challenge { open_challenge, start_challenge, submit_challen
 import from services.assessment_journey { generate_roadmap_for_journey }
 import from services.lesson { open_lesson }
 import from services.roadmap { load_roadmap }
+import from services.skill_map { load_skill_map }
 import from walkers.evaluate_assessment { evaluate_assessment }
 import from walkers.evaluate_submission { evaluate_submission }
 import from walkers.generate_challenge { generate_challenge }
@@ -17,6 +18,7 @@ import from walkers.get_skill_map { get_skill_map }
 import from walkers.initialize_assessment { initialize_assessment }
 import from walkers.submit_challenge { submit_challenge }
 import from walkers.submit_assessment { submit_assessment }
+import from walkers.unlock_next_lesson { unlock_next_lesson }
 import from walkers.update_mastery { update_mastery }
 
 # Client-side UI

@@ -134,6 +134,18 @@ Represents user proficiency for a topic.
 
 Stored as graph relationships.
 
+### Progression
+
+Represents deterministic roadmap availability and completion state.
+
+Stores:
+
+* Per-lesson unlock state
+* Roadmap progress summary
+* Progression events
+* Current available lesson
+* Completion state
+
 ---
 
 ## OSP Graph Design
@@ -149,6 +161,9 @@ Topic
 Lesson
 Challenge
 Skill
+LessonProgress
+RoadmapProgress
+ProgressionEvent
 ```
 
 ### Edge Types
@@ -163,6 +178,10 @@ HAS_CHALLENGE
 PREREQUISITE
 
 COMPLETED
+PROGRESSES
+TRACKS
+UNLOCKED
+BELONGS_TO
 
 ATTEMPTED
 
@@ -307,6 +326,8 @@ Updates:
 ### unlock_next_lesson
 
 Controls progression.
+
+Persists LessonProgress, RoadmapProgress, and ProgressionEvent records. Uses roadmap order, persisted generated lesson records, passing submission evaluations, and existing SkillMastery values to unlock the next eligible lesson. Does not generate content, evaluate submissions, or update mastery.
 
 ### generate_quiz
 
