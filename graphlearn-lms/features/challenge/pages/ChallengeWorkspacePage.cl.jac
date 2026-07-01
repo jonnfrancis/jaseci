@@ -24,6 +24,14 @@ def _draft_key(challenge_id: str) -> str {
     return "graphlearn.challenge.draft." + challenge_id;
 }
 
+def _usable_code(value: str) -> str {
+    cleaned = value.strip();
+    if cleaned == "" or cleaned == "undefined" or cleaned == "null" {
+        return "";
+    }
+    return value;
+}
+
 def:pub ChallengeWorkspacePage() -> JsxElement {
     has workspace_state: ChallengeWorkspaceState | None = None;
     has loading: bool = True;
@@ -34,6 +42,10 @@ def:pub ChallengeWorkspacePage() -> JsxElement {
     has save_error: str = "";
     has save_success: str = "";
     has submission_id: str = "";
+    has evaluation_score: int = -1;
+    has evaluation_passed: bool = False;
+    has evaluation_summary: str = "";
+    has evaluation_next_step: str = "";
     has revealed_hint_count: int = 0;
 
     params = useParams();
@@ -91,24 +103,45 @@ def:pub ChallengeWorkspacePage() -> JsxElement {
         save_error = "";
         save_success = "";
         submission_id = "";
+        evaluation_score = -1;
+        evaluation_passed = False;
+        evaluation_summary = "";
+        evaluation_next_step = "";
         revealed_hint_count = 0;
         try {
             workspace_state = await open_challenge(learner_id, roadmap_id, roadmap_lesson_id, challenge_id);
             if workspace_state is not None and workspace_state.status == "ready" and workspace_state.challenge is not None {
                 challenge: GeneratedChallengeView = workspace_state.challenge;
-                local_draft = read_local_draft(str(challenge.id));
+                starter_code = _usable_code(str(challenge.starter_code));
+                raw_local_draft = read_local_draft(str(challenge.id));
+                local_draft = _usable_code(raw_local_draft);
+                draft_code = "";
+                if workspace_state.draft is not None {
+                    draft: any = workspace_state.draft;
+                    draft_code = _usable_code(str(draft.code));
+                }
+                if raw_local_draft != "" and local_draft == "" {
+                    clear_local_draft(str(challenge.id));
+                }
                 if local_draft != "" {
                     editor_code = local_draft;
-                } elif workspace_state.draft is not None {
-                    draft: any = workspace_state.draft;
-                    editor_code = str(draft.code);
+                } elif draft_code != "" {
+                    editor_code = draft_code;
                 } else {
-                    editor_code = str(challenge.starter_code);
+                    editor_code = starter_code;
                 }
                 if workspace_state.latest_submission is not None {
                     latest: any = workspace_state.latest_submission;
                     submission_id = str(latest.id);
-                    save_success = "Submission saved. Evaluation will be added next.";
+                    save_success = "Latest submission loaded.";
+                }
+                if workspace_state.latest_evaluation is not None {
+                    latest_evaluation: any = workspace_state.latest_evaluation;
+                    evaluation_score = int(latest_evaluation.score);
+                    evaluation_passed = bool(latest_evaluation.passed);
+                    evaluation_summary = str(latest_evaluation.feedback_summary);
+                    evaluation_next_step = str(latest_evaluation.suggested_next_step);
+                    save_success = "Latest evaluation loaded.";
                 }
             }
         } except Exception {
@@ -122,6 +155,10 @@ def:pub ChallengeWorkspacePage() -> JsxElement {
         editor_code = value;
         validation_message = "";
         save_error = "";
+        evaluation_score = -1;
+        evaluation_passed = False;
+        evaluation_summary = "";
+        evaluation_next_step = "";
         if challenge_id != "" {
             save_local_draft(challenge_id, value);
         }
@@ -144,6 +181,10 @@ def:pub ChallengeWorkspacePage() -> JsxElement {
         saving = True;
         save_error = "";
         save_success = "";
+        evaluation_score = -1;
+        evaluation_passed = False;
+        evaluation_summary = "";
+        evaluation_next_step = "";
         try {
             submit_state: ChallengeSubmitState = await submit_challenge_solution(
                 learner_id,
@@ -152,16 +193,23 @@ def:pub ChallengeWorkspacePage() -> JsxElement {
                 challenge_id,
                 editor_code
             );
-            if submit_state.status == "submitted" and submit_state.submission is not None {
+            if submit_state.status != "failed" and submit_state.submission is not None {
                 submission: any = submit_state.submission;
                 submission_id = str(submission.id);
-                save_success = submit_state.message if submit_state.message != "" else "Submission saved. Evaluation will be added next.";
+                save_success = submit_state.message if submit_state.message != "" else "Submission submitted and evaluated.";
+                if submit_state.evaluation is not None {
+                    evaluation: any = submit_state.evaluation;
+                    evaluation_score = int(evaluation.score);
+                    evaluation_passed = bool(evaluation.passed);
+                    evaluation_summary = str(evaluation.feedback_summary);
+                    evaluation_next_step = str(evaluation.suggested_next_step);
+                }
                 clear_local_draft(challenge_id);
             } else {
-                save_error = submit_state.message if submit_state.message != "" else "Submission could not be saved.";
+                save_error = submit_state.message if submit_state.message != "" else "Submission could not be evaluated.";
             }
         } except Exception {
-            save_error = "Submission could not be saved. Try again.";
+            save_error = "Submission could not be evaluated. Try again.";
         }
         saving = False;
     }
@@ -275,6 +323,10 @@ def:pub ChallengeWorkspacePage() -> JsxElement {
                             saving={saving}
                             successMessage={save_success}
                             errorMessage={save_error}
+                            evaluationScore={evaluation_score}
+                            evaluationPassed={evaluation_passed}
+                            evaluationSummary={evaluation_summary}
+                            evaluationNextStep={evaluation_next_step}
                             onSubmit={submit_solution}
                             onBack={go_lesson}
                         />

@@ -134,7 +134,7 @@ def:pub RoadmapHeader(roadmap: RoadmapView) -> JsxElement {
                     </Button>
                     <Button asChild={True} variant="default">
                         <Link to={"/dashboard"}>
-                            <Dashboard className="size-4" />
+                            <LayoutDashboard className="size-4" />
                             Dashboard
                         </Link>
                     </Button>

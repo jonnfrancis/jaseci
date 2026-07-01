@@ -208,15 +208,20 @@ def:pub ChallengeSubmitPanel(
     saving: bool,
     successMessage: str,
     errorMessage: str,
+    evaluationScore: int,
+    evaluationPassed: bool,
+    evaluationSummary: str,
+    evaluationNextStep: str,
     onSubmit: Callable[[], None],
     onBack: Callable[[], None]
 ) -> JsxElement {
+    has_evaluation = evaluationScore >= 0 or evaluationSummary != "";
     return
         <aside className="flex flex-col gap-4 rounded-2xl border border-surface-border bg-surface p-4" aria-label="Submit solution">
             <div>
                 <h2 className="text-sm font-semibold text-copy-primary">Submit state</h2>
                 <p className="mt-2 text-sm leading-6 text-copy-secondary">
-                    Save your solution for the evaluation step coming next. This workspace does not run or grade code yet.
+                    Submit your solution for static evaluation. Passing feedback updates mastery and unlocks the next lesson.
                 </p>
             </div>
             {if successMessage != "" {
@@ -228,6 +233,24 @@ def:pub ChallengeSubmitPanel(
                     }}
                 </div>
             }}
+            {if has_evaluation {
+                <div className="rounded-xl border border-surface-border-subtle bg-elevated p-3 text-sm leading-6">
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="font-medium text-copy-primary">Evaluation</p>
+                        {if evaluationScore >= 0 {
+                            <span className={"rounded-xl border px-2.5 py-1 text-xs font-medium " + ("border-state-success text-state-success" if evaluationPassed else "border-state-warning text-state-warning")}>
+                                {evaluationScore}%
+                            </span>
+                        }}
+                    </div>
+                    {if evaluationSummary != "" {
+                        <p className="mt-2 text-copy-secondary">{evaluationSummary}</p>
+                    }}
+                    {if evaluationNextStep != "" {
+                        <p className="mt-2 text-copy-muted">{evaluationNextStep}</p>
+                    }}
+                </div>
+            }}
             {if errorMessage != "" {
                 <div className="rounded-xl border border-state-error bg-elevated p-3 text-sm leading-6 text-state-error" role="alert">
                     <AlertCircle className="mr-2 inline size-4" />
@@ -236,7 +259,7 @@ def:pub ChallengeSubmitPanel(
             }}
             <Button disabled={saving} onClick={lambda (_e: MouseEvent) { onSubmit(); }}>
                 <Send className="size-4" />
-                {"Saving your solution..." if saving else "Submit solution"}
+                {"Evaluating solution..." if saving else "Submit for evaluation"}
             </Button>
             <Button variant="outline" onClick={lambda (_e: MouseEvent) { onBack(); }}>
                 <ChevronLeft className="size-4" />

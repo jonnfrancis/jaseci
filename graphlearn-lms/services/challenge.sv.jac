@@ -1,19 +1,36 @@
-"""Challenge workspace service for generated challenges and submissions."""
+"""Challenge workspace service for generated challenges, evaluation, and progression."""
 
-import from edges.domain_edges { contains, submitted_for }
+import from edges.domain_edges { contains, evaluated, submitted_for }
 import from nodes.challenge {
     ChallengeSubmission,
     ChallengeSubmissionStatus,
-    GeneratedChallenge
+    GeneratedChallenge,
+    SubmissionEvaluation
 }
 import from nodes.lesson { GeneratedLesson }
 import from nodes.roadmap { Roadmap, RoadmapLesson, RoadmapWeek }
+import from walkers.evaluate_submission {
+    SubmissionEvaluationError,
+    SubmissionEvaluationView,
+    evaluate_submission,
+    submission_evaluation_to_view
+}
 import from walkers.generate_challenge {
     ChallengeGenerationError,
     GeneratedChallengeView,
     generate_challenge,
     generated_challenge_to_view,
     get_generated_challenge
+}
+import from walkers.unlock_next_lesson {
+    ProgressionError,
+    ProgressionResult,
+    unlock_next_lesson
+}
+import from walkers.update_mastery {
+    MasteryUpdateError,
+    MasteryUpdateSummary,
+    update_mastery
 }
 import from walkers.submit_challenge {
     ChallengeSubmissionError,
@@ -36,6 +53,7 @@ obj ChallengeWorkspaceState {
     has challenge: GeneratedChallengeView | None = None;
     has draft: ChallengeSubmissionDraft | None = None;
     has latest_submission: ChallengeSubmissionView | None = None;
+    has latest_evaluation: SubmissionEvaluationView | None = None;
     has lesson_title: str = "";
     has message: str = "";
 }
@@ -50,6 +68,9 @@ obj ChallengeStartState {
 obj ChallengeSubmitState {
     has status: str;
     has submission: ChallengeSubmissionView | None = None;
+    has evaluation: SubmissionEvaluationView | None = None;
+    has mastery_update: MasteryUpdateSummary | None = None;
+    has progression: ProgressionResult | None = None;
     has message: str = "";
 }
 
@@ -124,6 +145,33 @@ def _latest_submission(challenge: GeneratedChallenge, learner_id: str) -> Challe
     return challenge_submission_to_view(latest as ChallengeSubmission);
 }
 
+def _latest_submission_node(challenge: GeneratedChallenge, learner_id: str) -> ChallengeSubmission | None {
+    latest: ChallengeSubmission | None = None;
+    for submission in [challenge ->:submitted_for:->][?:ChallengeSubmission] {
+        if submission.learner_id == learner_id and submission.status == ChallengeSubmissionStatus.submitted {
+            latest = submission;
+        }
+    }
+    return latest;
+}
+
+def _latest_evaluation(challenge: GeneratedChallenge, learner_id: str) -> SubmissionEvaluationView | None {
+    latest_submission = _latest_submission_node(challenge, learner_id);
+    if latest_submission is not None {
+        for evaluation in [(latest_submission as ChallengeSubmission) ->:evaluated:->][?:SubmissionEvaluation] {
+            if evaluation.learner_id == learner_id and evaluation.challenge_id == challenge.id {
+                return submission_evaluation_to_view(evaluation);
+            }
+        }
+    }
+    for evaluation in [challenge ->:evaluated:->][?:SubmissionEvaluation] {
+        if evaluation.learner_id == learner_id and evaluation.challenge_id == challenge.id {
+            return submission_evaluation_to_view(evaluation);
+        }
+    }
+    return None;
+}
+
 def _challenge_error_message(errors: list[ChallengeGenerationError]) -> str {
     if len(errors) == 0 {
         return "Challenge generation failed.";
@@ -134,6 +182,27 @@ def _challenge_error_message(errors: list[ChallengeGenerationError]) -> str {
 def _submission_error_message(errors: list[ChallengeSubmissionError]) -> str {
     if len(errors) == 0 {
         return "Challenge submission failed.";
+    }
+    return errors[0].message;
+}
+
+def _evaluation_error_message(errors: list[SubmissionEvaluationError]) -> str {
+    if len(errors) == 0 {
+        return "Submission evaluation failed.";
+    }
+    return errors[0].message;
+}
+
+def _mastery_error_message(errors: list[MasteryUpdateError]) -> str {
+    if len(errors) == 0 {
+        return "Mastery update failed.";
+    }
+    return errors[0].message;
+}
+
+def _progression_error_message(errors: list[ProgressionError]) -> str {
+    if len(errors) == 0 {
+        return "Lesson progression could not be updated.";
     }
     return errors[0].message;
 }
@@ -177,6 +246,7 @@ def:pub open_challenge(
         challenge=generated_challenge_to_view(challenge),
         draft=_latest_draft(challenge, learner_id),
         latest_submission=_latest_submission(challenge, learner_id),
+        latest_evaluation=_latest_evaluation(challenge, learner_id),
         lesson_title=roadmap_lesson.title
     );
 }
@@ -233,5 +303,70 @@ def:pub submit_challenge_solution(
     if len(result.errors) > 0 or len(result.reports) == 0 {
         return ChallengeSubmitState(status="failed", message=_submission_error_message(result.errors));
     }
-    return ChallengeSubmitState(status="submitted", submission=result.reports[0], message="Submission saved. Evaluation will be added next.");
+    submission = result.reports[0];
+
+    evaluation_result = root spawn evaluate_submission(
+        learner_id=learner_id,
+        challenge_id=challenge_id,
+        submission_id=submission.id
+    );
+    if len(evaluation_result.errors) > 0 or len(evaluation_result.reports) == 0 {
+        return ChallengeSubmitState(
+            status="evaluation_failed",
+            submission=submission,
+            message="Submission saved, but evaluation could not finish: " + _evaluation_error_message(evaluation_result.errors)
+        );
+    }
+    evaluation = evaluation_result.reports[0];
+
+    mastery_result = root spawn update_mastery(
+        learner_id=learner_id,
+        source_type="submission_evaluation",
+        source_id=evaluation.id
+    );
+    if len(mastery_result.errors) > 0 or len(mastery_result.reports) == 0 {
+        return ChallengeSubmitState(
+            status="mastery_failed",
+            submission=submission,
+            evaluation=evaluation,
+            message="Evaluation complete, but mastery could not update: " + _mastery_error_message(mastery_result.errors)
+        );
+    }
+    mastery_update = mastery_result.reports[0];
+
+    if not evaluation.passed {
+        return ChallengeSubmitState(
+            status="evaluated",
+            submission=submission,
+            evaluation=evaluation,
+            mastery_update=mastery_update,
+            message="Evaluation complete. Review the feedback, revise your solution, and submit again."
+        );
+    }
+
+    progression_result = root spawn unlock_next_lesson(
+        learner_id=learner_id,
+        roadmap_id=roadmap_id,
+        completed_roadmap_lesson_id=roadmap_lesson_id,
+        source_type="submission_evaluation",
+        source_id=evaluation.id
+    );
+    if len(progression_result.errors) > 0 or len(progression_result.reports) == 0 {
+        return ChallengeSubmitState(
+            status="progression_failed",
+            submission=submission,
+            evaluation=evaluation,
+            mastery_update=mastery_update,
+            message="Evaluation passed, but lesson progression could not update: " + _progression_error_message(progression_result.errors)
+        );
+    }
+    progression = progression_result.reports[0];
+    return ChallengeSubmitState(
+        status="completed",
+        submission=submission,
+        evaluation=evaluation,
+        mastery_update=mastery_update,
+        progression=progression,
+        message=progression.message
+    );
 }
