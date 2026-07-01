@@ -5,6 +5,7 @@ import from "..features.auth.pages.LoginPage" { LoginPage }
 import from "..features.auth.pages.RegisterPage" { RegisterPage }
 import from "..features.assessment.pages.AssessmentJourneyPage" { AssessmentJourneyPage }
 import from "..features.challenge.pages.ChallengeWorkspacePage" { ChallengeWorkspacePage }
+import from "..features.dashboard.pages.DashboardPage" { DashboardPage }
 import from "..features.landing.pages.LandingPage" { LandingPage }
 import from "..features.lesson.pages.LessonPage" { LessonPage }
 import from "..features.roadmap.pages.RoadmapPage" { RoadmapPage }
@@ -17,6 +18,7 @@ def:pub AppShell() -> JsxElement {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/assessment" element={<AssessmentJourneyPage />} />
                 <Route path="/skill-map" element={<SkillMapPage />} />
                 <Route path="/roadmap/:roadmapId" element={<RoadmapPage />} />

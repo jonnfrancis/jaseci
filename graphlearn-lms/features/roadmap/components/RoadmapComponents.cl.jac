@@ -10,7 +10,8 @@ import from "lucide-react" {
     Map,
     Network,
     RefreshCcw,
-    Sparkles
+    Sparkles,
+    LayoutDashboard
 }
 import from "@jac/runtime" { Link }
 import from "....components.ui.button" { Button }
@@ -129,6 +130,12 @@ def:pub RoadmapHeader(roadmap: RoadmapView) -> JsxElement {
                         <Link to={"/roadmap/" + roadmap.id + "/skill-map"}>
                             <Network className="size-4" />
                             Skill map
+                        </Link>
+                    </Button>
+                    <Button asChild={True} variant="default">
+                        <Link to={"/dashboard"}>
+                            <Dashboard className="size-4" />
+                            Dashboard
                         </Link>
                     </Button>
                 </div>

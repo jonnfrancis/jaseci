@@ -17,9 +17,9 @@ def:pub RegisterPage() -> JsxElement {
     async def submit_register() {
         busy = True;
         error_message = "";
-        session: dict = {};
+        session: dict[str, any] = {};
         try {
-            session = await register_user(username, email, password);
+            session = (await register_user(username, email, password)) as dict[str, any];
 
             if session["authenticated"] as bool {
                 nav("/assessment", {"replace": True});
@@ -55,7 +55,7 @@ def:pub RegisterPage() -> JsxElement {
             {error_message != "" and <AuthError message={error_message} />}
             <Button onClick={lambda (_e: MouseEvent) { submit_register(); }} disabled={busy or email.strip() == "" or password.strip() == ""}>
                 <UserPlus className="size-4" />
-                { "Working..." if busy else "Register and continue" }
+                { "Working..." if busy else "Register" }
             </Button>
         </AuthShell>;
 }

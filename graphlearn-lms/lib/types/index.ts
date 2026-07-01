@@ -444,3 +444,102 @@ export interface ProgressionResult {
   roadmap_completed: boolean;
   message: string;
 }
+
+export type DashboardState =
+  | "no_assessment"
+  | "assessment_started"
+  | "assessment_completed"
+  | "roadmap_missing"
+  | "roadmap_ready"
+  | "in_progress"
+  | "completed"
+  | "ready";
+
+export interface DashboardLearnerSummary {
+  learner_id: string;
+  name: string;
+}
+
+export interface DashboardRoadmapSummary {
+  roadmap_id: string;
+  language: "python" | "jac";
+  title: string;
+  status: RoadmapStatus;
+}
+
+export interface DashboardRoadmapProgress {
+  total_lessons: number;
+  completed_lessons: number;
+  available_lessons: number;
+  locked_lessons: number;
+  percent_complete: number;
+  current_roadmap_lesson_id: string;
+}
+
+export interface DashboardSkillSummary {
+  skill_id: string;
+  name: string;
+  score: number;
+  level: MasteryLevel;
+}
+
+export interface DashboardMasterySummary {
+  average_mastery: number;
+  mastered_count: number;
+  proficient_count: number;
+  developing_count: number;
+  beginner_count: number;
+  strongest_skills: DashboardSkillSummary[];
+  weakest_skills: DashboardSkillSummary[];
+}
+
+export interface DashboardLessonSummary {
+  total_lessons: number;
+  generated_lessons: number;
+  pending_lessons: number;
+  completed_lessons: number;
+  available_lessons: number;
+  locked_lessons: number;
+  in_progress_lessons: number;
+}
+
+export interface DashboardChallengeSummary {
+  generated_challenges: number;
+  draft_submissions: number;
+  submitted_challenges: number;
+  evaluated_submissions: number;
+  passed_challenges: number;
+  failed_challenges: number;
+}
+
+export interface DashboardCurrentLesson {
+  roadmap_lesson_id: string;
+  title: string;
+  summary: string;
+  week_number: number;
+  order_index: number;
+  status: LessonUnlockState;
+  generation_status: RoadmapLessonGenerationStatus;
+  generated_lesson_id: string;
+  challenge_id: string;
+}
+
+export interface DashboardRecentActivity {
+  type: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  related_entity_id: string;
+}
+
+export interface DashboardView {
+  learner: DashboardLearnerSummary;
+  active_roadmap: DashboardRoadmapSummary | null;
+  roadmap_progress: DashboardRoadmapProgress;
+  mastery_summary: DashboardMasterySummary;
+  lesson_summary: DashboardLessonSummary;
+  challenge_summary: DashboardChallengeSummary;
+  current_lesson: DashboardCurrentLesson | null;
+  recent_activity: DashboardRecentActivity[];
+  dashboard_state: DashboardState;
+}

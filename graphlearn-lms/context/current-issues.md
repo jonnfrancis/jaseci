@@ -1,29 +1,8 @@
 
-We're fixing the current Phase 1 workflow issues.
+ I tried running the lesson workflow that is "lesson generate -> lesson view-> challenge-workspace -> evaluate-submission -> update-mastery -> get-skill-map" and we have 2 main issues I need help fixing. 
 
 Current problems:
 
-1. When I run `jac run`, and try accessing these 2 endpoints in my client, I get a 404, not found error. I tried heading to my api server specifically the /functions and these 2 very important endpoints do not appear I managed to get a workaround so I could test but every time I close then startup the server they aren't there, generate_roadmap_for_journey and load_roadmap are the culprits. When I pasted this in my assessment_journey.sv.jac
-```
-def:pub generate_roadmap_for_journey(
-    learner_id: str,
-    assessment_id: str,
-    attempt_id: str,
-    evaluation_id: str,
-    language: str
-) -> dict {
-    return {
-        "ok": True,
-        "learner_id": learner_id,
-        "assessment_id": assessment_id,
-        "attempt_id": attempt_id,
-        "evaluation_id": evaluation_id,
-        "language": language
-    };
-}
-``` and saved then refreshed the api server, the endpoints appeared then I reverted it to the original and I could access it.
- Additionally, I noticed an error: "WARNING - cross-boundary endpoint 'generate_roadmap_for_journey' unavailable: ses\\assessment_journey.sv.jac' failed to import (ModuleNotFoundError: No module n
-WARNING - cross-boundary endpoint 'load_roadmap' unavailable: server module 'C:\c' failed to import (ModuleNotFoundError: No module named 'roadmap.sv'; 'roadmap".
-2. The input fields aren't visible when typing, the color is too similar to the background, text color is black on the already dark background. Noticed this especially during the assessment.
-
+1. Initial starter code doesn't show up in the code challenge workspace, but is available in the data, there might be a parsing error because the starter code is in the response of the function open-challenge
+2. When I clicked on the evaluate submission button, it said it was saved but the feature for evaluation was not created yet, I believe when we created the evaluate-submission and the update-mastery walkers, we may not have wired it to the current lesson UI, but I can't be sure, do your investigations and help fix it.
 

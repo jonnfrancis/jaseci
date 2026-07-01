@@ -177,14 +177,14 @@ def:pub AssessmentJourneyPage() -> JsxElement {
         loading = True;
         error_message = "";
 
-        session: dict = {};
+        session: dict[str, any] = {};
         learner_display_value: str = "";
         tracks_result: list[any] = [];
         learner_id_raw: any = None;
         learner_id_val: str = "";
 
         try {
-            session = current_auth_session();
+            session = current_auth_session() as dict[str, any];
 
             learner_id_raw = session["learner_id"];
 
@@ -338,9 +338,10 @@ def:pub AssessmentJourneyPage() -> JsxElement {
         }
         submitting = True;
         try {
+            assessment_id: str = journey.assessment.id as str;
             journey = await submit_and_evaluate_assessment(
                 learner_id_value,
-                journey.assessment.id,
+                assessment_id,
                 [_to_payload_response(response) for response in responses],
                 "client-submitted"
             );
@@ -363,10 +364,12 @@ def:pub AssessmentJourneyPage() -> JsxElement {
         retrying_evaluation = True;
         error_message = "";
         try {
+            assessment_id: str = journey.assessment_id as str;
+            attempt_id: str = journey.attempt_id as str;
             journey = await retry_assessment_evaluation(
                 learner_id_value,
-                journey.assessment_id,
-                journey.attempt_id,
+                assessment_id,
+                attempt_id,
                 "client-evaluation-retry"
             );
             persist_journey(journey);
@@ -393,13 +396,17 @@ def:pub AssessmentJourneyPage() -> JsxElement {
         try {
             next_journey: any = None;
             next_roadmap_id: str = "";
+            assessment_id: str = journey.assessment_id as str;
+            attempt_id: str = journey.attempt_id as str;
+            evaluation_id: str = journey.evaluation.evaluation_id as str;
+            selected_language: str = journey.selected_language as str;
 
             next_journey = await generate_roadmap_for_journey(
                 learner_id_value,
-                journey.assessment_id,
-                journey.attempt_id,
-                journey.evaluation.evaluation_id,
-                journey.selected_language
+                assessment_id,
+                attempt_id,
+                evaluation_id,
+                selected_language
             );
             print("Generated journey returned to client:", next_journey);
             print("Generated journey roadmap id direct:", next_journey.roadmap_id);
@@ -417,7 +424,7 @@ def:pub AssessmentJourneyPage() -> JsxElement {
             persist_journey(next_journey);
 
             roadmap_id = next_roadmap_id;
-            nav("/roadmap/" + roadmap_id);
+            nav("/dashboard");
         } except Exception as e {
             print("Generate roadmap failed:", e);
             error_message = "Unable to generate roadmap: " + str(e);

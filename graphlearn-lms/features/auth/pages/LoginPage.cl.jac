@@ -25,7 +25,7 @@ def:pub LoginPage() -> JsxElement {
         try {
             session = await login_user(email, password);
             if session["authenticated"] as bool {
-                nav("/assessment", {"replace": True});
+                nav("/dashboard", {"replace": True});
             } else {
                 error_message = "Authentication failed. Check your credentials and try again.";
             }
@@ -54,7 +54,7 @@ def:pub LoginPage() -> JsxElement {
             {error_message != "" and <AuthError message={error_message} />}
             <Button onClick={lambda (_e: MouseEvent) { submit_login(); }} disabled={busy or email.strip() == "" or password.strip() == ""}>
                 <LogIn className="size-4" />
-                { "Working..." if busy else "Login and continue" }
+                { "Working..." if busy else "Login" }
             </Button>
         </AuthShell>;
 }

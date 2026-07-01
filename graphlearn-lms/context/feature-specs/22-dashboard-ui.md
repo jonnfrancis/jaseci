@@ -576,23 +576,23 @@ Suggested structure:
 features/
 └── dashboard/
     ├── components/
-    │   ├── dashboard-page.tsx
-    │   ├── dashboard-header.tsx
-    │   ├── dashboard-state-panel.tsx
-    │   ├── roadmap-progress-card.tsx
-    │   ├── current-lesson-card.tsx
-    │   ├── mastery-summary-card.tsx
-    │   ├── skill-summary-list.tsx
-    │   ├── lesson-summary-card.tsx
-    │   ├── challenge-summary-card.tsx
-    │   ├── roadmap-snapshot.tsx
-    │   ├── recent-activity-list.tsx
-    │   ├── dashboard-loading-state.tsx
-    │   └── dashboard-error-state.tsx
+    │   ├── dashboard-page.cl.jac
+    │   ├── dashboard-header.cl.jac
+    │   ├── dashboard-state-panel.cl.jac
+    │   ├── roadmap-progress-card.cl.jac
+    │   ├── current-lesson-card.cl.jac
+    │   ├── mastery-summary-card.cl.jac
+    │   ├── skill-summary-list.cl.jac
+    │   ├── lesson-summary-card.cl.jac
+    │   ├── challenge-summary-card.cl.jac
+    │   ├── roadmap-snapshot.cl.jac
+    │   ├── recent-activity-list.cl.jac
+    │   ├── dashboard-loading-state.cl.jac
+    │   └── dashboard-error-state.cl.jac
     ├── hooks/
-    │   └── use-dashboard.ts
+    │   └── use-dashboard
     └── types/
-        └── dashboard-view.ts
+        └── dashboard-view
 ```
 
 Adapt paths to the existing project convention if needed.
