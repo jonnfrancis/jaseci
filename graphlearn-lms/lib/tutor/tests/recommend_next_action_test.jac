@@ -11,8 +11,10 @@ import from lib.ai.schemas {
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
+    AssessmentAttemptLink,
     AssessmentAttemptStatus,
     AssessmentEvaluation,
+    AssessmentEvaluationLink,
     AssessmentScore,
     AssessmentStatus
 }
@@ -71,7 +73,7 @@ def _seed_assessment(learner: Learner, prefix: str, evaluated: bool = True) {
     ))[0];
     learner +>:assigned:+> assessment;
     if evaluated {
-        attempt = (root ++> AssessmentAttempt(
+        attempt = (assessment +>:AssessmentAttemptLink:+> AssessmentAttempt(
             id=f"{prefix}-attempt",
             learner_id=learner.id,
             assessment_id=assessment.id,
@@ -79,7 +81,7 @@ def _seed_assessment(learner: Learner, prefix: str, evaluated: bool = True) {
             submitted_at="2026-06-30T01:00:00Z",
             completed_at="2026-06-30T01:00:00Z"
         ))[0];
-        root ++> AssessmentEvaluation(
+        attempt +>:AssessmentEvaluationLink:+> AssessmentEvaluation(
             id=f"{prefix}-assessment-evaluation",
             assessment_id=assessment.id,
             assessment_attempt_id=attempt.id,

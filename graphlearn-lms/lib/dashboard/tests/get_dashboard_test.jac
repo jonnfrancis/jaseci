@@ -4,8 +4,10 @@ import from edges.domain_edges { assigned, contains }
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
+    AssessmentAttemptLink,
     AssessmentAttemptStatus,
     AssessmentEvaluation,
+    AssessmentEvaluationLink,
     AssessmentScore,
     AssessmentStatus
 }
@@ -68,7 +70,7 @@ def _seed_assessment(learner: Learner, prefix: str, evaluated: bool = False) -> 
     if not evaluated {
         return None;
     }
-    attempt = (root ++> AssessmentAttempt(
+    attempt = (assessment +>:AssessmentAttemptLink:+> AssessmentAttempt(
         id=f"{prefix}-attempt",
         learner_id=learner.id,
         assessment_id=assessment.id,
@@ -76,7 +78,7 @@ def _seed_assessment(learner: Learner, prefix: str, evaluated: bool = False) -> 
         submitted_at="2026-06-30T01:00:00Z",
         completed_at="2026-06-30T01:00:00Z"
     ))[0];
-    evaluation = (root ++> AssessmentEvaluation(
+    evaluation = (attempt +>:AssessmentEvaluationLink:+> AssessmentEvaluation(
         id=f"{prefix}-assessment-evaluation",
         assessment_id=assessment.id,
         assessment_attempt_id=attempt.id,
@@ -85,7 +87,6 @@ def _seed_assessment(learner: Learner, prefix: str, evaluated: bool = False) -> 
         evaluation_version="test",
         created_at="2026-06-30T02:00:00Z"
     ))[0];
-    attempt +>:contains:+> evaluation;
     return evaluation;
 }
 

@@ -8,7 +8,13 @@ import from lib.ai.utilities {
     TutorRecommendationType,
     generate_next_action_recommendation
 }
-import from nodes.assessment { Assessment, AssessmentEvaluation }
+import from nodes.assessment {
+    Assessment,
+    AssessmentAttempt,
+    AssessmentAttemptLink,
+    AssessmentEvaluation,
+    AssessmentEvaluationLink
+}
 import from nodes.challenge {
     ChallengeSubmission,
     GeneratedChallenge,
@@ -328,6 +334,17 @@ def _has_assessment_evaluation(learner_id: str) -> bool {
     for evaluation in [root -->][?:AssessmentEvaluation] {
         if evaluation.learner_id == learner_id {
             return True;
+        }
+    }
+    for assessment in [root -->][?:Assessment] {
+        if assessment.learner_id == learner_id {
+            for attempt in [assessment ->:AssessmentAttemptLink:->][?:AssessmentAttempt] {
+                for evaluation in [attempt ->:AssessmentEvaluationLink:->][?:AssessmentEvaluation] {
+                    if evaluation.learner_id == learner_id {
+                        return True;
+                    }
+                }
+            }
         }
     }
     return False;

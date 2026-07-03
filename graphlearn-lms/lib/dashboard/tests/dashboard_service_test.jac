@@ -11,8 +11,10 @@ import from nodes.roadmap {
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
+    AssessmentAttemptLink,
     AssessmentAttemptStatus,
     AssessmentEvaluation,
+    AssessmentEvaluationLink,
     AssessmentScore,
     AssessmentStatus
 }
@@ -40,7 +42,7 @@ def _seed_ready_dashboard(prefix: str) -> tuple[str, str] {
         status=AssessmentStatus.completed,
         created_at="2026-06-30T00:00:00Z"
     ))[0];
-    attempt = (root ++> AssessmentAttempt(
+    attempt = (assessment +>:AssessmentAttemptLink:+> AssessmentAttempt(
         id=f"{prefix}-attempt",
         learner_id=learner_id,
         assessment_id=assessment.id,
@@ -48,7 +50,7 @@ def _seed_ready_dashboard(prefix: str) -> tuple[str, str] {
         submitted_at="2026-06-30T01:00:00Z",
         completed_at="2026-06-30T01:00:00Z"
     ))[0];
-    root ++> AssessmentEvaluation(
+    attempt +>:AssessmentEvaluationLink:+> AssessmentEvaluation(
         id=f"{prefix}-evaluation",
         assessment_id=assessment.id,
         assessment_attempt_id=attempt.id,

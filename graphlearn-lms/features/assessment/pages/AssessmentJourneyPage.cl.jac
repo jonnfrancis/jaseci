@@ -424,7 +424,7 @@ def:pub AssessmentJourneyPage() -> JsxElement {
             persist_journey(next_journey);
 
             roadmap_id = next_roadmap_id;
-            nav("/dashboard");
+            nav("/roadmap/" + roadmap_id);
         } except Exception as e {
             print("Generate roadmap failed:", e);
             error_message = "Unable to generate roadmap: " + str(e);

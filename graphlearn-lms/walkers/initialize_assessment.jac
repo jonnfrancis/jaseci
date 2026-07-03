@@ -83,6 +83,50 @@ walker initialize_assessment {
             }
 
             if language == "Python" {
+                if prior_count % 2 == 1 {
+                    q1 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
+                        id=f"{assessment_id}-q1",
+                        question_text="Which Python collection stores key-value pairs?",
+                        question_type=AssessmentQuestionType.multiple_choice,
+                        skill="Python Data Structures",
+                        difficulty=AssessmentDifficulty.beginner,
+                        possible_points=1
+                    ))[0];
+                    q1 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q1.id}-o1", label="list", value="list");
+                    q1o2 = (q1 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q1.id}-o2", label="dict", value="dict"))[0];
+                    q1 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q1.id}-o3", label="tuple", value="tuple");
+                    q1.options = [q1 ->:AssessmentOptionLink:->][?:AssessmentOption];
+                    q1.answer_key = [q1o2.id];
+
+                    q2 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
+                        id=f"{assessment_id}-q2",
+                        question_text="Which statement repeats a block while a condition remains true?",
+                        question_type=AssessmentQuestionType.multiple_choice,
+                        skill="Python Control Flow",
+                        difficulty=AssessmentDifficulty.beginner,
+                        possible_points=1
+                    ))[0];
+                    q2o1 = (q2 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q2.id}-o1", label="while", value="while"))[0];
+                    q2 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q2.id}-o2", label="match", value="match");
+                    q2 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q2.id}-o3", label="import", value="import");
+                    q2.options = [q2 ->:AssessmentOptionLink:->][?:AssessmentOption];
+                    q2.answer_key = [q2o1.id];
+
+                    q3 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
+                        id=f"{assessment_id}-q3",
+                        question_text="Name the Python keyword used to send a value back from a function.",
+                        question_type=AssessmentQuestionType.short_answer,
+                        skill="Python Functions",
+                        difficulty=AssessmentDifficulty.beginner,
+                        answer_key=["return"],
+                        possible_points=1,
+                        short_answer_strategy="normalized_text_match"
+                    ))[0];
+                    assessment.questions = [q1, q2, q3];
+                    report assessment;
+                    return;
+                }
+
                 q1 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
                     id=f"{assessment_id}-q1",
                     question_text="Which keyword defines a function in Python?",
@@ -123,6 +167,50 @@ walker initialize_assessment {
                 ))[0];
                 assessment.questions = [q1, q2, q3];
             } else {
+                if prior_count % 2 == 1 {
+                    q1 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
+                        id=f"{assessment_id}-q1",
+                        question_text="Which Jac syntax declares persistent graph data?",
+                        question_type=AssessmentQuestionType.multiple_choice,
+                        skill="Jac Nodes",
+                        difficulty=AssessmentDifficulty.beginner,
+                        possible_points=1
+                    ))[0];
+                    q1 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q1.id}-o1", label="obj", value="obj");
+                    q1o2 = (q1 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q1.id}-o2", label="node", value="node"))[0];
+                    q1 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q1.id}-o3", label="glob", value="glob");
+                    q1.options = [q1 ->:AssessmentOptionLink:->][?:AssessmentOption];
+                    q1.answer_key = [q1o2.id];
+
+                    q2 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
+                        id=f"{assessment_id}-q2",
+                        question_text="Which Jac statement sends a walker to connected nodes?",
+                        question_type=AssessmentQuestionType.multiple_choice,
+                        skill="Jac Traversal",
+                        difficulty=AssessmentDifficulty.beginner,
+                        possible_points=1
+                    ))[0];
+                    q2o1 = (q2 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q2.id}-o1", label="visit", value="visit"))[0];
+                    q2 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q2.id}-o2", label="report", value="report");
+                    q2 +>:AssessmentOptionLink:+> AssessmentOption(id=f"{q2.id}-o3", label="import", value="import");
+                    q2.options = [q2 ->:AssessmentOptionLink:->][?:AssessmentOption];
+                    q2.answer_key = [q2o1.id];
+
+                    q3 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
+                        id=f"{assessment_id}-q3",
+                        question_text="Name the Jac statement used by walkers to emit a result.",
+                        question_type=AssessmentQuestionType.short_answer,
+                        skill="Jac Walkers",
+                        difficulty=AssessmentDifficulty.beginner,
+                        answer_key=["report"],
+                        possible_points=1,
+                        short_answer_strategy="normalized_text_match"
+                    ))[0];
+                    assessment.questions = [q1, q2, q3];
+                    report assessment;
+                    return;
+                }
+
                 q1 = (assessment +>:AssessmentQuestionLink:+> AssessmentQuestion(
                     id=f"{assessment_id}-q1",
                     question_text="Which Jac construct moves behavior through graph nodes?",

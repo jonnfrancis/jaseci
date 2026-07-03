@@ -4,7 +4,9 @@ import from edges.domain_edges { contains }
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
-    AssessmentEvaluation
+    AssessmentAttemptLink,
+    AssessmentEvaluation,
+    AssessmentEvaluationLink
 }
 import from nodes.challenge {
     ChallengeSubmission,
@@ -625,6 +627,15 @@ def _recent_activity(
             activities = _add_activity(activities, "assessment_evaluated", "Assessment evaluated", evaluation.created_at, evaluation.id);
         }
     }
+    for assessment in [root -->][?:Assessment] {
+        if assessment.learner_id == learner_id {
+            for attempt in [assessment ->:AssessmentAttemptLink:->][?:AssessmentAttempt] {
+                for evaluation in [attempt ->:AssessmentEvaluationLink:->][?:AssessmentEvaluation] {
+                    activities = _add_activity(activities, "assessment_evaluated", "Assessment evaluated", evaluation.created_at, evaluation.id);
+                }
+            }
+        }
+    }
     if roadmap is not None {
         activities = _add_activity(activities, "roadmap_generated", "Roadmap generated", (roadmap as Roadmap).created_at, (roadmap as Roadmap).id);
         for event in [root -->][?:ProgressionEvent] {
@@ -673,6 +684,17 @@ def _has_assessment_evaluation(learner_id: str) -> bool {
     for evaluation in [root -->][?:AssessmentEvaluation] {
         if evaluation.learner_id == learner_id {
             return True;
+        }
+    }
+    for assessment in [root -->][?:Assessment] {
+        if assessment.learner_id == learner_id {
+            for attempt in [assessment ->:AssessmentAttemptLink:->][?:AssessmentAttempt] {
+                for evaluation in [attempt ->:AssessmentEvaluationLink:->][?:AssessmentEvaluation] {
+                    if evaluation.learner_id == learner_id {
+                        return True;
+                    }
+                }
+            }
         }
     }
     return False;

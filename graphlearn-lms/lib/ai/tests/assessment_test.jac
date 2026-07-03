@@ -148,3 +148,41 @@ test "initialize assessment persists retrievable graph links" {
     assert len(options) == 2;
     assert retrieved[0].questions[0].skill == "Jac walkers";
 }
+
+test "selected language assessment rotates repeat template" {
+    learner_id = "feature05-rotation";
+    root ++> Learner(
+        id=learner_id,
+        name="Rotation Learner",
+        createdAt="2026-06-25",
+        updatedAt="2026-06-25"
+    );
+
+    first = root spawn initialize_assessment(
+        learner_id=learner_id,
+        learner_goals="Assess Python readiness.",
+        learner_interests=["Python"],
+        learner_experience_level="beginner",
+        target_skills=[],
+        target_role="Python learner",
+        assessment_length=3,
+        created_at="2026-06-25T00:00:00Z",
+        selected_language="Python"
+    );
+    second = root spawn initialize_assessment(
+        learner_id=learner_id,
+        learner_goals="Reassess Python readiness.",
+        learner_interests=["Python"],
+        learner_experience_level="beginner",
+        target_skills=[],
+        target_role="Python learner",
+        assessment_length=3,
+        created_at="2026-06-25T01:00:00Z",
+        selected_language="Python"
+    );
+
+    assert len(first.reports) == 1;
+    assert len(second.reports) == 1;
+    assert first.reports[0].questions[0].question_text != second.reports[0].questions[0].question_text;
+    assert second.reports[0].questions[0].skill == "Python Data Structures";
+}
