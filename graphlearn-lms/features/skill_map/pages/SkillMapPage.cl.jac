@@ -50,39 +50,44 @@ def:pub SkillMapPage() -> JsxElement {
     has learner_id_value: str = "";
     has loading: bool = True;
     has failed: bool = False;
+    has missing_learner: bool = False;
+    has missing_learner_message: str = "";
     has filter: str = "all";
     has selected_skill_id: str = "";
 
     async def fetch_skill_map {
         loading = True;
         failed = False;
+        missing_learner = False;
+        missing_learner_message = "";
         load_state = None;
         roadmap_title = "";
 
         session: dict[str, any] = {};
         learner_id_raw: any = None;
+        learner_id_text: str = "";
         selected_language: str = "";
 
         try {
             session = current_auth_session() as dict[str, any];
             learner_id_raw = session["learner_id"];
-            learner_id_value = str(learner_id_raw) if learner_id_raw else "";
+            learner_id_text = str(learner_id_raw) if learner_id_raw else "";
+            learner_id_value = learner_id_text;
 
-            if learner_id_value == "" {
-                load_state = SkillMapLoadState(
-                    status="missing_learner",
-                    message="Log in again to load your skill map."
-                );
+            if learner_id_text == "" {
+                missing_learner = True;
+                missing_learner_message = "Log in again to load your skill map.";
                 loading = False;
                 return;
             }
 
             selected_language = read_journey_language() as str;
 
-            load_state = await load_skill_map(learner_id_value, selected_language, roadmap_id);
+            fetched_state: SkillMapLoadState = await load_skill_map(learner_id_text, selected_language, roadmap_id);
+            load_state = fetched_state;
 
-            if load_state.skill_map is not None {
-                selected_skill_id = _first_skill_id(load_state.skill_map);
+            if fetched_state.skill_map is not None {
+                selected_skill_id = _first_skill_id(fetched_state.skill_map);
             }
 
             if roadmap_id != "" {
@@ -150,6 +155,20 @@ def:pub SkillMapPage() -> JsxElement {
                     action_to="/assessment"
                     retry_label="Retry"
                     onRetry={lambda { fetch_skill_map(); }}
+                />
+            </main>;
+    }
+
+    if missing_learner {
+        return
+            <main className="min-h-screen bg-base p-6 text-copy-primary">
+                <SkillMapStateCard
+                    title="Log in again."
+                    message={missing_learner_message}
+                    action_label="Log in"
+                    action_to="/login"
+                    retry_label="Retry"
+                    onRetry={lambda { go_login(); }}
                 />
             </main>;
     }

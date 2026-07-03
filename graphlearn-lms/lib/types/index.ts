@@ -543,3 +543,35 @@ export interface DashboardView {
   recent_activity: DashboardRecentActivity[];
   dashboard_state: DashboardState;
 }
+
+export type TutorRecommendationType =
+  | "start_assessment"
+  | "generate_roadmap"
+  | "start_roadmap"
+  | "continue_lesson"
+  | "generate_lesson"
+  | "start_challenge"
+  | "retry_challenge"
+  | "review_lesson"
+  | "practice_weak_skill"
+  | "view_skill_map"
+  | "completed";
+
+export type TutorRecommendationPriority = "low" | "medium" | "high";
+
+export interface TutorRecommendationView {
+  learner_id: string;
+  roadmap_id: string;
+  language: "python" | "jac" | "";
+  recommendation_type: TutorRecommendationType;
+  title: string;
+  recommended_action: string;
+  explanation: string;
+  confidence: number;
+  priority: TutorRecommendationPriority;
+  related_roadmap_lesson_id: string;
+  related_challenge_id: string;
+  related_skill_ids: string[];
+  suggested_cta_label: string;
+  created_at: string;
+}

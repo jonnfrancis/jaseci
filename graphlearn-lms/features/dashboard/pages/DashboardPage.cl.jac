@@ -17,6 +17,7 @@ import from "...dashboard.components.DashboardComponents" {
     RoadmapSnapshot,
     SkillSummaryList
 }
+import from "...tutor.components.AiTutorPanel" { AiTutorPanel }
 sv import from ....services.dashboard {
     DashboardLoadState,
     DashboardView,
@@ -146,8 +147,10 @@ def:pub DashboardPage() -> JsxElement {
 
     dashboard = (load_state as DashboardLoadState).dashboard as DashboardView;
     roadmap_id = "";
+    dashboard_language = "";
     if dashboard.active_roadmap is not None {
         roadmap_id = (dashboard.active_roadmap as any).roadmap_id as str;
+        dashboard_language = (dashboard.active_roadmap as any).language as str;
     }
 
     if not _dashboard_ready_for_full_view(dashboard.dashboard_state) {
@@ -155,6 +158,11 @@ def:pub DashboardPage() -> JsxElement {
             <main className="min-h-screen bg-base text-copy-primary">
                 <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-6">
                     <DashboardHeader dashboard={dashboard} />
+                    <AiTutorPanel
+                        learnerId={dashboard.learner.learner_id}
+                        roadmapId={roadmap_id}
+                        language={dashboard_language}
+                    />
                     <DashboardStatePanel dashboard={dashboard} />
                     {dashboard.active_roadmap is not None and
                         <section className="grid gap-4 lg:grid-cols-2" aria-label="Dashboard preview">
@@ -171,6 +179,11 @@ def:pub DashboardPage() -> JsxElement {
             <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-6">
                 <DashboardHeader dashboard={dashboard} />
                 {dashboard.dashboard_state == "completed" and <DashboardStatePanel dashboard={dashboard} />}
+                <AiTutorPanel
+                    learnerId={dashboard.learner.learner_id}
+                    roadmapId={roadmap_id}
+                    language={dashboard_language}
+                />
                 <section className="grid gap-4 lg:grid-cols-2" aria-label="Primary dashboard cards">
                     <RoadmapProgressCard dashboard={dashboard} />
                     <CurrentLessonCard dashboard={dashboard} />

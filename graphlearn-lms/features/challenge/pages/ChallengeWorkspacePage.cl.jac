@@ -109,15 +109,16 @@ def:pub ChallengeWorkspacePage() -> JsxElement {
         evaluation_next_step = "";
         revealed_hint_count = 0;
         try {
-            workspace_state = await open_challenge(learner_id, roadmap_id, roadmap_lesson_id, challenge_id);
-            if workspace_state is not None and workspace_state.status == "ready" and workspace_state.challenge is not None {
-                challenge: GeneratedChallengeView = workspace_state.challenge;
+            fetched_state: ChallengeWorkspaceState = await open_challenge(learner_id, roadmap_id, roadmap_lesson_id, challenge_id);
+            workspace_state = fetched_state;
+            if fetched_state.status == "ready" and fetched_state.challenge is not None {
+                challenge: GeneratedChallengeView = fetched_state.challenge;
                 starter_code = _usable_code(str(challenge.starter_code));
                 raw_local_draft = read_local_draft(str(challenge.id));
                 local_draft = _usable_code(raw_local_draft);
                 draft_code = "";
-                if workspace_state.draft is not None {
-                    draft: any = workspace_state.draft;
+                if fetched_state.draft is not None {
+                    draft: any = fetched_state.draft;
                     draft_code = _usable_code(str(draft.code));
                 }
                 if raw_local_draft != "" and local_draft == "" {
@@ -130,13 +131,13 @@ def:pub ChallengeWorkspacePage() -> JsxElement {
                 } else {
                     editor_code = starter_code;
                 }
-                if workspace_state.latest_submission is not None {
-                    latest: any = workspace_state.latest_submission;
+                if fetched_state.latest_submission is not None {
+                    latest: any = fetched_state.latest_submission;
                     submission_id = str(latest.id);
                     save_success = "Latest submission loaded.";
                 }
-                if workspace_state.latest_evaluation is not None {
-                    latest_evaluation: any = workspace_state.latest_evaluation;
+                if fetched_state.latest_evaluation is not None {
+                    latest_evaluation: any = fetched_state.latest_evaluation;
                     evaluation_score = int(latest_evaluation.score);
                     evaluation_passed = bool(latest_evaluation.passed);
                     evaluation_summary = str(latest_evaluation.feedback_summary);

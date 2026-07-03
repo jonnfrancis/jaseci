@@ -210,7 +210,7 @@ def:pub DashboardStatePanel(dashboard: DashboardView) -> JsxElement {
                         }}
                     </div>
                     <div>
-                        <CardTitle>{title}</CardTitle>
+                        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
                         <CardDescription className="mt-2 leading-6">{message}</CardDescription>
                     </div>
                 </div>
@@ -234,7 +234,7 @@ def:pub RoadmapProgressCard(dashboard: DashboardView) -> JsxElement {
             <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <CardTitle>Current roadmap</CardTitle>
+                        <CardTitle className="text-lg font-semibold">Current roadmap</CardTitle>
                         <CardDescription className="mt-2">{_roadmap_title(dashboard)}</CardDescription>
                     </div>
                     <Map className="size-5 text-brand" />
@@ -275,7 +275,7 @@ def:pub CurrentLessonCard(dashboard: DashboardView) -> JsxElement {
         return
             <Card className="border-surface-border bg-surface">
                 <CardHeader>
-                    <CardTitle>Current lesson</CardTitle>
+                    <CardTitle className="text-lg font-semibold">Current lesson</CardTitle>
                     <CardDescription>No current lesson is available yet.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -296,7 +296,7 @@ def:pub CurrentLessonCard(dashboard: DashboardView) -> JsxElement {
             <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <CardTitle>Current lesson</CardTitle>
+                        <CardTitle className="text-lg font-semibold">Current lesson</CardTitle>
                         <CardDescription className="mt-2">Week {lesson.week_number} - Lesson {lesson.order_index}</CardDescription>
                     </div>
                     <BookOpen className="size-5 text-brand" />
@@ -328,7 +328,7 @@ def:pub MasterySummaryCard(summary: DashboardMasterySummary, roadmapId: str) -> 
             <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <CardTitle>Mastery summary</CardTitle>
+                        <CardTitle className="text-lg font-semibold">Mastery summary</CardTitle>
                         <CardDescription className="mt-2">Persisted skill mastery only.</CardDescription>
                     </div>
                     <Brain className="size-5 text-ai-text" />
@@ -362,7 +362,7 @@ def:pub SkillSummaryList(title: str, skills: list[DashboardSkillSummary], emptyM
     return
         <Card className="border-surface-border bg-surface">
             <CardHeader>
-                <CardTitle>{title}</CardTitle>
+                <CardTitle className="text-lg font-semibold">{title}</CardTitle>
                 <CardDescription>{emptyMessage if len(skills) == 0 else "Top persisted mastery signals."}</CardDescription>
             </CardHeader>
             <CardContent>
@@ -388,7 +388,7 @@ def:pub LessonSummaryCard(summary: DashboardLessonSummary) -> JsxElement {
             <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <CardTitle>Lesson status</CardTitle>
+                        <CardTitle className="text-lg font-semibold">Lesson status</CardTitle>
                         <CardDescription className="mt-2">Generated content and persisted progress.</CardDescription>
                     </div>
                     <BookOpen className="size-5 text-brand" />
@@ -409,7 +409,7 @@ def:pub ChallengeSummaryCard(summary: DashboardChallengeSummary) -> JsxElement {
             <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <CardTitle>Challenge status</CardTitle>
+                        <CardTitle className="text-lg font-semibold">Challenge status</CardTitle>
                         <CardDescription className="mt-2">Submissions and evaluations from persisted records.</CardDescription>
                     </div>
                     <Code2 className="size-5 text-brand" />
@@ -432,7 +432,7 @@ def:pub RoadmapSnapshot(dashboard: DashboardView) -> JsxElement {
     return
         <Card className="border-surface-border bg-surface">
             <CardHeader>
-                <CardTitle>Roadmap snapshot</CardTitle>
+                <CardTitle className="text-lg font-semibold">Roadmap snapshot</CardTitle>
                 <CardDescription>A compact read-only snapshot. Open the roadmap for the full sequence.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
@@ -462,7 +462,7 @@ def:pub RecentActivityList(activities: list[DashboardRecentActivity]) -> JsxElem
             <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <CardTitle>Recent activity</CardTitle>
+                        <CardTitle className="text-lg font-semibold">Recent activity</CardTitle>
                         <CardDescription>Persisted learner events returned by the dashboard.</CardDescription>
                     </div>
                     <Activity className="size-5 text-brand" />
@@ -525,7 +525,7 @@ def:pub DashboardErrorState(
                             <AlertCircle className="size-5 text-state-warning" />
                         </div>
                         <div>
-                            <CardTitle>{title}</CardTitle>
+                            <CardTitle className="text-lg font-semibold">{title}</CardTitle>
                             <CardDescription className="mt-2 leading-6">{message}</CardDescription>
                         </div>
                     </div>

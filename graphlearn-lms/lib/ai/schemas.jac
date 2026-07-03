@@ -37,5 +37,11 @@ import from lib.ai.utilities {
     SkillConfidence,
     SubmissionEvaluationContext,
     SubmissionEvaluationCriterionContext,
-    SubmissionEvaluationResult
+    SubmissionEvaluationResult,
+    TutorRecommendationContext,
+    TutorRecommendationPriority,
+    TutorRecommendationReason,
+    TutorRecommendationResult,
+    TutorRecommendationType,
+    TutorRecommendedResource
 }

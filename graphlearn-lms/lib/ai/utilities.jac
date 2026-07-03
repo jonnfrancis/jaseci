@@ -454,6 +454,118 @@ sem SubmissionEvaluationResult.skill_signals = "Evidence-only skill signals for 
 sem SubmissionEvaluationResult.feedback_items = "Structured strengths, improvements, and suggestions for learner-facing feedback.";
 sem SubmissionEvaluationResult.suggested_next_step = "One concrete next learning or revision action for the learner.";
 
+enum TutorRecommendationType: str {
+    start_assessment = "start_assessment",
+    generate_roadmap = "generate_roadmap",
+    start_roadmap = "start_roadmap",
+    continue_lesson = "continue_lesson",
+    generate_lesson = "generate_lesson",
+    start_challenge = "start_challenge",
+    retry_challenge = "retry_challenge",
+    review_lesson = "review_lesson",
+    practice_weak_skill = "practice_weak_skill",
+    view_skill_map = "view_skill_map",
+    completed = "completed"
+}
+sem TutorRecommendationType.start_assessment = "The learner should begin or continue the LMS assessment before roadmap work.";
+sem TutorRecommendationType.generate_roadmap = "The learner has an evaluated assessment and should generate an LMS roadmap.";
+sem TutorRecommendationType.start_roadmap = "The learner has a roadmap but progression has not started.";
+sem TutorRecommendationType.continue_lesson = "The learner should continue the current unlocked lesson.";
+sem TutorRecommendationType.generate_lesson = "The learner should open the existing LMS lesson flow so lesson content is generated.";
+sem TutorRecommendationType.start_challenge = "The learner should start the challenge flow for the current lesson.";
+sem TutorRecommendationType.retry_challenge = "The learner should retry a failed LMS challenge.";
+sem TutorRecommendationType.review_lesson = "The learner should review an existing lesson before moving forward.";
+sem TutorRecommendationType.practice_weak_skill = "The learner should practice a weak skill inside the LMS flow.";
+sem TutorRecommendationType.view_skill_map = "The learner should view the skill map for orientation.";
+sem TutorRecommendationType.completed = "The learner has completed the roadmap.";
+
+enum TutorRecommendationPriority: str {
+    low = "low",
+    medium = "medium",
+    high = "high"
+}
+sem TutorRecommendationPriority.low = "Optional or reflective action that can wait.";
+sem TutorRecommendationPriority.medium = "Useful near-term action for steady progress.";
+sem TutorRecommendationPriority.high = "Most useful next action or an obvious blocker.";
+
+obj TutorRecommendationReason {
+    has signal: str;
+    has explanation: str;
+}
+sem TutorRecommendationReason = "One compact reason supporting a tutor next-action recommendation.";
+sem TutorRecommendationReason.signal = "The persisted learner signal considered, such as lesson status, challenge result, mastery score, or recent activity.";
+sem TutorRecommendationReason.explanation = "Why this signal matters for the recommended LMS action.";
+
+obj TutorRecommendedResource {
+    has resource_type: str;
+    has resource_id: str;
+    has title: str;
+}
+sem TutorRecommendedResource = "A persisted LMS resource related to the recommendation.";
+sem TutorRecommendedResource.resource_type = "The LMS resource kind: roadmap_lesson, generated_lesson, challenge, skill, roadmap, assessment, or skill_map.";
+sem TutorRecommendedResource.resource_id = "The stable persisted id of the related LMS resource, or an empty string when none applies.";
+sem TutorRecommendedResource.title = "A concise title or label for the related LMS resource.";
+
+obj TutorRecommendationContext {
+    has language: str;
+    has roadmap_title: str;
+    has roadmap_status: str;
+    has roadmap_progress_summary: str;
+    has current_lesson_summary: str;
+    has lesson_status_summary: str;
+    has challenge_status_summary: str;
+    has mastery_summary: str;
+    has weakest_skills: list[str];
+    has strongest_skills: list[str];
+    has recent_activity: list[str];
+    has available_lessons: list[str];
+    has locked_lessons: list[str];
+    has completed_lessons: list[str];
+}
+sem TutorRecommendationContext = "Compact persisted LMS context for choosing the learner's next action. It must not include full lesson content or submitted code.";
+sem TutorRecommendationContext.language = "The selected LMS language; supported values are python and jac.";
+sem TutorRecommendationContext.roadmap_title = "The persisted roadmap title.";
+sem TutorRecommendationContext.roadmap_status = "The persisted roadmap status.";
+sem TutorRecommendationContext.roadmap_progress_summary = "A short summary of roadmap progress totals and current lesson id.";
+sem TutorRecommendationContext.current_lesson_summary = "The current available or in-progress lesson title, status, generation state, and target skills.";
+sem TutorRecommendationContext.lesson_status_summary = "Compact lesson status counts and important lesson states.";
+sem TutorRecommendationContext.challenge_status_summary = "Compact challenge state including generated, submitted, passed, and failed counts.";
+sem TutorRecommendationContext.mastery_summary = "Compact mastery state with average score and notable weak or strong skills.";
+sem TutorRecommendationContext.weakest_skills = "Skill ids or names with the weakest persisted mastery evidence.";
+sem TutorRecommendationContext.strongest_skills = "Skill ids or names with the strongest persisted mastery evidence.";
+sem TutorRecommendationContext.recent_activity = "Recent LMS activity titles only, newest first.";
+sem TutorRecommendationContext.available_lessons = "Unlocked lesson titles that can be opened inside the LMS.";
+sem TutorRecommendationContext.locked_lessons = "Locked lesson titles that must not be recommended as startable.";
+sem TutorRecommendationContext.completed_lessons = "Completed lesson titles.";
+
+obj TutorRecommendationResult {
+    has recommendation_type: TutorRecommendationType;
+    has title: str;
+    has recommended_action: str;
+    has explanation: str;
+    has confidence: float;
+    has priority: TutorRecommendationPriority;
+    has suggested_cta_label: str;
+    has related_roadmap_lesson_id: str = "";
+    has related_challenge_id: str = "";
+    has related_skill_ids: list[str] = [];
+    has reasons: list[TutorRecommendationReason] = [];
+    has resources: list[TutorRecommendedResource] = [];
+}
+sem TutorRecommendationResult = "A single structured LMS-only tutor recommendation for what the learner should do next.";
+sem TutorRecommendationResult.recommendation_type = "The stable recommendation type. Choose only one of the supported LMS next-action types.";
+sem TutorRecommendationResult.title = "A short learner-facing title for the recommendation.";
+sem TutorRecommendationResult.recommended_action = "One concrete next action inside the LMS flow.";
+sem TutorRecommendationResult.explanation = "Why this is the best next step, based only on persisted LMS context.";
+sem TutorRecommendationResult.confidence = "Confidence from 0.0 to 1.0 that this is the best next action.";
+sem TutorRecommendationResult.priority = "The priority level for this action.";
+sem TutorRecommendationResult.related_roadmap_lesson_id = "The related roadmap lesson id, or an empty string if none applies.";
+sem TutorRecommendationResult.related_challenge_id = "The related generated challenge id, or an empty string if none applies.";
+sem TutorRecommendationResult.related_skill_ids = "Related persisted skill ids. Use an empty list when no skill applies.";
+sem TutorRecommendationResult.suggested_cta_label = "A concise LMS button label for this recommendation.";
+sem TutorRecommendationResult.reasons = "Brief structured reasons supporting the recommendation.";
+sem TutorRecommendationResult.resources = "Related LMS resources the UI may link later.";
+
 enum AIErrorKind: str {
     AUTHENTICATION = "authentication",
     CONFIGURATION = "configuration",
@@ -690,3 +802,10 @@ def evaluate_code_submission(context: SubmissionEvaluationContext) -> Submission
 );
 sem evaluate_code_submission = "Statically evaluate one persisted coding challenge submission against the persisted challenge definition. Return only structured scoring, feedback, criterion results, skill signals, and next-step guidance. Do not execute code, request execution, access files, use shell commands, install packages, make network calls, update mastery, unlock lessons, update roadmap progress, generate retry challenges, or create tutor chat.";
 sem evaluate_code_submission.context = "The complete persisted submission-evaluation context built from the generated challenge, linked lesson, target skills, evaluation criteria, and submitted code.";
+
+def generate_next_action_recommendation(context: TutorRecommendationContext) -> TutorRecommendationResult by llm(
+    temperature=0.2,
+    max_tokens=1200
+);
+sem generate_next_action_recommendation = "Choose one LMS-only next action for a learner from compact persisted roadmap, progression, lesson, challenge, mastery, and recent activity context. Prefer current available lessons, challenges, retries, weak-skill practice, skill-map orientation, or completion as appropriate. Do not recommend external websites, paid courses, downloads, contacting people, unsafe code execution, system tasks, graph mutation, lesson unlocking, lesson generation outside the existing LMS flow, challenge generation outside the existing LMS flow, evaluation, mastery updates, dashboard UI, or tutor chat.";
+sem generate_next_action_recommendation.context = "The compact persisted LMS recommendation context. It intentionally excludes full lesson content and submitted code.";
