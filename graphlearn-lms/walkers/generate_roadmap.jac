@@ -12,6 +12,8 @@ import from lib.ai.utilities {
     generate_learning_roadmap_outline,
     standard_ai_error_policy
 }
+import from lib.graph.assessment_queries { assessment_attempt_for, attempt_evaluation_for }
+import from lib.graph.roadmap_queries { roadmap_for }
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
@@ -54,32 +56,8 @@ def _find_assessment(assessment_id: str) -> Assessment | None {
     return None;
 }
 
-def _find_attempt(assessment: Assessment, attempt_id: str) -> AssessmentAttempt | None {
-    for attempt in [assessment ->:AssessmentAttemptLink:->][?:AssessmentAttempt] {
-        if attempt.id == attempt_id {
-            return attempt;
-        }
-    }
-    return None;
-}
-
-def _find_evaluation(
-    attempt: AssessmentAttempt,
-    evaluation_id: str
-) -> AssessmentEvaluation | None {
-    for evaluation in [attempt ->:AssessmentEvaluationLink:->][?:AssessmentEvaluation] {
-        if evaluation.id == evaluation_id {
-            return evaluation;
-        }
-    }
-    return None;
-}
-
 def get_roadmap(roadmap_id: str) -> Roadmap | None {
-    for roadmap in [root -->][?:Roadmap, id == roadmap_id] {
-        return roadmap;
-    }
-    return None;
+    return roadmap_for(roadmap_id);
 }
 
 def get_existing_active_roadmap(
@@ -252,12 +230,12 @@ walker generate_roadmap {
             self.errors = self.errors + [RoadmapGenerationError(code="missing_assessment", message="Assessment does not exist.")];
             return;
         }
-        attempt = _find_attempt(assessment, self.assessment_attempt_id);
+        attempt = assessment_attempt_for(assessment, self.assessment_attempt_id);
         if attempt is None {
             self.errors = self.errors + [RoadmapGenerationError(code="missing_attempt", message="Assessment attempt does not exist.")];
             return;
         }
-        evaluation = _find_evaluation(attempt, self.assessment_evaluation_id);
+        evaluation = attempt_evaluation_for(attempt, self.assessment_evaluation_id);
         if evaluation is None {
             self.errors = self.errors + [RoadmapGenerationError(code="missing_evaluation", message="Assessment evaluation does not exist.")];
             return;

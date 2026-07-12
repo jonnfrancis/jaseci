@@ -37,6 +37,8 @@ import from nodes.roadmap {
     RoadmapStatus,
     RoadmapWeek
 }
+import from lib.graph.learning_queries { generated_lesson_for }
+import from lib.graph.mastery_queries { skill_mastery_for }
 import from nodes.skill { Skill }
 
 glob MINIMUM_PREREQUISITE_MASTERY = 40;
@@ -384,19 +386,6 @@ def _roadmap_progress_view(progress: RoadmapProgress) -> RoadmapProgressView {
     );
 }
 
-def _find_generated_lesson(
-    learner_id: str,
-    roadmap_id: str,
-    roadmap_lesson_id: str
-) -> GeneratedLesson | None {
-    for lesson in [root -->][?:GeneratedLesson] {
-        if lesson.learner_id == learner_id and lesson.roadmap_id == roadmap_id and lesson.roadmap_lesson_id == roadmap_lesson_id and lesson.generation_status == LessonGenerationStatus.generated {
-            return lesson;
-        }
-    }
-    return None;
-}
-
 def _passing_evaluation_for_lesson(
     learner_id: str,
     roadmap_id: str,
@@ -434,7 +423,7 @@ def _completion_errors(
     lesson: RoadmapLesson
 ) -> list[ProgressionError] {
     errors: list[ProgressionError] = [];
-    if _find_generated_lesson(learner_id, roadmap_id, lesson.id) is None {
+    if generated_lesson_for(learner_id, roadmap_id, lesson.id) is None {
         errors = errors + [
             ProgressionError(
                 code="missing_generated_lesson",
@@ -456,15 +445,6 @@ def _completion_errors(
 def _find_skill(skill_id: str) -> Skill | None {
     for skill in [root -->][?:Skill, id == skill_id] {
         return skill;
-    }
-    return None;
-}
-
-def _find_mastery(learner_id: str, skill_id: str) -> SkillMastery | None {
-    for mastery in [root -->][?:SkillMastery] {
-        if mastery.learner_id == learner_id and mastery.skill_id == skill_id {
-            return mastery;
-        }
     }
     return None;
 }
@@ -494,7 +474,7 @@ def _skill_name(skill_id: str) -> str {
 
 def _mastery_block_reason(learner_id: str, lesson: RoadmapLesson) -> str {
     for skill_id in _prerequisite_skill_ids(lesson) {
-        mastery = _find_mastery(learner_id, skill_id);
+        mastery = skill_mastery_for(learner_id, skill_id);
         score = 0;
         if mastery is not None {
             score = (mastery as SkillMastery).score;

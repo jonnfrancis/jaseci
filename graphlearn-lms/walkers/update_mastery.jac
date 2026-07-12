@@ -21,6 +21,7 @@ import from nodes.mastery {
     UpdatedSkillMasteryRecord
 }
 import from nodes.skill { Skill }
+import from lib.graph.mastery_queries { skill_mastery_for }
 
 glob ASSESSMENT_EVIDENCE_WEIGHT = 0.35;
 glob SUBMISSION_EVIDENCE_WEIGHT = 0.65;
@@ -190,15 +191,6 @@ def calculate_mastery_score(
     return _round_score(blended);
 }
 
-def _find_skill_mastery(learner_id: str, skill_id: str) -> SkillMastery | None {
-    for mastery in [root -->][?:SkillMastery] {
-        if mastery.learner_id == learner_id and mastery.skill_id == skill_id {
-            return mastery;
-        }
-    }
-    return None;
-}
-
 def _find_update_result(
     learner_id: str,
     source_type: MasterySourceType,
@@ -366,7 +358,7 @@ walker update_mastery {
         signal_index = 1;
         for signal in signal_inputs {
             skill = _find_skill(signal.skill_id) as Skill;
-            mastery = _find_skill_mastery(self.learner_id, signal.skill_id);
+        mastery = skill_mastery_for(self.learner_id, signal.skill_id);
             if mastery is None {
                 mastery = (root ++> SkillMastery(
                     id=f"skill-mastery-{self.learner_id}-{signal.skill_id}",

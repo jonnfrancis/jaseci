@@ -5,6 +5,11 @@ import from lib.assessment.evaluation {
     evaluate_assessment_responses,
     validate_evaluation_inputs
 }
+import from lib.graph.assessment_queries {
+    assessment_attempt_for,
+    attempt_evaluations,
+    attempt_responses
+}
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
@@ -24,7 +29,7 @@ def get_assessment_evaluation(attempt_id: str) -> AssessmentEvaluation | None {
     if attempt is None {
         return None;
     }
-    for evaluation in [attempt ->:AssessmentEvaluationLink:->][?:AssessmentEvaluation] {
+    for evaluation in attempt_evaluations(attempt) {
         return evaluation;
     }
     return None;
@@ -51,10 +56,6 @@ def _find_attempt(attempt_id: str) -> AssessmentAttempt | None {
     return None;
 }
 
-def _attempt_responses(attempt: AssessmentAttempt) -> list[AssessmentResponse] {
-    return [attempt ->:AssessmentAttemptResponseLink:->][?:AssessmentResponse];
-}
-
 walker evaluate_assessment {
     has assessment_id: str;
     has assessment_attempt_id: str;
@@ -79,10 +80,9 @@ walker evaluate_assessment {
         }
 
         assessment = assessments[0];
-        for found_attempt in [assessment ->:AssessmentAttemptLink:->][?:AssessmentAttempt] {
-            if found_attempt.id == self.assessment_attempt_id {
-                attempts = attempts + [found_attempt];
-            }
+        found_attempt = assessment_attempt_for(assessment, self.assessment_attempt_id);
+        if found_attempt is not None {
+            attempts = attempts + [found_attempt as AssessmentAttempt];
         }
         if len(attempts) == 0 {
             self.errors = self.errors + [
@@ -123,13 +123,13 @@ walker evaluate_assessment {
             return;
         }
 
-        existing_evaluations = [attempt ->:AssessmentEvaluationLink:->][?:AssessmentEvaluation];
+        existing_evaluations = attempt_evaluations(attempt);
         if len(existing_evaluations) > 0 {
             report existing_evaluations[0];
             return;
         }
 
-        responses = _attempt_responses(attempt);
+        responses = attempt_responses(attempt);
         self.errors = validate_evaluation_inputs(assessment, responses);
         if len(self.errors) > 0 {
             return;

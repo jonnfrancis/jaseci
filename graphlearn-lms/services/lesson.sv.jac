@@ -1,6 +1,7 @@
 """Lesson viewer service for generated lesson content."""
 
 import from edges.domain_edges { contains }
+import from lib.graph.roadmap_queries { roadmap_for, roadmap_lesson_for, roadmap_lessons }
 import from nodes.roadmap { Roadmap, RoadmapLesson, RoadmapWeek }
 import from walkers.generate_lesson {
     GeneratedLessonView,
@@ -26,26 +27,11 @@ obj LessonOpenState {
 }
 
 def _find_roadmap(roadmap_id: str) -> Roadmap | None {
-    for roadmap in [root -->][?:Roadmap, id == roadmap_id] {
-        return roadmap;
-    }
-    return None;
+    return roadmap_for(roadmap_id);
 }
 
 def _find_roadmap_lesson(roadmap: Roadmap, roadmap_lesson_id: str) -> RoadmapLesson | None {
-    for lesson in roadmap.lessons {
-        if lesson.id == roadmap_lesson_id {
-            return lesson;
-        }
-    }
-    for week in [roadmap ->:contains:->][?:RoadmapWeek] {
-        for lesson in [week ->:contains:->][?:RoadmapLesson] {
-            if lesson.id == roadmap_lesson_id {
-                return lesson;
-            }
-        }
-    }
-    return None;
+    return roadmap_lesson_for(roadmap, roadmap_lesson_id);
 }
 
 def _week_number_for_lesson(roadmap: Roadmap, roadmap_lesson: RoadmapLesson) -> int {
@@ -71,17 +57,7 @@ def _lesson_order(lesson: RoadmapLesson) -> int {
 }
 
 def _ordered_lessons(roadmap: Roadmap) -> list[RoadmapLesson] {
-    ordered: list[RoadmapLesson] = [];
-    weeks = sorted(roadmap.weeks, key=_week_order);
-    if len(weeks) == 0 {
-        weeks = sorted([roadmap ->:contains:->][?:RoadmapWeek], key=_week_order);
-    }
-    for week in weeks {
-        for lesson in sorted(week.lessons, key=_lesson_order) {
-            ordered = ordered + [lesson];
-        }
-    }
-    return ordered;
+    return roadmap_lessons(roadmap);
 }
 
 def _lesson_link(roadmap: Roadmap, lesson: RoadmapLesson) -> LessonLinkView {
