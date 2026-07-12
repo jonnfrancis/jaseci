@@ -207,7 +207,7 @@ def _progression_error_message(errors: list[ProgressionError]) -> str {
     return errors[0].message;
 }
 
-def:pub open_challenge(
+def:priv open_challenge(
     learner_id: str,
     roadmap_id: str,
     roadmap_lesson_id: str,
@@ -251,7 +251,7 @@ def:pub open_challenge(
     );
 }
 
-def:pub start_challenge(
+def:priv start_challenge(
     learner_id: str,
     roadmap_id: str,
     roadmap_lesson_id: str,
@@ -286,7 +286,7 @@ def:pub start_challenge(
     return ChallengeStartState(status="ready", challenge=result.reports[0], generated_now=True);
 }
 
-def:pub submit_challenge_solution(
+def:priv submit_challenge_solution(
     learner_id: str,
     roadmap_id: str,
     roadmap_lesson_id: str,

@@ -1,7 +1,7 @@
 """Read-only skill map visualization page."""
 
 import from "@jac/runtime" { useNavigate, useParams }
-import from "....lib.auth.auth_client" { current_auth_session }
+import from "....lib.auth.auth_client" { restore_auth_session }
 import from "....lib.journey.journey_state" { read_journey_language }
 import from "...skill_map.components.SkillMapComponents" {
     SelectedSkillPanel,
@@ -69,7 +69,7 @@ def:pub SkillMapPage() -> JsxElement {
         selected_language: str = "";
 
         try {
-            session = current_auth_session() as dict[str, any];
+            session = (await restore_auth_session()) as dict[str, any];
             learner_id_raw = session["learner_id"];
             learner_id_text = str(learner_id_raw) if learner_id_raw else "";
             learner_id_value = learner_id_text;

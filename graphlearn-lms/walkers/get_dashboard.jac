@@ -396,11 +396,11 @@ def _mastery_summary(records: list[SkillMastery]) -> DashboardMasterySummary {
     skills: list[DashboardSkillSummary] = [];
     for record in records {
         total_score += record.score;
-        if record.level.value == "mastered" {
+        if str(record.level) == "mastered" {
             mastered_count += 1;
-        } elif record.level.value == "proficient" {
+        } elif str(record.level) == "proficient" {
             proficient_count += 1;
-        } elif record.level.value == "developing" {
+        } elif str(record.level) == "developing" {
             developing_count += 1;
         } else {
             beginner_count += 1;
@@ -410,7 +410,7 @@ def _mastery_summary(records: list[SkillMastery]) -> DashboardMasterySummary {
                 skill_id=record.skill_id,
                 name=_skill_name(record.skill_id),
                 score=record.score,
-                level=record.level.value
+                level=str(record.level)
             )
         ];
     }
@@ -526,7 +526,7 @@ def _lesson_status(lesson_id: str, progress_records: list[LessonProgress]) -> st
     if progress is None {
         return "locked";
     }
-    return (progress as LessonProgress).status.value;
+    return str((progress as LessonProgress).status);
 }
 
 def _find_lesson_by_id(lessons: list[RoadmapLesson], lesson_id: str) -> RoadmapLesson | None {
@@ -576,7 +576,7 @@ def _current_lesson(
         week_number=_week_number_for(roadmap, lesson),
         order_index=lesson.order_index,
         status=_lesson_status(lesson.id, progress_records),
-        generation_status=lesson.generation_status.value,
+        generation_status=str(lesson.generation_status),
         generated_lesson_id=(generated_lesson as GeneratedLesson).id if generated_lesson is not None else "",
         challenge_id=(challenge as GeneratedChallenge).id if challenge is not None else ""
     );
@@ -640,7 +640,7 @@ def _recent_activity(
         activities = _add_activity(activities, "roadmap_generated", "Roadmap generated", (roadmap as Roadmap).created_at, (roadmap as Roadmap).id);
         for event in [root -->][?:ProgressionEvent] {
             if event.learner_id == learner_id and event.roadmap_id == (roadmap as Roadmap).id {
-                activities = _add_activity(activities, event.event_type.value, event.message, event.created_at, event.id);
+                activities = _add_activity(activities, str(event.event_type), event.message, event.created_at, event.id);
             }
         }
     }
@@ -803,7 +803,7 @@ walker get_dashboard {
                 roadmap_id=active.id,
                 language=active.language,
                 title=active.title,
-                status=active.status.value
+                status=str(active.status)
             ),
             roadmap_progress=_roadmap_progress_view(progress, lessons),
             mastery_summary=_mastery_summary(_mastery_records(self.learner_id, active)),

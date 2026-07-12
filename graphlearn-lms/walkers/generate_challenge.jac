@@ -330,6 +330,32 @@ def _challenge_output_errors(
     return errors;
 }
 
+def _canonical_skill_id(skill_id: str) -> str {
+    return skill_id.strip().lower().replace("-", "_").replace(" ", "_");
+}
+
+def _persisted_skill_id(skill_id: str, target_skills: list[str]) -> str | None {
+    candidate = _canonical_skill_id(skill_id);
+    for target in target_skills {
+        if _canonical_skill_id(target) == candidate {
+            return target;
+        }
+    }
+    if len(target_skills) == 1 {
+        return target_skills[0];
+    }
+    return None;
+}
+
+def _normalize_criterion_skill_ids(result: ChallengeGenerationResult, target_skills: list[str]) {
+    for criterion in result.evaluation_criteria {
+        persisted = _persisted_skill_id(criterion.skill_id, target_skills);
+        if persisted is not None {
+            criterion.skill_id = persisted;
+        }
+    }
+}
+
 def _instruction_order(instruction: ChallengeInstruction) -> int {
     return instruction.order_index;
 }
@@ -541,6 +567,7 @@ walker generate_challenge {
             return;
         }
 
+        _normalize_criterion_skill_ids(generated, roadmap_lesson.target_skill_ids);
         self.errors = _challenge_output_errors(generated, roadmap_lesson.target_skill_ids);
         if len(self.errors) > 0 {
             return;

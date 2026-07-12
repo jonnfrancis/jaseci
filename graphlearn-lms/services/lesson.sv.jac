@@ -130,7 +130,7 @@ def _error_message(errors: list[LessonGenerationError]) -> str {
     return errors[0].message;
 }
 
-def:pub open_lesson(
+def:priv open_lesson(
     learner_id: str,
     roadmap_id: str,
     roadmap_lesson_id: str

@@ -101,7 +101,7 @@ def _assessment_to_view(assessment: Assessment) -> AssessmentView {
     );
 }
 
-def:pub load_assessment(learner_id: str) -> AssessmentView | None {
+def:priv load_assessment(learner_id: str) -> AssessmentView | None {
     for assessment in [root -->][?:Assessment] {
         if assessment.learner_id == learner_id and assessment.status != AssessmentStatus.completed {
             return _assessment_to_view(assessment);
@@ -110,7 +110,7 @@ def:pub load_assessment(learner_id: str) -> AssessmentView | None {
     return None;
 }
 
-def:pub submit_assessment_responses(payload: dict[str, str | list[dict[str, str]]]) -> AssessmentSubmissionReceipt {
+def:priv submit_assessment_responses(payload: dict[str, str | list[dict[str, str]]]) -> AssessmentSubmissionReceipt {
     assessment_id = payload["assessment_id"] as str;
     learner_id = payload["learner_id"] as str;
     submitted_at = payload["submitted_at"] as str;

@@ -65,6 +65,27 @@ test "jac assessment journey completes end to end" {
     assert len(result.evaluation.skill_signals) == 3;
 }
 
+test "assessment journey derives response types from persisted questions" {
+    learner_id = "journey-server-type-learner";
+    started = start_assessment_journey("Python", learner_id, "Server Type Learner");
+    assessment_id = started.assessment_id;
+
+    result = submit_and_evaluate_assessment(
+        learner_id,
+        assessment_id,
+        [
+            _response(f"{assessment_id}-q1", "stale_client_type", f"{assessment_id}-q1-o1"),
+            _response(f"{assessment_id}-q2", "stale_client_type", f"{assessment_id}-q2-o2"),
+            _response(f"{assessment_id}-q3", "stale_client_type", "", "bool")
+        ],
+        "server-derived-types"
+    );
+
+    assert result.status == "results";
+    assert result.evaluation is not None;
+    assert result.evaluation.score.possible_points == 3;
+}
+
 test "assessment journey recovers persisted state after start" {
     learner_id = "journey-recovery-learner";
     started = start_assessment_journey("Python", learner_id, "Recovery Learner");

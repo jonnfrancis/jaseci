@@ -1,7 +1,7 @@
 """Authenticated learner dashboard page."""
 
 import from "@jac/runtime" { useNavigate }
-import from "....lib.auth.auth_client" { current_auth_session }
+import from "....lib.auth.auth_client" { restore_auth_session }
 import from "....lib.journey.journey_state" { read_journey_state }
 import from "...dashboard.components.DashboardComponents" {
     ChallengeSummaryCard,
@@ -50,7 +50,7 @@ def:pub DashboardPage() -> JsxElement {
         journey: any = None;
 
         try {
-            session = current_auth_session() as dict[str, any];
+            session = (await restore_auth_session()) as dict[str, any];
             learner_id_raw = session["learner_id"];
             learner_id = str(learner_id_raw) if learner_id_raw else "";
             learner_id_value = learner_id;

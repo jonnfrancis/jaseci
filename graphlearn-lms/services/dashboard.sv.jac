@@ -242,7 +242,7 @@ def _dashboard_to_view(raw: WalkerDashboardView) -> DashboardView {
     );
 }
 
-def:pub load_dashboard(
+def:priv load_dashboard(
     learner_id: str,
     language: str = "",
     roadmap_id: str = ""

@@ -6,6 +6,7 @@ import from nodes.roadmap {
     RoadmapMilestone,
     RoadmapWeek
 }
+import from nodes.lesson { GeneratedLesson, LessonGenerationStatus }
 
 obj RoadmapLessonView {
     has id: str;
@@ -67,6 +68,15 @@ def _roadmap_found(roadmap_id: str) -> Roadmap | None {
     return None;
 }
 
+def _lesson_generation_status(lesson: RoadmapLesson) -> str {
+    for generated in [root -->][?:GeneratedLesson] {
+        if generated.roadmap_lesson_id == lesson.id and str(generated.generation_status) == str(LessonGenerationStatus.generated) {
+            return "generated";
+        }
+    }
+    return str(lesson.generation_status);
+}
+
 def _lesson_to_view(lesson: RoadmapLesson) -> RoadmapLessonView {
     return RoadmapLessonView(
         id=lesson.id,
@@ -76,7 +86,7 @@ def _lesson_to_view(lesson: RoadmapLesson) -> RoadmapLessonView {
         difficulty=lesson.difficulty,
         estimated_minutes=lesson.estimated_minutes,
         order_index=lesson.order_index,
-        generation_status=lesson.generation_status.value
+        generation_status=_lesson_generation_status(lesson)
     );
 }
 
@@ -134,13 +144,13 @@ def _roadmap_to_view(roadmap: Roadmap) -> RoadmapView {
         title=roadmap.title,
         description=roadmap.description,
         estimated_weeks=roadmap.estimated_weeks,
-        status=roadmap.status.value,
+        status=str(roadmap.status),
         created_at=roadmap.created_at,
         weeks=week_views
     );
 }
 
-def:pub load_roadmap(roadmap_id: str) -> RoadmapLoadState {
+def:priv load_roadmap(roadmap_id: str) -> RoadmapLoadState {
     if roadmap_id.strip() == "" {
         return RoadmapLoadState(
             status="empty",

@@ -7,6 +7,7 @@ import from .auth_client {
     is_authenticated,
     login_user,
     logout_user,
-    register_user
+    register_user,
+    restore_auth_session
 }
 import from .auth_types { AuthSession }

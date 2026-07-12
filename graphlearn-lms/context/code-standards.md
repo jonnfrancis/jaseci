@@ -29,12 +29,15 @@
 
 ## Data and Storage
 
-- Project metadata and relationships belong in PostgreSQL via Prisma.
-- Do not store large generated content directly in the database.
-- Treat ownership and run IDs as verified before any token issuance.
+- LMS metadata, generated structured content, and relationships belong in the Jac graph store.
+- Attach every persisted node to the authenticated root or a node reachable from it.
+- Use typed graph traversal for owned collections and validate ownership after direct `jobj()` lookup.
+- Do not persist raw LLM responses; persist validated structured outputs only.
+- Treat the server-derived authenticated root as the ownership authority. Email and client-provided learner IDs are not ownership proof.
+- Evolve persisted archetypes with safe defaults, schema aliases, and idempotent upgrades; never use database deletion as a production migration.
 
 ## File Organization
 
-- `lib/` — shared infrastructure: Prisma client, auth helpers, utilities.
+- `lib/` — shared infrastructure, auth helpers, domain services, and utilities.
 - `components/` — UI composition only; no business logic.
 - Name files after the responsibility they contain, not the technology.

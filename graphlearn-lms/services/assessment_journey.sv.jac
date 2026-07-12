@@ -14,6 +14,7 @@ import from nodes.assessment {
     AssessmentEvaluation,
     AssessmentEvaluationLink,
     AssessmentQuestion,
+    AssessmentQuestionLink,
     AssessmentQuestionType,
     AssessmentResponse,
     AssessmentStatus
@@ -31,6 +32,7 @@ import from walkers.generate_roadmap { generate_roadmap }
 import from walkers.initialize_assessment { initialize_assessment }
 import from walkers.submit_assessment {
     AssessmentResponseInput,
+    AssessmentSubmissionError,
     submit_assessment
 }
 
@@ -128,12 +130,12 @@ def _language_from_assessment(assessment: Assessment | None) -> str {
     return "";
 }
 
-def _question_type_value(question_type: AssessmentQuestionType) -> str {
-    return question_type.value;
+def _question_type_value(question_type: AssessmentQuestionType | str) -> str {
+    return str(question_type);
 }
 
-def _difficulty_value(difficulty: AssessmentDifficulty) -> str {
-    return difficulty.value;
+def _difficulty_value(difficulty: AssessmentDifficulty | str) -> str {
+    return str(difficulty);
 }
 
 def _assessment_to_view(assessment: Assessment) -> AssessmentView {
@@ -166,7 +168,7 @@ def _assessment_to_view(assessment: Assessment) -> AssessmentView {
         learner_id=assessment.learner_id,
         title=assessment.title,
         description=assessment.description,
-        status=assessment.status.value,
+        status=str(assessment.status),
         created_at=assessment.created_at,
         questions=questions
     );
@@ -277,21 +279,38 @@ def _state_for_assessment(
     );
 }
 
-def _response_type_from_payload(question_type: str) -> AssessmentQuestionType {
-    if question_type == "multiple_choice" {
-        return AssessmentQuestionType.multiple_choice;
+def _question_for_assessment(
+    assessment: Assessment,
+    question_id: str
+) -> AssessmentQuestion | None {
+    for question in assessment.questions {
+        if question.id == question_id {
+            return question;
+        }
     }
-    if question_type == "multi_select" {
-        return AssessmentQuestionType.multi_select;
+    for question in [assessment ->:AssessmentQuestionLink:->][?:AssessmentQuestion] {
+        if question.id == question_id {
+            return question;
+        }
     }
-    return AssessmentQuestionType.short_answer;
+    return None;
 }
 
-def _answer_value_from_payload(response: dict[str, str]) -> str {
-    if response["question_type"] == "multiple_choice" or response["question_type"] == "multi_select" {
+def _answer_value_from_payload(
+    response: dict[str, str],
+    question_type: AssessmentQuestionType
+) -> str {
+    if question_type == AssessmentQuestionType.multiple_choice or question_type == AssessmentQuestionType.multi_select {
         return response["selected_option_id"];
     }
     return response["short_answer"];
+}
+
+def _submission_error_message(errors: list[AssessmentSubmissionError]) -> str {
+    if len(errors) == 0 {
+        return "Unable to submit assessment.";
+    }
+    return errors[0].message;
 }
 
 def _roadmap_id_from_report(report_value: any) -> str {
@@ -308,7 +327,7 @@ def _roadmap_id_from_report(report_value: any) -> str {
     return "";
 }
 
-def:pub load_assessment_journey(learner_id: str = JOURNEY_LEARNER_ID) -> AssessmentJourneyState {
+def:priv load_assessment_journey(learner_id: str = JOURNEY_LEARNER_ID) -> AssessmentJourneyState {
     if learner_id.strip() == "" {
         return AssessmentJourneyState(status="unauthenticated", error_message="Log in to continue your assessment journey.");
     }
@@ -319,7 +338,7 @@ def:pub load_assessment_journey(learner_id: str = JOURNEY_LEARNER_ID) -> Assessm
     return _state_for_assessment(assessment, "assessment");
 }
 
-def:pub start_assessment_journey(
+def:priv start_assessment_journey(
     language: str,
     learner_id: str = JOURNEY_LEARNER_ID,
     learner_name: str = "Assessment Learner"
@@ -349,7 +368,7 @@ def:pub start_assessment_journey(
     return _state_for_assessment(result.reports[0], "assessment");
 }
 
-def:pub submit_and_evaluate_assessment(
+def:priv submit_and_evaluate_assessment(
     learner_id: str,
     assessment_id: str,
     responses: list[dict[str, str]],
@@ -369,11 +388,15 @@ def:pub submit_and_evaluate_assessment(
 
     response_inputs: list[AssessmentResponseInput] = [];
     for response in responses {
+        question = _question_for_assessment(assessment, response["question_id"]);
+        if question is None {
+            raise Exception("A submitted question is not part of this assessment.");
+        }
         response_inputs = response_inputs + [
             AssessmentResponseInput(
                 question_id=response["question_id"],
-                answer_value=_answer_value_from_payload(response),
-                response_type=_response_type_from_payload(response["question_type"])
+                answer_value=_answer_value_from_payload(response, question.question_type),
+                response_type=question.question_type
             )
         ];
     }
@@ -385,7 +408,7 @@ def:pub submit_and_evaluate_assessment(
         responses=response_inputs
     );
     if len(submit_result.errors) > 0 or len(submit_result.reports) == 0 {
-        raise Exception("Unable to submit assessment.");
+        raise Exception(_submission_error_message(submit_result.errors));
     }
 
     attempt = submit_result.reports[0];
@@ -405,7 +428,7 @@ def:pub submit_and_evaluate_assessment(
     return _state_for_assessment(assessment, "results");
 }
 
-def:pub retry_assessment_evaluation(
+def:priv retry_assessment_evaluation(
     learner_id: str,
     assessment_id: str,
     attempt_id: str,
@@ -438,7 +461,7 @@ def:pub retry_assessment_evaluation(
     return _state_for_assessment(assessment, "results");
 }
 
-def:pub generate_roadmap_for_journey(
+def:priv generate_roadmap_for_journey(
     learner_id: str,
     assessment_id: str,
     attempt_id: str,

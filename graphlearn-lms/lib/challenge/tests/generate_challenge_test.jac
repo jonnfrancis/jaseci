@@ -294,6 +294,27 @@ test "generate challenge creates python beginner challenge" {
     assert len(view.evaluation_criteria) == 2;
 }
 
+test "generate challenge normalizes criterion skill id to persisted target" {
+    prefix = _unique_id("challenge-skill-normalization");
+    lesson = _seed_context(prefix, "python", "beginner", "python_variables");
+    generated = _python_challenge_result("beginner");
+    for criterion in generated.evaluation_criteria {
+        criterion.skill_id = "Python Variables";
+    }
+    ai_utilities.llm = MockLLM(model_name="mockllm", config={"outputs": [generated]});
+
+    result = root spawn generate_challenge(
+        learner_id=f"{prefix}-learner",
+        roadmap_id=f"{prefix}-roadmap",
+        roadmap_lesson_id=lesson.roadmap_lesson_id,
+        generated_lesson_id=lesson.id,
+        language="python"
+    );
+
+    assert len(result.errors) == 0;
+    assert result.reports[0].evaluation_criteria[0].skill_id == "python_variables";
+}
+
 test "generate challenge creates jac intermediate challenge" {
     prefix = _unique_id("challenge-jac");
     lesson = _seed_context(prefix, "jac", "intermediate", "jac_walkers");

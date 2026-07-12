@@ -1,8 +1,4 @@
 
- I tried running the lesson workflow that is "lesson generate -> lesson view-> challenge-workspace -> evaluate-submission -> update-mastery -> get-skill-map" and we have 2 main issues I need help fixing. 
+## Current problems:
 
-Current problems:
-
-1. After the earlier fix, the Initial starter code still doesn't show up in the code challenge workspace, but is available in the data, there might be a parsing error because the starter code is in the response of the function open-challenge. here is how the data came in: ["starter_code": "user_name = 'Alex'\ncurrent_year = 2024\nage_input = '25'\n\n# TODO: Convert age_input to an integer\n# TODO: Calculate birth_year\n# TODO: Print the user's information",]
-2. When I try to load my skill-map page, I get a "Skill map is not ready" error then I get a [Client error: Exception: Function SkillMapLoadState failed: {"ok": false, "type": "error", "data": null, "error": {"code": "NOT_FOUND", "message": "Function 'SkillMapLoadState' not found"}, "meta": {"extra": {"http_status": 404}}}] in my terminal. Could you help fix it.
-
+1. Read `.codex/skills/jac-sv-persistence` file. I need you to review how jac handles persistence and update the `/context/feature-specs/25-database-schema.md` file. Currently, the flow moves smoothly, I can login/register, then do the assessment, even access the dashboard. But as soon as I make a change that causes the dev to restart or if I stop the server and restart it and log in again, I can't access the dashboard, lessons. Analyze the issues and create a detailed spec that will ensure persistence. DO NOT IMPLEMENT ANY FIXES YET! Just document the areas and how to implement. Read `/context/feature-specs/24-ai-tutor-panel.md` to see an example.

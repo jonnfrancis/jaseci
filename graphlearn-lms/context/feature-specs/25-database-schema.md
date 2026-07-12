@@ -1,1117 +1,583 @@
-Read `AGENTS.md`, `context/architecture-context.md`, `context/project-overview.md`, `context/feature-specs/`, and `context/progress-tracker.md` before starting.
+# Feature 25: Durable Graph Persistence
 
-# 25-database-schema.md
+## Status
 
-We're implementing the persistence layer.
+Implemented on 2026-07-10. Local cross-process SQLite persistence is verified. The same restart contract must still be run against the configured production MongoDB deployment before production release.
 
-This feature creates the database schema needed to persist the LMS state across sessions, restarts, deployments, and learner activity.
+This document replaces the earlier relational-table proposal with a persistence plan that matches the application that exists today. GraphLearn already models and writes its domain state as Jac nodes and edges. The implementation phase must make that graph durable and consistently addressable across authentication sessions, server restarts, development reloads, and deployments without changing learning business logic.
 
-The core LMS flows already work.
+Feature 24 (`24-ai-tutor-panel.md`) is the presentation and scoping reference for this specification.
 
-Now we need durable storage for:
+---
 
-* learners
-* assessments
-* assessment attempts
-* assessment evaluations
-* roadmaps
-* roadmap weeks
-* roadmap lessons
-* generated lessons
-* generated challenges
-* challenge submissions
-* submission evaluations
-* mastery records
-* progression records
-* dashboard source data
+## Problem Statement
 
-Do not change business logic.
+The happy path works while one server process remains active:
 
-Do not create UI.
+```text
+Register/Login
+-> Assessment
+-> Assessment evaluation
+-> Roadmap
+-> Dashboard / lessons
+```
 
-Do not add new walkers unless minimal persistence helpers are required.
+After a development restart or a stopped/restarted server, the learner can authenticate again but dashboard, roadmap, lesson, skill-map, and tutor reads can no longer reconstruct the learner's journey.
 
-Do not modify the learner workflow unless required to support persistence.
+The visible symptom is missing application state. The persistence feature must distinguish among four possible causes rather than treating them as one database problem:
+
+1. The graph store was not configured durably or the data directory changed between processes.
+2. The authenticated user returned with a different application learner key.
+3. Data exists but is attached to a different per-user root or is not reachable from the caller's root.
+4. Persisted nodes exist but cannot be rehydrated after an archetype or field schema change.
+
+The implementation is complete only when the same authenticated account can resume the same graph journey after a true process restart.
+
+---
+
+## Findings From The Current Code
+
+### The graph is already the domain database
+
+Current walkers create domain nodes with `root ++> Node(...)` or from another reachable node through typed edges. Jac persists reachable nodes and edges automatically; endpoint code does not need an explicit save or commit.
+
+Examples already following this model include:
+
+* assessment attached to `root`, with questions/options below it
+* attempt attached to assessment, with responses below it
+* evaluation attached to attempt
+* roadmap attached to `root` and learner, with weeks/lessons/milestones below it
+* generated lessons and challenges attached to `root` plus their owning graph entities
+* submissions, evaluations, mastery records, and progression records attached to `root`
+
+The implementation must not duplicate these records into an unrelated ORM schema.
+
+### Current reads depend on the caller's root
+
+Most lookup helpers use patterns such as:
+
+```jac
+[root -->][?:Learner, id == learner_id]
+[root -->][?:Roadmap, id == roadmap_id]
+[root -->][?:GeneratedLesson]
+```
+
+For authenticated private endpoints, `root` is the authenticated user's persistent root. A record stored under one root is intentionally invisible from another root. Therefore authentication identity and root continuity are part of the persistence contract.
+
+### The learner identity contract is currently implicit
+
+The client stores `learner_id` as normalized email during login. Registration delegates to Jac auth and then logs in. Server services create/find `Learner` nodes by that client-supplied string.
+
+This has several risks:
+
+* email is mutable and is not the canonical Jac auth account identifier
+* normalization rules can drift between registration, login, and service calls
+* a cleared or stale browser session can produce an empty/different learner id even when the auth token is valid
+* accepting `learner_id` from the client allows identity mismatch unless the server verifies it
+
+The durable design must bind one immutable auth subject to one learner node on the authenticated root.
+
+### The documented database stack does not match the current implementation
+
+`architecture-context.md` currently lists PostgreSQL and Prisma. The repository contains no Prisma schema, Prisma dependency, migration history, or repository layer, and its domain operations use Jac's graph store directly.
+
+Jac's persistence convention is:
+
+* local/default: SQLite data under `.jac/data/`
+* scaled deployment: the Jac scale database backend, currently configured through `MONGODB_URI`, with optional Redis caching
+
+The implementation phase must resolve this documentation conflict before code changes. The recommended decision for the current application is to keep the OSP graph as the only domain source of truth and use Jac's native persistence backend. Introducing PostgreSQL/Prisma would be a separate architecture migration, not a database-schema fix.
 
 ---
 
 ## Goal
 
-Create a production-ready database schema for the LMS.
+Provide one durable, authenticated learner graph that survives:
 
-The schema should persist all core entities created by previous subsystems and support reliable retrieval by walkers.
+* browser refresh
+* logout and login
+* backend process restart
+* frontend/dev-server restart
+* hot reload that does not intentionally purge graph data
+* deployment restart with a persistent production database
+* repeated learner sessions and multiple devices
 
-The system should survive:
-
-* page refresh
-* user logout/login
-* backend restart
-* frontend restart
-* deployment restart
-* repeated learner sessions
-
-The graph remains the learning model, but persistent storage must ensure learner data is durable.
+The graph remains the source of truth. Dashboard, skill map, and tutor responses remain derived read models.
 
 ---
 
-## Database Choice
+## Non-Goals
 
-Use the database approach already selected in the project architecture.
+This feature must not:
 
-Preferred:
+* change assessment scoring, lesson generation, challenge generation, mastery, or progression rules
+* add UI or alter user journeys
+* persist raw LLM responses
+* create dashboard, skill-map, or tutor snapshot records
+* introduce Prisma or a second domain database alongside the Jac graph
+* use localStorage as the learner-data source of truth
+* make public/shared roots a shortcut around authenticated ownership
+* rewrite existing walkers into relational repositories
 
-```text id="dbengine"
-PostgreSQL
+---
+
+## Persistence Architecture Decision
+
+### Selected model
+
+Use Jac native graph persistence for all LMS domain nodes and edges.
+
+```text
+Jac auth account
+-> persistent per-user Root
+-> Learner
+-> assessment / roadmap / generated content / progress graph
 ```
 
-If Prisma is already used in the project, define the schema through Prisma.
+Local development uses the default SQLite-backed `.jac/data/` store. Production uses the Jac-supported persistent database backend and a durable volume/service. At the time of this specification, that scaled backend is MongoDB configured by `MONGODB_URI`; deployment documentation must use the exact backend supported by the installed Jac version.
 
-If the Jac/Jaseci stack already provides a preferred persistence mechanism, follow the project convention and document it clearly.
+### Required documentation alignment
 
-Do not introduce a second unrelated database.
+Before implementation begins:
 
-Do not use localStorage as the main persistence layer.
+1. Update `context/architecture-context.md` so its Database and ORM rows describe the selected Jac graph persistence backend.
+2. Record whether PostgreSQL/Prisma is removed from the planned stack or deferred as a separately approved migration.
+3. Add the chosen local and production database settings to deployment documentation and environment examples.
 
-Frontend localStorage may only be used for temporary journey recovery state.
-
----
-
-## Persistence Scope
-
-Persist data for these subsystems:
-
-1. Authentication and learners
-2. Assessment system
-3. Roadmap system
-4. Lesson generation system
-5. Challenge generation system
-6. Submission evaluation system
-7. Mastery engine
-8. Skill map source data
-9. Progression engine
-10. Dashboard aggregation source data
-11. AI tutor source data where needed
-
-Do not persist raw LLM responses.
-
-Persist validated structured outputs only.
+No implementation should proceed while two different systems are both described as the source of truth.
 
 ---
 
-## Core Design Rules
+## Identity And Ownership Contract
 
-Use stable IDs for all persisted entities.
+### Canonical learner identity
 
-Every table/model should include:
+The server must derive the current auth subject from the verified Jac auth context. It must not trust a caller-provided email or learner id as proof of ownership.
 
-* id
-* created_at
-* updated_at where appropriate
+Persist one `Learner` node per authenticated root with:
 
-Use foreign keys where supported.
-
-Use indexes for frequently queried fields.
-
-Use enum-like values consistently.
-
-Avoid storing duplicated derived values unless needed for performance.
-
-If derived values are stored, document their source and update rules.
-
----
-
-## Learner Persistence
-
-Persist learners.
-
-Suggested model:
-
-```text id="learner-model"
+```text
 Learner
-- id
+- id: stable application id
+- auth_user_id: immutable verified auth subject
 - name
-- username optional
-- email optional
+- email: profile/display value, not ownership key
 - created_at
 - updated_at
 ```
 
-Do not store plaintext passwords.
+If the Jac runtime exposes only one stable auth identifier, `Learner.id` may equal that identifier. Otherwise `Learner.id` remains an application id and `auth_user_id` is the unique binding.
 
-If auth endpoints already manage credentials separately, only store LMS learner profile data here.
+### Resolution rules
 
-If auth user and learner are separate concepts, store a link:
+Every authenticated service must:
 
-```text id="auth-link"
-auth_user_id
-```
+1. Resolve the verified auth subject on the server.
+2. Search the caller's root for the learner bound to that subject.
+3. Create the learner only in the explicit onboarding/get-or-create path.
+4. Reject any supplied learner id that does not match the resolved learner.
+5. Pass the server-resolved learner id to walkers.
 
----
+Client localStorage may cache display/session hints, but deleting it must not delete or orphan learner data. After login, the server must be able to return the canonical learner id again.
 
-## Assessment Persistence
+### Ownership invariants
 
-Persist:
-
-* Assessment
-* AssessmentQuestion
-* AssessmentOption
-* AssessmentAttempt
-* AssessmentResponse
-* AssessmentEvaluation
-* AssessmentQuestionResult
-* AssessmentSkillSignal
-
-Suggested models:
-
-```text id="assessment-models"
-Assessment
-- id
-- learner_id
-- language
-- title
-- description
-- status
-- created_at
-- updated_at
-
-AssessmentQuestion
-- id
-- assessment_id
-- question_text
-- question_type
-- skill_id optional
-- difficulty
-- order_index
-- required
-
-AssessmentOption
-- id
-- question_id
-- label
-- value
-- order_index
-
-AssessmentAttempt
-- id
-- learner_id
-- assessment_id
-- status
-- submitted_at
-- created_at
-- updated_at
-
-AssessmentResponse
-- id
-- attempt_id
-- question_id
-- response_type
-- answer_value
-- created_at
-
-AssessmentEvaluation
-- id
-- learner_id
-- assessment_id
-- attempt_id
-- score
-- evaluation_version
-- created_at
-
-AssessmentQuestionResult
-- id
-- evaluation_id
-- question_id
-- correct
-- earned_points
-- possible_points
-- order_index
-
-AssessmentSkillSignal
-- id
-- evaluation_id
-- skill_id
-- score
-- confidence
-- evidence
-- order_index
-```
-
-Do not store assessment evaluation as one large unstructured JSON blob unless the project intentionally uses JSON columns for flexible graph data.
-
-Structured relational fields should be preferred for reporting and dashboard aggregation.
+* One auth subject maps to exactly one learner on its root.
+* A learner's assessments, roadmaps, lessons, challenges, mastery, and progression remain reachable from that same root.
+* A second authenticated account cannot load records by guessing domain ids.
+* Cross-user sharing is out of scope. If introduced later, it must use Jac grants and `jobj()` plus explicit authorization, not root-global scans.
 
 ---
 
-## Roadmap Persistence
+## Durable Graph Schema
 
-Persist:
+The existing node and edge archetypes are the schema. Implementation should normalize them incrementally; it must not translate them into tables.
 
-* Roadmap
-* RoadmapWeek
-* RoadmapLesson
-* RoadmapMilestone
+### Learner and assessment aggregate
 
-Suggested models:
-
-```text id="roadmap-models"
-Roadmap
-- id
-- learner_id
-- language
-- title
-- description
-- estimated_weeks
-- status
-- assessment_evaluation_id optional
-- created_at
-- updated_at
-
-RoadmapWeek
-- id
-- roadmap_id
-- week_number
-- title
-- summary
-- created_at
-- updated_at
-
-RoadmapLesson
-- id
-- roadmap_id
-- week_id
-- title
-- summary
-- difficulty
-- estimated_minutes
-- order_index
-- generation_status
-- created_at
-- updated_at
-
-RoadmapMilestone
-- id
-- roadmap_id
-- week_id
-- title
-- description
-- order_index
-- created_at
-- updated_at
+```text
+Root -> Learner
+Root -> Assessment
+Learner -assigned-> Assessment
+Assessment -AssessmentQuestionLink-> AssessmentQuestion
+AssessmentQuestion -AssessmentOptionLink-> AssessmentOption
+Assessment -AssessmentAttemptLink-> AssessmentAttempt
+Learner -LearnerAssessmentAttemptLink-> AssessmentAttempt
+AssessmentAttempt -AssessmentAttemptResponseLink-> AssessmentResponse
+AssessmentResponse -AssessmentResponseQuestionLink-> AssessmentQuestion
+AssessmentAttempt -AssessmentEvaluationLink-> AssessmentEvaluation
 ```
 
-Roadmap lesson generation status values:
+Required stable business keys:
 
-```text id="generation-status"
-pending
-generated
+* learner: auth subject (unique per root)
+* assessment: `id`
+* attempt: `id`, plus assessment/learner ownership
+* evaluation: `id`, one effective evaluation per attempt/version
+
+Question results, score objects, and skill signals may remain validated embedded objects because they are owned values and are read with their evaluation. Do not persist raw model output.
+
+### Roadmap aggregate
+
+```text
+Root -> Roadmap
+Learner -assigned-> Roadmap
+Roadmap -contains-> RoadmapWeek
+RoadmapWeek -contains-> RoadmapLesson
+RoadmapWeek -contains-> RoadmapMilestone
+RoadmapLesson -targets-> Skill
+RoadmapMilestone -requires-> Skill
 ```
 
-Roadmap status values:
+Required uniqueness:
 
-```text id="roadmap-status"
-draft
-active
-completed
-```
+* one active roadmap per learner and language unless product scope explicitly permits versions
+* roadmap week unique by `(roadmap_id, week_number)`
+* roadmap lesson unique by its stable `id` and deterministic order within its roadmap
+
+The `weeks`, `lessons`, and `milestones` embedded lists currently duplicate graph relationships. During implementation, choose one canonical representation. Recommended: edges are canonical and embedded lists are compatibility/read caches only. If retained, every write path must update both atomically and restart tests must prove that rehydrated values match edge traversal.
+
+### Generated lesson and challenge aggregates
+
+Generated content must remain reachable from root and from its owner/context nodes.
+
+Required idempotency keys:
+
+* generated lesson: `(learner_id, roadmap_lesson_id)`
+* generated challenge: `(learner_id, generated_lesson_id)` for the current single-challenge behavior, or an explicit attempt/version key if retries create variants
+
+Sections, examples, exercises, takeaways, instructions, outcomes, constraints, hints, criteria, and feedback items may be child nodes connected from their aggregate root. Embedded child lists, if retained, must follow the same canonical/cache rule as roadmap lists.
+
+### Submission, mastery, and progression aggregates
+
+Required uniqueness/idempotency:
+
+* submission evaluation: `submission_id` plus evaluation version
+* skill mastery: `(learner_id, skill_id)`
+* mastery evidence: `(learner_id, skill_id, source_type, source_id)`
+* lesson progress: `(learner_id, roadmap_lesson_id)`
+* roadmap progress: `(learner_id, roadmap_id)`
+* progression event: deterministic event key or a uniqueness check over learner, event type, lesson, and source
+
+All update walkers must mutate the existing persistent node when the idempotency key already exists. They must not create a second root-level record after restart.
+
+### Skills
+
+The current per-user root model means root-attached skills are scoped to that user unless explicitly shared. Feature 25 should preserve that behavior to avoid an unplanned multi-user permission change. A future shared skill catalog must use the shared-root/grant model and explicit authorization.
 
 ---
 
-## Skill Persistence
+## Reachability Rules
 
-Persist:
+Jac persists a node after it is connected to a reachable graph. Therefore every create path must satisfy all of the following before reporting success:
 
-* Skill
-* SkillRelationship
-* LessonSkillTarget
-* ChallengeSkillTarget
+* the aggregate root is attached to the caller's root
+* owned child nodes are attached to their aggregate parent
+* ownership/context edges are created where downstream traversal depends on them
+* no domain node is constructed and left dangling
+* no persisted lookup uses Python's in-memory `id()`
 
-Suggested models:
+Application ids remain useful business keys, but Jac `jid()` is the stable graph-object identifier. Use:
 
-```text id="skill-models"
-Skill
-- id
-- language
-- name
-- description
-- category
-- created_at
-- updated_at
+* typed traversal from the authenticated root for owned collections
+* `jobj(jid_value)` for direct graph-object retrieval only when the jid has been persisted or returned
+* an ownership check after `jobj()`; object resolution is not authorization
 
-SkillRelationship
-- id
-- from_skill_id
-- to_skill_id
-- relationship_type
-- created_at
-
-LessonSkillTarget
-- id
-- roadmap_lesson_id
-- skill_id
-- created_at
-
-ChallengeSkillTarget
-- id
-- challenge_id
-- skill_id
-- created_at
-```
-
-Supported skill relationship types:
-
-```text id="skill-relationship-types"
-prerequisite
-teaches
-reinforces
-```
-
-Do not create duplicate skill definitions for every learner unless required.
-
-Skills should generally be reusable reference data scoped by language.
+Do not replace current business ids with `jid()` in one large change. Define DTO fields explicitly (`id` versus `jid`) and migrate endpoint-by-endpoint if direct lookup is needed.
 
 ---
 
-## Generated Lesson Persistence
+## Database Configuration
 
-Persist:
+### Local development
 
-* GeneratedLesson
-* LessonSection
-* LessonExample
-* LessonMiniExercise
-* LessonTakeaway
+* Use a stable project working directory so `.jac/data/` resolves consistently.
+* Do not delete `.jac/data/` during ordinary restart or hot reload.
+* Ensure cleanup scripts distinguish compiler/cache cleanup from database deletion.
+* Exclude `.jac/data/` from source control while preserving it on the developer machine.
+* Document that deliberate data reset is destructive and requires stopping the server first.
 
-Suggested models:
+### Production
 
-```text id="generated-lesson-models"
-GeneratedLesson
-- id
-- learner_id
-- roadmap_id
-- roadmap_lesson_id
-- language
-- title
-- summary
-- difficulty
-- estimated_minutes
-- created_at
-- updated_at
+* Configure the Jac-supported durable backend through environment variables, currently `MONGODB_URI` for the scale database plugin.
+* Do not rely on container-local SQLite storage unless the data directory is mounted to a durable single-writer volume and that deployment constraint is accepted.
+* Store credentials only in deployment secrets.
+* Define backup, restore, retention, health-check, and connection-failure behavior.
+* If Redis caching is enabled, the database remains authoritative; cache loss must not lose learner state.
 
-LessonSection
-- id
-- generated_lesson_id
-- title
-- content
-- order_index
+### Startup diagnostics
 
-LessonExample
-- id
-- generated_lesson_id
-- title
-- code
-- explanation
-- order_index
+On startup, log non-secret diagnostics sufficient to verify:
 
-LessonMiniExercise
-- id
-- generated_lesson_id
-- prompt
-- expected_concept
-- order_index
+* selected backend type
+* logical database/data path
+* schema-repair mode
+* successful database connection
 
-LessonTakeaway
-- id
-- generated_lesson_id
-- content
-- order_index
-```
-
-Enforce uniqueness where possible:
-
-```text id="lesson-unique"
-learner_id + roadmap_lesson_id
-```
-
-This prevents duplicate generated lessons for the same roadmap lesson.
+Never log passwords, tokens, connection credentials, learner content, or raw LLM input/output.
 
 ---
 
-## Generated Challenge Persistence
+## Schema Evolution And Restart Safety
 
-Persist:
+Persisted Jac archetypes must evolve through Jac's schema compatibility mechanisms.
 
-* GeneratedChallenge
-* ChallengeInstruction
-* ChallengeExpectedOutcome
-* ChallengeConstraint
-* ChallengeHint
-* ChallengeEvaluationCriterion
+### Rules
 
-Suggested models:
+* Adding a field requires a safe default or an intentional migration rule.
+* Renaming a field requires `schema_alias(new_name, stored="old_name")` in `__jac_schema__`.
+* Removing a field must be deliberate; use the supported schema drop/history mechanism.
+* Renaming an archetype requires `@archetype_alias` for its previous qualified name.
+* Shape upgrades must be idempotent and deterministic.
+* Production startup must not silently purge data that fails to load.
 
-```text id="challenge-models"
-GeneratedChallenge
-- id
-- learner_id
-- roadmap_id
-- roadmap_lesson_id
-- generated_lesson_id
-- language
-- title
-- prompt
-- difficulty
-- starter_code
-- created_at
-- updated_at
+Unloadable rows are quarantined by Jac rather than treated as absent. The operator runbook must include:
 
-ChallengeInstruction
-- id
-- challenge_id
-- content
-- order_index
-
-ChallengeExpectedOutcome
-- id
-- challenge_id
-- content
-- order_index
-
-ChallengeConstraint
-- id
-- challenge_id
-- content
-- order_index
-
-ChallengeHint
-- id
-- challenge_id
-- content
-- order_index
-
-ChallengeEvaluationCriterion
-- id
-- challenge_id
-- skill_id
-- description
-- weight
-- order_index
+```text
+jac db quarantine list --app main.jac
+jac db recover-all --app main.jac
 ```
 
-Enforce uniqueness where possible:
+Use the exact CLI syntax supported by the installed compiler. Inspect quarantined data before any destructive reset.
 
-```text id="challenge-unique"
-learner_id + generated_lesson_id
-```
+### Development stale-anchor condition
 
-This prevents duplicate generated challenges for the same lesson.
+An `Invalid anchor id` error can indicate stale local anchors produced under an incompatible development schema. Deleting `.jac/data/` is acceptable only as an explicit local reset after the server stops. It is not a production migration strategy and must not be part of normal dev restart automation.
 
 ---
 
-## Challenge Submission Persistence
+## Write Consistency
 
-Persist:
+Multi-node graph mutations must not expose a partially completed aggregate.
 
-* ChallengeSubmission
+Required atomic units include:
 
-Suggested model:
+* assessment plus questions/options
+* attempt plus responses
+* assessment evaluation plus results/signals
+* roadmap plus weeks/lessons/milestones/skill edges
+* generated lesson plus all child content
+* generated challenge plus all child content and criteria
+* submission evaluation plus results/signals/feedback
+* mastery evidence plus mastery update
+* lesson completion plus next unlock, roadmap summary, and progression event
 
-```text id="submission-model"
-ChallengeSubmission
-- id
-- learner_id
-- challenge_id
-- language
-- code
-- status
-- submitted_at
-- created_at
-- updated_at
-```
-
-Submission status values:
-
-```text id="submission-status"
-draft
-submitted
-```
-
-Do not store evaluation score on the submission itself.
-
-Submission evaluation belongs in a separate table/model.
+Implementation must use the transaction/atomic request behavior supported by the installed Jac backend. If the runtime cannot provide a transaction across the full mutation, create records with a non-complete status and mark the aggregate complete only after all required children and edges exist. Readers must ignore incomplete aggregates.
 
 ---
 
-## Submission Evaluation Persistence
+## Data Access And Walker Changes
 
-Persist:
+Keep walkers responsible for domain orchestration. Add only small persistence helpers needed to centralize:
 
-* SubmissionEvaluation
-* CriterionResult
-* SubmissionSkillSignal
-* FeedbackItem
+* current authenticated learner resolution
+* find-by-business-id within the caller's root
+* get-or-create by idempotency key
+* ownership validation
+* canonical child traversal
 
-Suggested models:
+Do not create generic repositories that hide graph topology. Do not allow client services to choose another learner by passing an arbitrary id.
 
-```text id="submission-eval-models"
-SubmissionEvaluation
-- id
-- learner_id
-- challenge_id
-- submission_id
-- language
-- score
-- passed
-- feedback_summary
-- suggested_next_step
-- evaluation_version
-- evaluated_at
-- created_at
+Audit every current root scan in assessment journey, dashboard, roadmap, lesson, challenge, mastery, progression, skill-map, and tutor paths. For each scan, document:
 
-CriterionResult
-- id
-- evaluation_id
-- criterion_id
-- skill_id
-- score
-- feedback
-- met
-- order_index
+* expected owning root
+* node type and business key
+* required ownership edge
+* behavior when missing
+* whether legacy/reachable child nodes need a fallback traversal
 
-SubmissionSkillSignal
-- id
-- evaluation_id
-- skill_id
-- score
-- confidence
-- evidence
-- order_index
-
-FeedbackItem
-- id
-- evaluation_id
-- feedback_type
-- content
-- order_index
-```
-
-Feedback type values:
-
-```text id="feedback-types"
-strength
-improvement
-suggestion
-```
-
-Enforce uniqueness where possible:
-
-```text id="eval-unique"
-submission_id
-```
-
-This prevents duplicate evaluations for the same submitted code.
+Temporary compatibility fallbacks may read both the canonical edge path and older root-level placement, but all new writes must use one canonical topology. Remove fallbacks after migration verification.
 
 ---
 
-## Mastery Persistence
+## Migration Plan
 
-Persist:
+### Phase A: diagnose without mutation
 
-* SkillMastery
-* MasteryEvidence
+1. Reproduce the issue with one test account.
+2. Record the auth subject, application learner id, root jid, domain business ids, and domain jids before restart.
+3. Restart without deleting `.jac/data/`.
+4. Record the same identifiers after login.
+5. Inspect database/quarantine state.
+6. Classify the failure as backend/path, identity, root, reachability, or schema rehydration.
 
-Suggested models:
+Do not build migration code until this evidence identifies the failing boundary.
 
-```text id="mastery-models"
-SkillMastery
-- id
-- learner_id
-- skill_id
-- score
-- level
-- evidence_count
-- last_source_type
-- last_source_id
-- created_at
-- updated_at
+### Phase B: establish canonical identity
 
-MasteryEvidence
-- id
-- learner_id
-- skill_id
-- source_type
-- source_id
-- signal_score
-- confidence
-- weighted_score
-- evidence_summary
-- created_at
-```
+1. Add the auth-subject binding to `Learner` with a schema-safe default/migration.
+2. Add a server-owned current-learner resolver.
+3. Backfill existing learners only where the owner can be determined unambiguously from their root/session.
+4. Quarantine or report ambiguous duplicates; do not merge them automatically.
+5. Stop trusting client-provided learner ownership.
 
-Mastery levels:
+### Phase C: normalize graph topology
 
-```text id="mastery-levels"
-beginner
-developing
-proficient
-mastered
-```
+1. Inventory every archetype and edge used by current walkers.
+2. Verify each aggregate is reachable from the authenticated root.
+3. Select edges as canonical for duplicated child relationships.
+4. Add idempotent compatibility/migration helpers for legacy records.
+5. Add uniqueness checks in create/update walkers.
 
-Source types:
+### Phase D: configure durable environments
 
-```text id="mastery-source-types"
-assessment_evaluation
-submission_evaluation
-```
+1. Pin and document local SQLite data location.
+2. Configure the supported production database backend.
+3. Add startup diagnostics and health checks.
+4. Add backup/restore and quarantine runbooks.
+5. Correct architecture documentation.
 
-Enforce uniqueness where possible:
+### Phase E: remove compatibility paths
 
-```text id="mastery-unique"
-learner_id + skill_id
-```
+Only after migrated data passes restart tests:
 
-For idempotency, enforce:
-
-```text id="mastery-evidence-unique"
-learner_id + skill_id + source_type + source_id
-```
-
-This prevents double-counting the same evidence.
+* remove legacy identity fallbacks
+* remove dual-topology read fallbacks
+* retain schema aliases for as long as stored legacy data may exist
 
 ---
 
-## Progression Persistence
+## Validation And Error Handling
 
-Persist:
+Validate before persistent mutation:
 
-* LessonProgress
-* RoadmapProgress
-* ProgressionEvent
+* learner ownership matches verified auth subject
+* referenced roadmap/lesson/challenge/submission belongs to the learner
+* scores and percentages are within their domain ranges
+* enum values are valid
+* order indexes are non-negative and unique within an aggregate
+* referenced child/source nodes exist
+* idempotency keys do not conflict with another owner
 
-Suggested models:
-
-```text id="progression-models"
-LessonProgress
-- id
-- learner_id
-- roadmap_id
-- roadmap_lesson_id
-- status
-- completed_at
-- unlocked_at
-- created_at
-- updated_at
-
-RoadmapProgress
-- id
-- learner_id
-- roadmap_id
-- total_lessons
-- completed_lessons
-- available_lessons
-- locked_lessons
-- percent_complete
-- current_roadmap_lesson_id
-- status
-- created_at
-- updated_at
-
-ProgressionEvent
-- id
-- learner_id
-- roadmap_id
-- roadmap_lesson_id optional
-- event_type
-- source_type optional
-- source_id optional
-- message
-- created_at
-```
-
-Lesson status values:
-
-```text id="lesson-status"
-locked
-available
-in_progress
-completed
-```
-
-Roadmap progress status values:
-
-```text id="roadmap-progress-status"
-not_started
-in_progress
-completed
-```
-
-Progression event types:
-
-```text id="progression-event-types"
-roadmap_started
-lesson_unlocked
-lesson_completed
-roadmap_completed
-```
-
-Enforce uniqueness where possible:
-
-```text id="lesson-progress-unique"
-learner_id + roadmap_lesson_id
-```
-
-```text id="roadmap-progress-unique"
-learner_id + roadmap_id
-```
+Return stable application errors for unavailable data, ownership mismatch, duplicate state, invalid state transition, and database unavailability. Do not expose raw database errors, graph internals, tokens, or stack traces to the client.
 
 ---
 
-## AI Tutor Persistence
+## Test Plan
 
-Do not persist AI tutor recommendations in this feature unless the existing architecture requires recommendation history.
+Tests must use deterministic fixtures and no live AI provider.
 
-For now, `recommend_next_action` can remain read-only and return fresh DTOs.
+### Persistence unit/integration coverage
 
-If later persistence is needed, create it in a separate feature.
+* authenticated learner get-or-create is idempotent
+* same auth subject resolves the same learner after logout/login
+* different auth subjects resolve different roots/learners
+* every aggregate and child is reachable after creation
+* business ids and jids remain stable after restart
+* embedded compatibility lists, if retained, match canonical edge traversal
+* uniqueness rules prevent duplicate lesson, challenge, evaluation, mastery, evidence, and progress records
+* unauthorized ids cannot cross learner boundaries
+* schema field addition, rename, and archetype alias rehydrate old fixtures
+* incomplete multi-node writes are rolled back or hidden
 
----
+### Mandatory process-restart acceptance test
 
-## Dashboard Persistence
+An in-process reload is insufficient. The test must:
 
-Do not create a Dashboard table.
+1. Start the backend against an isolated persistent database.
+2. Register and log in as learner A.
+3. Complete assessment and evaluation.
+4. Generate a roadmap.
+5. Generate/open a lesson and challenge.
+6. Submit/evaluate a challenge and update progression/mastery where the fixture permits.
+7. Capture learner, roadmap, lesson, challenge, mastery, progress, and root identifiers.
+8. Stop the backend process cleanly.
+9. Start a new backend process against the same database.
+10. Log in again as learner A with a fresh browser/session context.
+11. Assert all captured records and relationships are available with stable identifiers.
+12. Assert dashboard, roadmap, lesson, skill map, and tutor read models rebuild successfully.
+13. Log in as learner B and assert learner A's graph is unavailable.
 
-`get_dashboard` should remain a read model that aggregates from persisted entities.
+Run the same contract against local SQLite and the selected production backend in CI or a deployment test environment.
 
-Do not store dashboard DTOs as primary data.
+### Restart matrix
 
----
-
-## Enum / Constant Alignment
-
-Create a shared constants source for statuses and types where appropriate.
-
-Values that must remain consistent:
-
-* language
-* assessment status
-* question type
-* roadmap status
-* lesson generation status
-* difficulty
-* submission status
-* feedback type
-* mastery level
-* mastery source type
-* lesson progress status
-* roadmap progress status
-* progression event type
-
-Avoid string drift between backend and frontend.
-
----
-
-## Indexing Requirements
-
-Add indexes for common query patterns.
-
-Recommended indexes:
-
-```text id="indexes"
-learner_id
-roadmap_id
-roadmap_lesson_id
-generated_lesson_id
-challenge_id
-submission_id
-skill_id
-language
-status
-created_at
-```
-
-Composite indexes:
-
-```text id="composite-indexes"
-learner_id + language
-learner_id + roadmap_id
-learner_id + skill_id
-learner_id + roadmap_lesson_id
-learner_id + generated_lesson_id
-learner_id + source_type + source_id
-roadmap_id + order_index
-roadmap_id + week_number
-challenge_id + skill_id
-```
-
-Use unique constraints for idempotent entities.
+| Event | Expected result |
+| --- | --- |
+| Browser refresh | Current journey reloads from server graph |
+| Logout/login | Same learner and graph resolve |
+| Frontend restart | No learner data changes |
+| Backend restart | Same root, nodes, edges, ids, and read models resolve |
+| Hot reload without schema change | Data remains available |
+| Compatible schema change | Existing records rehydrate through defaults/aliases |
+| Database unavailable | Structured temporary failure; no false empty onboarding state |
+| Cache cleared | Authoritative database still restores state |
 
 ---
 
-## Migration Requirements
+## Observability And Operations
 
-Create migration files using the project’s migration tool.
+Add non-sensitive metrics/logs for:
 
-If Prisma is used:
+* current backend connection health
+* learner resolution success/failure category
+* missing aggregate by type
+* ownership mismatch attempts
+* duplicate/idempotent write prevention
+* schema repair and quarantine counts
+* restart acceptance test status
 
-```text id="prisma-migration"
-npx prisma migrate dev --name init_lms_persistence
-```
-
-or the project-specific equivalent.
-
-Do not rely on manual database edits.
-
-Do not modify production data manually.
-
-Document any required environment variables such as:
-
-```text id="db-env"
-DATABASE_URL
-```
+An unavailable database must not be reported to the UI as "no assessment" or "no roadmap." Empty learner state and persistence failure are different outcomes.
 
 ---
 
-## Data Access Layer
-
-Create or update repository/service helpers only if needed.
-
-Suggested persistence helpers:
-
-* learner repository
-* assessment repository
-* roadmap repository
-* lesson repository
-* challenge repository
-* mastery repository
-* progression repository
-
-Keep repositories focused on persistence.
-
-Do not move business logic into database helpers.
-
-Walkers should orchestrate domain behavior.
-
-Persistence helpers should save, load, and query.
-
----
-
-## Graph And Database Synchronization
-
-Clarify the relationship between OSP graph and database persistence.
-
-The implementation must ensure:
-
-* graph-created entities are persisted
-* persisted entities can be reloaded into graph-aware workflows
-* ids remain stable
-* relationships are recoverable
-* duplicate graph/database records are avoided
-
-If the graph engine already persists nodes/edges internally, document that and ensure schema changes align with that mechanism.
-
-If separate relational tables are used, document how graph IDs map to database IDs.
-
-Do not allow frontend-only state to become the source of truth.
-
----
-
-## Seed Data
-
-Create minimal seed data if useful for testing.
-
-Suggested seed skills:
-
-Python:
-
-* Variables
-* Control Flow
-* Functions
-* Data Structures
-* Error Handling
-
-Jac:
-
-* Nodes
-* Edges
-* Walkers
-* OSP Traversal
-* byLLM
-
-Do not seed fake learner progress as production data.
-
-Test fixtures can create progress separately.
-
----
-
-## Validation Rules
-
-Add persistence-level validation where appropriate.
-
-Examples:
-
-* score must be between 0 and 100
-* signal score must be between 0.0 and 1.0
-* confidence must be between 0.0 and 1.0
-* order_index must be non-negative
-* percent_complete must be between 0 and 100
-* status must use allowed values
-* language must use allowed values
-
-Use database constraints where practical.
-
-Use application-level validation where database constraints are not available.
-
----
-
-## Idempotency Support
-
-The schema must support idempotency for previous features.
-
-Prevent duplicates for:
-
-* generated lesson per learner + roadmap lesson
-* generated challenge per learner + generated lesson
-* submission evaluation per submission
-* skill mastery per learner + skill
-* mastery evidence per learner + skill + source
-* lesson progress per learner + roadmap lesson
-* roadmap progress per learner + roadmap
-
-Do not rely only on frontend button disabling.
-
----
-
-## Error Handling
-
-Handle:
-
-* database connection failure
-* migration failure
-* duplicate constraint violations
-* missing foreign keys
-* invalid enum values
-* invalid score ranges
-* failed transaction
-
-Return structured backend errors where applicable.
-
-Do not expose raw database errors to the frontend.
-
----
-
-## Transactions
-
-Use transactions for multi-entity writes.
-
-Required transaction examples:
-
-* create assessment with questions/options
-* submit assessment with responses
-* create roadmap with weeks/lessons/milestones
-* generate lesson with sections/examples/exercises/takeaways
-* generate challenge with instructions/outcomes/constraints/hints/criteria
-* evaluate submission with criterion results/skill signals/feedback items
-* update mastery with evidence and mastery record
-* unlock next lesson with progress/event updates
-
-Do not leave partially-created records as completed entities.
-
----
-
-## Testing
-
-Create persistence tests for:
-
-* learner creation
-* assessment creation with questions/options
-* assessment attempt and responses
-* assessment evaluation and skill signals
-* roadmap creation with weeks/lessons/milestones
-* generated lesson with sections/examples/exercises/takeaways
-* generated challenge with criteria
-* challenge submission
-* submission evaluation
-* mastery update
-* progression update
-* dashboard aggregation source queries
-* uniqueness constraints
-* foreign key constraints
-* transaction rollback on failure
-
-Tests should not require live AI providers.
-
-Use deterministic fixtures.
-
----
-
-## Verification Flow
-
-After schema and persistence integration, verify the full LMS flow:
-
-```text id="verification-flow"
-Register/Login
-→ Start assessment
-→ Submit assessment
-→ Evaluate assessment
-→ Generate roadmap
-→ View roadmap
-→ Generate lesson
-→ View lesson
-→ Generate challenge
-→ Submit challenge
-→ Evaluate submission
-→ Update mastery
-→ Unlock next lesson
-→ Load dashboard
-→ Load skill map
-→ Load AI tutor recommendation
-```
-
-Then restart the backend and verify the same learner can log in and continue from persisted state.
-
----
-
-## Explicitly Out of Scope
-
-Do not implement:
-
-* dashboard UI
-* skill map UI
-* AI tutor UI
-* new recommendation logic
-* new lesson generation logic
-* new challenge generation logic
-* new mastery calculation logic
-* certificates
-* notifications
-* payments
-* admin panel
-
-This feature only implements durable LMS persistence.
+## Implementation Order
+
+1. Reproduce and classify the restart failure.
+2. Resolve the architecture documentation conflict.
+3. Configure a stable durable backend/data path.
+4. Implement server-derived learner identity binding.
+5. Audit and normalize graph reachability/topology.
+6. Add schema aliases/upgrades required by existing data.
+7. Add idempotency and atomic-write safeguards.
+8. Add cross-process restart tests.
+9. Validate the full learner flow on both local and deployment backends.
+10. Remove temporary compatibility reads after migration acceptance.
 
 ---
 
 ## Check When Done
 
-* Database schema exists
-* Migration runs successfully
-* Learners persist
-* Assessments persist
-* Assessment attempts persist
-* Assessment evaluations persist
-* Roadmaps persist
-* Roadmap lessons persist
-* Generated lessons persist
-* Generated challenges persist
-* Challenge submissions persist
-* Submission evaluations persist
-* Mastery records persist
-* Progression records persist
-* Skill records persist
-* Required relationships persist
-* Unique constraints prevent duplicates
-* Transactions protect multi-entity writes
-* Data reloads correctly after backend restart
-* Dashboard DTO can be rebuilt from persisted data
-* Skill map can be rebuilt from persisted data
-* AI tutor can read persisted context
-* Tests pass
+* One verified auth subject resolves one durable learner.
+* Client localStorage is not required to rediscover learner data.
+* The selected Jac database backend and data path are explicit.
+* No second ORM/database is introduced.
+* All domain nodes are reachable from the correct authenticated root.
+* Business ids and graph jids remain stable across process restarts.
+* Schema changes use aliases/upgrades rather than destructive resets.
+* Duplicate aggregate records are prevented after retries/restarts.
+* Dashboard, roadmap, lesson, challenge, skill-map, and tutor reads rebuild from persisted graph state.
+* A database outage produces an error, not a false new-user state.
+* Cross-user isolation is verified.
+* SQLite and production-backend restart acceptance tests pass.
+* Architecture and deployment documentation match the implemented backend.
+
+---
+
+## Implementation Result
+
+The approval gate was satisfied by the explicit implementation request. The delivered persistence foundation includes:
+
+* Jac native graph persistence configured as the only LMS domain store
+* MongoDB scale configuration through `MONGODB_URI` and deployment-secret placeholders
+* server-derived authenticated root binding through `jid(root)`
+* immutable auth `user_id` profile binding metadata
+* unambiguous migration of existing email-keyed learner records on the same authenticated root
+* client session restoration through `/user/me`, so clearing GraphLearn learner-id storage does not orphan server data
+* authenticated/private boundaries for assessment, roadmap, dashboard, lesson, challenge, skill-map, and tutor services
+* safe-default learner schema additions for existing persisted records
+* an operations/quarantine/backup runbook
+* a deterministic test that writes in one Jac process and restores the same graph node in a second process using an isolated SQLite database
+
+No PostgreSQL/Prisma layer or duplicate dashboard/tutor persistence was introduced.
+
+## Explicit Approval Gate
+
+This gate was cleared by the user's 2026-07-10 instruction to implement this specification. The accepted decisions are:
+
+1. Jac native graph persistence is accepted as the domain database.
+2. The production backend supported by the installed Jac version is accepted.
+3. The canonical auth subject exposed by Jac auth is identified.
+4. The restart diagnosis in Migration Phase A has been captured.
+
+Production release remains gated on running the restart acceptance flow against the deployed MongoDB backend and validating backup restoration in a non-production environment.

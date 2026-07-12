@@ -329,7 +329,7 @@ def:pub ChallengeWorkspacePage() -> JsxElement {
                             evaluationSummary={evaluation_summary}
                             evaluationNextStep={evaluation_next_step}
                             onSubmit={submit_solution}
-                            onBack={go_lesson}
+                            onBack={go_roadmap}
                         />
                         <ChallengeCriteriaPanel challenge={challenge} />
                     </div>

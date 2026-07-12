@@ -15,6 +15,7 @@ import from nodes.assessment {
     LearnerAssessmentAttemptLink
 }
 import from nodes.learner { Learner }
+import from edges.domain_edges { assigned }
 
 obj AssessmentResponseInput {
     has question_id: str;
@@ -79,6 +80,15 @@ def _find_learner(learner_id: str) -> Learner | None {
         return learner;
     }
     return None;
+}
+
+def _assessment_learner(assessment: Assessment | None, learner_id: str) -> Learner | None {
+    if assessment is not None {
+        for learner in [(assessment as Assessment) <-:assigned:<-][?:Learner, id == learner_id] {
+            return learner;
+        }
+    }
+    return _find_learner(learner_id);
 }
 
 def _find_question(assessment: Assessment, question_id: str) -> AssessmentQuestion | None {
@@ -234,19 +244,17 @@ walker submit_assessment {
 
     can submit with Root entry {
         assessment = _find_assessment(self.assessment_id);
-        learner = _find_learner(self.learner_id);
+        learner = _assessment_learner(assessment, self.learner_id);
         self.errors = _validate_submission(assessment, learner, self.responses);
         if len(self.errors) > 0 {
             return;
         }
 
-        assessments = [root -->][?:Assessment, id == self.assessment_id];
-        learners = [root -->][?:Learner, id == self.learner_id];
-        if len(assessments) == 0 or len(learners) == 0 {
+        if assessment is None or learner is None {
             return;
         }
-        assessment_node = assessments[0];
-        learner_node = learners[0];
+        assessment_node = assessment as Assessment;
+        learner_node = learner as Learner;
 
         prior_count = len([assessment_node ->:AssessmentAttemptLink:->][?:AssessmentAttempt]);
         attempt = (assessment_node +>:AssessmentAttemptLink:+> AssessmentAttempt(

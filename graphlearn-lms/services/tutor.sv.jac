@@ -62,7 +62,7 @@ def _recommendation_to_view(raw: WalkerTutorRecommendationView) -> TutorRecommen
     );
 }
 
-def:pub load_tutor_recommendation(
+def:priv load_tutor_recommendation(
     learner_id: str,
     roadmap_id: str = "",
     language: str = ""

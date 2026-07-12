@@ -29,7 +29,7 @@ import from "..components.AssessmentComponents" {
     AssessmentLoadingState
 }
 import from "....lib.auth.auth_client" {
-    current_auth_session,
+    restore_auth_session,
     logout_user
 }
 import from "....lib.journey.journey_state" {
@@ -184,7 +184,7 @@ def:pub AssessmentJourneyPage() -> JsxElement {
         learner_id_val: str = "";
 
         try {
-            session = current_auth_session() as dict[str, any];
+            session = (await restore_auth_session()) as dict[str, any];
 
             learner_id_raw = session["learner_id"];
 
@@ -346,8 +346,8 @@ def:pub AssessmentJourneyPage() -> JsxElement {
                 "client-submitted"
             );
             persist_journey(journey);
-        } except Exception {
-            error_message = "Unable to submit assessment.";
+        } except Exception as e {
+            error_message = "Unable to submit assessment: " + str(e);
         }
         submitting = False;
     }

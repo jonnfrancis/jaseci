@@ -138,7 +138,7 @@ def _map_to_view(raw: WalkerSkillMapView) -> SkillMapView {
     );
 }
 
-def:pub load_skill_map(
+def:priv load_skill_map(
     learner_id: str,
     language: str = "",
     roadmap_id: str = ""

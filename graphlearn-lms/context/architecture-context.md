@@ -19,8 +19,8 @@ The OSP graph is the source of truth for learner progression.
 | Backend           | JacLang                   | Business logic            |
 | Graph Engine      | Jaseci OSP                | Knowledge graph           |
 | AI Layer          | byLLM                     | Generation and evaluation |
-| Database          | PostgreSQL                | Persistence               |
-| ORM               | Prisma                    | Data access               |
+| Database          | Jac graph store (SQLite locally, MongoDB when scaled) | Durable OSP persistence |
+| Data Access       | Jac nodes, edges, and typed traversal | Graph-native reads and writes |
 | Authentication    | Clerk/ Inbuilt Jaseci Auth| Identity management       |
 | Code Editor       | Monaco Editor             | Coding workspace          |
 | Execution Sandbox | Future Integration        | Code execution            |
@@ -378,3 +378,6 @@ Advantages:
 8. Walkers remain responsible for graph mutations.
 9. Every learner has a unique roadmap.
 10. Progress survives across sessions and devices.
+11. Authenticated learner data is stored on and resolved from the caller's persistent Jac root.
+12. The server-derived root identifier is the canonical ownership binding; email and browser storage are not ownership authorities.
+13. Jac's graph store is the only LMS domain database. PostgreSQL/Prisma is not part of the current persistence architecture.

@@ -8,6 +8,7 @@ import from services.challenge { open_challenge, start_challenge, submit_challen
 import from services.assessment_journey { generate_roadmap_for_journey }
 import from services.dashboard { load_dashboard }
 import from services.lesson { open_lesson }
+import from services.identity { resolve_current_learner }
 import from services.roadmap { load_roadmap }
 import from services.skill_map { load_skill_map }
 import from services.tutor { load_tutor_recommendation }

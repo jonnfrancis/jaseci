@@ -8,6 +8,7 @@ import from nodes.roadmap {
     RoadmapStatus,
     RoadmapWeek
 }
+import from nodes.lesson { GeneratedLesson, LessonGenerationStatus }
 import from services.roadmap { load_roadmap }
 
 def _unique_roadmap_id(prefix: str) -> str {
@@ -95,4 +96,61 @@ test "load roadmap returns not found state" {
 
     assert state.status == "not_found";
     assert state.roadmap is None;
+}
+
+test "load roadmap derives generated state from persisted lesson" {
+    roadmap_id = _unique_roadmap_id("ui-roadmap-generated-recovery");
+    roadmap = (root ++> Roadmap(
+        id=roadmap_id,
+        learner_id=f"{roadmap_id}-learner",
+        language="python",
+        title="Recovered Roadmap",
+        description="A roadmap whose generated lesson survived restart.",
+        estimated_weeks=1,
+        status=RoadmapStatus.active,
+        created_at="2026-07-12T00:00:00Z",
+        assessment_id=f"{roadmap_id}-assessment",
+        assessment_attempt_id=f"{roadmap_id}-attempt",
+        assessment_evaluation_id=f"{roadmap_id}-evaluation"
+    ))[0];
+    week = RoadmapWeek(
+        id=f"{roadmap_id}-week-1",
+        roadmap_id=roadmap_id,
+        week_number=1,
+        title="First Week",
+        summary="Recovered content."
+    );
+    lesson = RoadmapLesson(
+        id=f"{roadmap_id}-lesson-1",
+        roadmap_id=roadmap_id,
+        week_id=week.id,
+        title="Variables",
+        summary="Practice variables.",
+        target_skill_ids=["python_variables"],
+        difficulty="beginner",
+        estimated_minutes=20,
+        order_index=1,
+        generation_status=RoadmapLessonGenerationStatus.pending
+    );
+    week.lessons = [lesson];
+    roadmap.weeks = [week];
+    root ++> GeneratedLesson(
+        id=f"generated-{lesson.id}",
+        learner_id=roadmap.learner_id,
+        roadmap_id=roadmap.id,
+        roadmap_lesson_id=lesson.id,
+        language="python",
+        title=lesson.title,
+        summary=lesson.summary,
+        difficulty=lesson.difficulty,
+        estimated_minutes=lesson.estimated_minutes,
+        created_at="2026-07-12T00:01:00Z",
+        updated_at="2026-07-12T00:01:00Z",
+        generation_status=LessonGenerationStatus.generated
+    );
+
+    state = load_roadmap(roadmap_id);
+
+    assert state.roadmap is not None;
+    assert state.roadmap.weeks[0].lessons[0].generation_status == "generated";
 }

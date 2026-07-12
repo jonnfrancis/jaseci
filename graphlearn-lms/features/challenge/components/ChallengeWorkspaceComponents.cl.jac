@@ -10,6 +10,9 @@ import from "lucide-react" {
     RefreshCcw,
     Send
 }
+import from "@monaco-editor/react" { Editor }
+import from react { useEffect }
+import from "react-error-boundary" { ErrorBoundary }
 import from "....components.ui.button" { Button }
 import from "....components.ui.card" {
     Card,
@@ -138,9 +141,53 @@ def:pub ChallengeEditor(
     validationMessage: str,
     onCodeChange: Callable[[str], None]
 ) -> JsxElement {
+    has monaco_ready: bool = False;
+    has monaco_timed_out: bool = False;
+    has timeout_ref: Ref[float] = Ref(0.0);
+
     def handle_change(e: ChangeEvent) {
         onCodeChange(str(e.target.value));
     }
+
+    def handle_monaco_change(value: str | None, _event: any) {
+        onCodeChange(value if value else "");
+    }
+
+    def handle_monaco_mount(_editor: any, _monaco: any) {
+        monaco_ready = True;
+        if timeout_ref.current {
+            clearTimeout(timeout_ref.current); # jac:ignore[W2001,W6002]
+            timeout_ref.current = 0.0;
+        }
+    }
+
+    def fallback_editor(_props: any) -> JsxElement {
+        return
+            <Textarea
+                id="challenge-code-editor"
+                value={code}
+                onChange={handle_change}
+                spellCheck={False}
+                aria-invalid={validationMessage != ""}
+                aria-describedby={"challenge-code-error" if validationMessage != "" else ""}
+                className="min-h-[500px] flex-1 resize-none rounded-none border-0 bg-elevated p-4 font-mono text-sm leading-6 text-copy-primary caret-brand placeholder:text-copy-muted focus-visible:ring-0"
+            />;
+    }
+
+    useEffect(lambda {
+        timeout_ref.current = setTimeout(lambda { # jac:ignore[W2001,W6002]
+            if not monaco_ready {
+                monaco_timed_out = True;
+            }
+        }, 10000);
+        return lambda {
+            if timeout_ref.current {
+                clearTimeout(timeout_ref.current); # jac:ignore[W2001,W6002]
+            }
+        };
+    }, []);
+
+    editor_language = "python" if language == "python" else "plaintext";
 
     return
         <section className="flex min-h-[560px] flex-col rounded-2xl border border-surface-border bg-surface" aria-label="Code editor">
@@ -154,15 +201,36 @@ def:pub ChallengeEditor(
                 </span>
             </div>
             <label className="sr-only" htmlFor="challenge-code-editor">Challenge solution code</label>
-            <Textarea
-                id="challenge-code-editor"
-                value={code}
-                onChange={handle_change}
-                spellCheck={False}
-                aria-invalid={validationMessage != ""}
-                aria-describedby={"challenge-code-error" if validationMessage != "" else ""}
-                className="min-h-[500px] flex-1 resize-none rounded-none border-0 bg-elevated p-4 font-mono text-sm leading-6 text-copy-primary caret-brand placeholder:text-copy-muted focus-visible:ring-0"
-            />
+            {if monaco_timed_out {
+                <div className="flex min-h-[500px] flex-1 flex-col">
+                    <p className="border-b border-state-warning px-4 py-2 text-xs text-state-warning">Monaco could not load. Using the basic editor.</p>
+                    {fallback_editor(None)}
+                </div>
+            } else {
+                <ErrorBoundary fallbackRender={fallback_editor}>
+                    <Editor
+                        height="500px"
+                        language={editor_language}
+                        value={code}
+                        theme="vs-dark"
+                        onChange={handle_monaco_change}
+                        onMount={handle_monaco_mount}
+                        loading={<div className="flex min-h-[500px] items-center justify-center bg-elevated text-sm text-copy-muted">Loading Monaco editor...</div>}
+                        options={{
+                            "automaticLayout": True,
+                            "fontSize": 14,
+                            "fontFamily": "Geist Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                            "fontLigatures": True,
+                            "minimap": {"enabled": False},
+                            "scrollBeyondLastLine": False,
+                            "tabSize": 4,
+                            "insertSpaces": True,
+                            "wordWrap": "on",
+                            "padding": {"top": 16, "bottom": 16}
+                        }}
+                    />
+                </ErrorBoundary>
+            }}
             {if validationMessage != "" {
                 <p id="challenge-code-error" className="border-t border-surface-border px-4 py-3 text-sm text-state-error">
                     {validationMessage}
@@ -263,7 +331,7 @@ def:pub ChallengeSubmitPanel(
             </Button>
             <Button variant="outline" onClick={lambda (_e: MouseEvent) { onBack(); }}>
                 <ChevronLeft className="size-4" />
-                Return to lesson
+                Return to roadmap
             </Button>
         </aside>;
 }

@@ -1,730 +1,354 @@
-Read `AGENTS.md`, `context/architecture-context.md`, and `context/feature-specs/25-database-schema.md` before starting.
+Read `AGENTS.md`, `context/architecture-context.md`, `context/feature-specs/25-database-schema.md`, and `context/progress-tracker.md` before starting.
 
-# 26-repositories.md
+# Feature 26: Graph Query and Persistence Helpers
 
-We're implementing the repository layer.
+## Status
 
-The database schema now exists. This feature creates clean repository modules that separate persistence access from walker orchestration and domain logic.
+Specification ready. This feature replaces the previous ORM-style repository-layer proposal.
 
-Repositories should provide a consistent way for walkers to load, save, update, and query persisted LMS data.
-
-Do not change business rules.
-
-Do not create UI.
-
-Do not add new learner features.
-
-Do not move AI prompts into repositories.
-
-Do not put scoring, mastery, unlocking, or recommendation logic inside repositories.
+GraphLearn uses Jac's persistent OSP graph as its domain database. Jac nodes, typed edges, authenticated roots, graph traversal, and automatic persistence already provide the application's persistence model. This feature must improve consistency and remove meaningful duplication without hiding those Jac concepts behind a generic repository abstraction.
 
 ---
 
 ## Goal
 
-Create a repository layer that separates:
+Extract repeated, well-defined graph queries and idempotency checks into small typed helper modules.
 
-* graph access
-* database access
-* learner access
-* assessment access
-* roadmap access
-* lesson access
-* challenge access
-* submission access
-* mastery access
-* progression access
-* dashboard read access
+The result should:
 
-Walkers should become easier to read because they can call clear repository functions instead of manually querying persistence details everywhere.
+* reduce duplicated traversal code across walkers and server services
+* give repeated graph relationships one canonical query implementation
+* make ownership and idempotency checks consistent
+* preserve visible graph topology in walker code
+* keep domain mutations and orchestration easy to follow
+* preserve all existing behavior
+
+This is a focused refactor. It is not a new persistence layer.
 
 ---
 
-## Repository Principles
+## Core Principles
 
-Repositories should:
+### No generic repository abstraction over Jac
 
-* load entities
-* save entities
-* update entities
-* query relationships
-* support transactions where needed
-* return typed domain/view objects
-* hide persistence implementation details
+Do not build generic helpers such as:
 
-Repositories should not:
+* `find_nodes_by_type`
+* `save_entity`
+* `update_entity`
+* `connect_nodes`
+* `get_outgoing_edges`
+* `repository_transaction`
 
-* decide what lesson unlocks next
-* calculate mastery formulas
-* grade submissions
-* generate AI content
-* build prompts
-* render UI
-* perform frontend navigation
-* mutate unrelated subsystems
+Those functions merely rename native Jac operations, weaken static typing, and hide graph shape.
 
-Business logic belongs in walkers, domain services, or dedicated engine modules.
+Use Jac directly for simple one-off operations:
 
----
-
-## Suggested Backend Structure
-
-Create repository modules under a clear backend location.
-
-Suggested structure:
-
-```text id="repo-structure"
-lib/repositories/
-├── graph_repository.jac
-├── learner_repository.jac
-├── assessment_repository.jac
-├── roadmap_repository.jac
-├── lesson_repository.jac
-├── challenge_repository.jac
-├── submission_repository.jac
-├── mastery_repository.jac
-├── progression_repository.jac
-├── dashboard_repository.jac
-├── skill_repository.jac
-└── index.jac
+```jac
+[root -->][?:Learner, id == learner_id]
+root ++> GeneratedLesson(...)
+roadmap +>:contains:+> week
 ```
 
-Adapt paths to the existing Jac project convention if needed.
+### No folder or module per entity by default
 
-Do not scatter repository helpers across walker files.
+Do not create learner, assessment, roadmap, lesson, challenge, submission, mastery, progression, skill, and dashboard repositories merely to satisfy a prescribed structure.
 
----
+Create a helper module only when:
 
-## Graph Repository
+1. the same typed traversal or lookup appears in multiple production modules;
+2. the relationship has one canonical meaning;
+3. centralizing it reduces drift or fixes a known inconsistency; and
+4. the helper can be named after the graph relationship or domain query it performs.
 
-Create:
+### Keep graph creation and mutation visible
 
-```text id="graph-repo"
-graph_repository.jac
+Walkers remain responsible for domain orchestration and graph mutation.
+
+The following should normally remain visible in the walker that owns the behavior:
+
+* creating an assessment and connecting its questions
+* creating a roadmap and connecting weeks, lessons, and milestones
+* persisting generated lesson or challenge aggregates
+* attaching evaluation evidence
+* updating mastery fields
+* changing lesson or roadmap progress state
+* creating progression events
+
+Do not move a multi-step domain mutation into a helper merely to shorten a walker.
+
+### Extract typed queries, not business decisions
+
+Good helpers answer graph questions:
+
+```text
+assessment_attempts(assessment)
+attempt_responses(attempt)
+attempt_evaluation(attempt)
+roadmap_weeks(roadmap)
+roadmap_lessons(roadmap)
+generated_lesson_for(learner_id, roadmap_lesson_id)
+submission_evaluation(submission_id)
+skill_mastery_for(learner_id, skill_id)
+lesson_progress_for(learner_id, roadmap_lesson_id)
 ```
 
-Purpose:
-
-* centralize graph lookup patterns
-* centralize relationship traversal helpers
-* centralize node/edge resolution
-* avoid duplicating graph traversal code in every walker
-
-Suggested functions:
-
-* find_node_by_id
-* find_nodes_by_type
-* connect_nodes
-* relationship_exists
-* get_connected_nodes
-* get_incoming_edges
-* get_outgoing_edges
-* ensure_relationship
-* delete_relationship_if_needed
-
-Rules:
-
-* graph repository should not know LMS business rules
-* it should not decide progression, mastery, or recommendations
-* it should only provide safe graph operations
-
----
-
-## Learner Repository
-
-Create:
-
-```text id="learner-repo"
-learner_repository.jac
-```
-
-Responsibilities:
-
-* get learner by id
-* get learner by auth user id
-* create learner profile if needed
-* update learner profile
-* verify learner exists
-* resolve authenticated learner context
-
-Suggested functions:
-
-* get_learner
-* get_learner_by_auth_user_id
-* create_learner
-* update_learner
-* require_learner
-* resolve_authenticated_learner
-
-Do not handle password logic here unless the existing architecture places auth there.
-
-Do not store plaintext passwords.
-
----
-
-## Assessment Repository
-
-Create:
-
-```text id="assessment-repo"
-assessment_repository.jac
-```
-
-Responsibilities:
-
-* create assessment with questions/options
-* get assessment
-* get learner assessments
-* create assessment attempt
-* save assessment responses
-* get assessment attempt
-* get attempt responses
-* create assessment evaluation
-* get assessment evaluation
-* get assessment skill signals
-
-Suggested functions:
-
-* create_assessment
-* create_assessment_questions
-* get_assessment
-* get_latest_assessment_for_learner
-* create_assessment_attempt
-* save_assessment_responses
-* get_assessment_attempt
-* get_attempt_responses
-* save_assessment_evaluation
-* get_assessment_evaluation
-* get_assessment_skill_signals
-
-Do not evaluate answers here.
-
-Do not calculate scores here.
-
-Do not generate assessment questions here.
-
----
-
-## Roadmap Repository
-
-Create:
-
-```text id="roadmap-repo"
-roadmap_repository.jac
-```
-
-Responsibilities:
-
-* create roadmap
-* create roadmap weeks
-* create roadmap lessons
-* create roadmap milestones
-* get roadmap by id
-* get active roadmap
-* get roadmap lessons in order
-* update roadmap status
-* update roadmap lesson generation status
-* check duplicate active roadmap
-
-Suggested functions:
-
-* create_roadmap
-* create_roadmap_structure
-* get_roadmap
-* get_active_roadmap
-* get_roadmap_weeks
-* get_roadmap_lessons
-* get_roadmap_lessons_ordered
-* get_roadmap_milestones
-* update_roadmap_status
-* update_roadmap_lesson_generation_status
-* find_existing_roadmap_for_evaluation
-
-Do not generate roadmap content here.
-
-Do not call byLLM.
-
-Do not unlock lessons here.
-
----
-
-## Lesson Repository
-
-Create:
-
-```text id="lesson-repo"
-lesson_repository.jac
-```
-
-Responsibilities:
-
-* save generated lesson
-* save lesson sections
-* save examples
-* save mini exercises
-* save takeaways
-* get generated lesson by id
-* get generated lesson by roadmap lesson
-* check if lesson already exists
-* get lesson content for viewer
-
-Suggested functions:
-
-* create_generated_lesson
-* save_lesson_sections
-* save_lesson_examples
-* save_lesson_mini_exercises
-* save_lesson_takeaways
-* get_generated_lesson
-* get_generated_lesson_for_roadmap_lesson
-* get_lesson_view
-* generated_lesson_exists
-
-Do not generate lesson content here.
-
-Do not mark mastery.
-
-Do not handle challenge generation.
-
----
-
-## Challenge Repository
-
-Create:
-
-```text id="challenge-repo"
-challenge_repository.jac
-```
-
-Responsibilities:
-
-* save generated challenge
-* save challenge instructions
-* save expected outcomes
-* save constraints
-* save hints
-* save evaluation criteria
-* get challenge by id
-* get challenge by generated lesson
-* get challenge workspace data
-* check duplicate challenge
-
-Suggested functions:
-
-* create_generated_challenge
-* save_challenge_instructions
-* save_challenge_expected_outcomes
-* save_challenge_constraints
-* save_challenge_hints
-* save_challenge_evaluation_criteria
-* get_generated_challenge
-* get_challenge_for_generated_lesson
-* get_challenge_workspace
-* generated_challenge_exists
-
-Do not generate challenge content here.
-
-Do not evaluate code here.
-
-Do not create submissions here except through submission repository.
-
----
-
-## Submission Repository
-
-Create:
-
-```text id="submission-repo"
-submission_repository.jac
-```
-
-Responsibilities:
-
-* create challenge submission
-* save draft if supported
-* get submission
-* get learner submissions
-* get submissions for challenge
-* save submission evaluation
-* get submission evaluation
-* get criterion results
-* get skill signals
-* get feedback items
-
-Suggested functions:
-
-* create_challenge_submission
-* save_challenge_draft
-* get_challenge_submission
-* get_latest_submission_for_challenge
-* get_submissions_for_challenge
-* save_submission_evaluation
-* get_submission_evaluation
-* get_criterion_results
-* get_submission_skill_signals
-* get_feedback_items
-
-Do not grade code here.
-
-Do not call byLLM.
-
-Do not update mastery.
-
----
-
-## Mastery Repository
-
-Create:
-
-```text id="mastery-repo"
-mastery_repository.jac
-```
-
-Responsibilities:
-
-* get skill mastery
-* get learner mastery records
-* create skill mastery
-* update skill mastery
-* create mastery evidence
-* check existing evidence
-* get mastery summary
-* get strongest/weakest skills
-
-Suggested functions:
-
-* get_skill_mastery
-* get_learner_mastery
-* create_skill_mastery
-* update_skill_mastery
-* create_mastery_evidence
-* evidence_exists
-* get_mastery_evidence_for_source
-* get_mastery_summary
-* get_strongest_skills
-* get_weakest_skills
-
-Do not calculate mastery formula here unless the project specifically treats repository as persistence plus simple data update.
-
-Preferred:
-
-* mastery calculation in mastery engine/helper
-* repository saves the result
-
----
-
-## Progression Repository
-
-Create:
-
-```text id="progression-repo"
-progression_repository.jac
-```
-
-Responsibilities:
-
-* get lesson progress
-* create lesson progress
-* update lesson progress
-* get roadmap progress
-* create/update roadmap progress
-* create progression event
-* get recent progression events
-* get current lesson progress
-* check existing unlock/completion event
-
-Suggested functions:
-
-* get_lesson_progress
-* get_lesson_progress_for_roadmap
-* create_lesson_progress
-* update_lesson_progress
-* get_roadmap_progress
-* upsert_roadmap_progress
-* create_progression_event
-* progression_event_exists
-* get_recent_progression_events
-* get_current_lesson_progress
-
-Do not decide which lesson unlocks here.
-
-Do not calculate progression rules here.
-
-The `unlock_next_lesson` walker or progression engine should decide, then repository persists.
-
----
-
-## Skill Repository
-
-Create:
-
-```text id="skill-repo"
-skill_repository.jac
-```
-
-Responsibilities:
-
-* get skill by id
-* get skills by language
-* get skills for roadmap
-* get skill relationships
-* get prerequisite relationships
-* get lesson target skills
-* get challenge target skills
-
-Suggested functions:
-
-* get_skill
-* get_skills_by_language
-* get_skills_for_roadmap
-* get_skill_relationships
-* get_prerequisites_for_skill
-* get_lesson_target_skills
-* get_challenge_target_skills
-* ensure_skill_exists
-
-Do not compute mastery here.
-
-Do not generate skill recommendations here.
-
----
-
-## Dashboard Repository
-
-Create:
-
-```text id="dashboard-repo"
-dashboard_repository.jac
-```
-
-Purpose:
-
-Support read-only dashboard aggregation queries.
-
-Responsibilities:
-
-* get dashboard source records
-* get roadmap summary data
-* get lesson summary data
-* get challenge summary data
-* get recent activity records
-* get current lesson source data
-
-Suggested functions:
-
-* get_dashboard_sources
-* get_roadmap_progress_summary
-* get_lesson_status_summary
-* get_challenge_status_summary
-* get_current_lesson_source
-* get_recent_activity_sources
-
-This repository can gather data, but should not decide dashboard state if that logic already lives in `get_dashboard`.
-
-Do not mutate records.
-
-Do not call other mutating walkers.
-
----
-
-## Transactions
-
-Add transaction helpers where the project/database supports them.
-
-Multi-entity writes should be transaction-safe.
-
-Transaction examples:
-
-* create assessment with questions/options
-* submit assessment with responses
-* create roadmap with weeks/lessons/milestones
-* create generated lesson with sections/examples/exercises/takeaways
-* create generated challenge with instructions/outcomes/constraints/hints/criteria
-* save submission evaluation with criterion results/skill signals/feedback
-* update mastery with mastery evidence
-* update progression with lesson progress/roadmap progress/events
-
-If transaction helpers are centralized, create:
-
-```text id="transaction-helper"
-repository_transaction.jac
-```
-
-or equivalent project convention.
-
-Do not leave partially-created entities marked as complete.
-
----
-
-## Return Types
-
-Repositories should return predictable typed results.
+Helpers must not decide:
+
+* how an assessment is scored
+* what roadmap content to generate
+* whether a submission passes
+* how mastery changes
+* which lesson unlocks next
+* what the dashboard state means
+* what the tutor recommends
+
+### Preserve graph topology in names
+
+Helper names must reveal the relationship being traversed or key being checked.
 
 Prefer:
 
-* domain objects
-* DTO-compatible objects
-* structured result objects
-* `None` for not found where appropriate
-* explicit error result where project convention requires
+* `assessment_attempts(assessment)`
+* `roadmap_lessons(roadmap)`
+* `challenge_submissions(challenge, learner_id)`
+* `mastery_evidence_for_source(learner_id, source_type, source_id)`
 
-Avoid returning raw database rows throughout walker code.
+Avoid:
 
-Avoid returning unvalidated unstructured maps unless that is the established Jac convention.
-
----
-
-## Error Handling
-
-Repositories should handle low-level persistence errors and return meaningful failures.
-
-Handle:
-
-* missing record
-* duplicate unique constraint
-* foreign key violation
-* invalid enum/status
-* database connection failure
-* transaction rollback
-* malformed graph relationship
-* graph/database mismatch
-
-Do not expose raw database errors to frontend-facing walker responses.
-
-Walkers should translate repository errors into structured user-safe errors.
+* `get_children(entity)`
+* `query_records(type, filters)`
+* `load_related(id)`
+* `repository.find(...)`
 
 ---
 
-## Idempotency Helpers
+## Scope
 
-Add helper methods that support previous feature idempotency.
+### First-pass candidates
+
+Audit production code before creating modules. The current codebase has repeated candidates around:
+
+* learner lookup on the authenticated root
+* assessment-to-attempt-to-evaluation traversal
+* roadmap week, lesson, and milestone traversal
+* generated lesson and generated challenge lookup by owner/context
+* challenge submission and evaluation lookup
+* skill lookup and get-or-create behavior
+* learner mastery lookup
+* lesson and roadmap progress lookup
+* progression-event idempotency checks
+
+Only extract candidates confirmed to be duplicated in at least two production modules.
+
+### Suggested organization
+
+Use a small topology-oriented location:
+
+```text
+lib/graph/
+├── assessment_queries.jac
+├── roadmap_queries.jac
+├── learning_queries.jac
+├── mastery_queries.jac
+└── progression_queries.jac
+```
+
+This list is illustrative, not mandatory. Merge modules when they would otherwise be tiny. Omit modules without demonstrated duplication. Do not create an `index.jac` unless it materially simplifies imports without creating cycles.
+
+Identity resolution remains in `services/identity.sv.jac` because it is an authenticated service boundary, not a generic graph query.
+
+---
+
+## Allowed Helper Categories
+
+### Typed relationship traversal
+
+Centralize a traversal when multiple consumers must agree on the same edge path.
 
 Examples:
 
-* generated lesson already exists
-* generated challenge already exists
-* submission evaluation already exists
-* mastery evidence already exists
-* lesson progress already exists
-* roadmap progress already exists
-* progression event already exists
-* active roadmap already exists for learner/language/evaluation
+```jac
+def assessment_attempts(assessment: Assessment) -> list[AssessmentAttempt] {
+    return [assessment ->:AssessmentAttemptLink:->][?:AssessmentAttempt];
+}
 
-These helpers should prevent duplicate writes without relying on frontend button disabling.
-
----
-
-## Refactor Existing Walkers
-
-Update existing walkers to use repositories where appropriate.
-
-Relevant walkers include:
-
-* initialize_assessment
-* submit_assessment
-* evaluate_assessment
-* generate_roadmap
-* generate_lesson
-* generate_challenge
-* submit_challenge
-* evaluate_submission
-* update_mastery
-* get_skill_map
-* unlock_next_lesson
-* get_dashboard
-* recommend_next_action
-
-Do not rewrite all walker logic unnecessarily.
-
-Only replace direct low-level persistence access with repository calls.
-
-Preserve existing behavior.
-
----
-
-## Repository Boundaries
-
-Use these boundaries:
-
-```text id="repo-boundaries"
-Walker = orchestration
-Repository = persistence/query
-Domain helper = calculations/rules
-AI module = byLLM structured generation/evaluation
-Frontend = presentation/navigation
+def roadmap_weeks(roadmap: Roadmap) -> list[RoadmapWeek] {
+    return [roadmap ->:contains:->][?:RoadmapWeek];
+}
 ```
 
-Do not let repositories become a dumping ground for all logic.
+Return concrete typed nodes. Do not return `list[any]` or unvalidated dictionaries.
+
+### Typed lookup by stable business key
+
+Centralize repeated root-scoped lookups whose ownership meaning is already established.
+
+Examples:
+
+* learner by canonical learner id
+* roadmap by roadmap id
+* generated lesson by learner and roadmap lesson
+* submission evaluation by submission id
+* skill mastery by learner and skill
+
+These helpers operate only on the caller's authenticated root unless their name explicitly identifies a granted/shared graph lookup.
+
+### Idempotency lookup
+
+Centralize the read/check portion of an existing idempotent mutation when several workflows use it.
+
+Examples:
+
+* existing active roadmap for an evaluation
+* existing generated lesson for a learner and roadmap lesson
+* existing generated challenge for a learner and generated lesson
+* existing mastery evidence for a source
+* existing lesson/roadmap progress
+* existing progression event
+
+The helper returns the existing typed node or `None`. The walker remains responsible for deciding whether to reuse, update, reject, or create.
+
+### Canonical ordering
+
+Extract ordering helpers only where order is part of the persisted graph contract and multiple consumers currently reproduce it.
+
+Examples:
+
+* roadmap weeks by `week_number`
+* roadmap lessons by week and `order_index`
+* lesson/challenge child content by `order_index`
+
+Do not move dashboard ranking, recommendation priority, or other presentation/business ordering into graph helpers.
+
+### Ownership validation
+
+A helper may answer whether a root-scoped node belongs to the current learner/context when that check is repeated and purely structural.
+
+It must not authorize `jobj()` solely because the object exists. Direct jid resolution always requires a subsequent ownership/grant check.
 
 ---
 
-## Frontend Repository Layer
+## Disallowed Abstractions
 
-Do not create frontend repositories in this feature.
+Do not add:
 
-Frontend API/client hooks belong in separate UI/data-fetching layers.
+* base repository classes
+* generic type-driven CRUD
+* generic node or edge factories
+* database adapters for SQLite versus MongoDB
+* `save()`, `commit()`, or `flush()` wrappers for served endpoints
+* transaction wrappers without a concrete supported Jac transaction API and an identified use
+* foreign-key or database-row terminology over graph relationships
+* dashboard repositories that precompute or persist dashboard DTOs
+* frontend repositories
+* helpers that call byLLM
+* helpers that contain scoring, mastery, progression, or recommendation rules
 
-This feature is backend persistence access only.
+Jac's backend selection is transparent to graph code. Helpers must work identically with the supported SQLite and MongoDB backends.
 
-If frontend types need alignment, update DTO imports only.
+---
+
+## Mutation and Transaction Rules
+
+Do not invent transaction APIs.
+
+If the installed Jac runtime exposes a transaction capability required by a specific multi-node operation:
+
+1. document the exact supported API;
+2. identify the mutation that requires it;
+3. add the smallest helper needed for that mutation; and
+4. test rollback behavior against supported backends.
+
+Otherwise, preserve the current request-scoped graph mutation behavior and aggregate status safeguards from Feature 25.
+
+`commit()` is not needed inside normal served endpoints. It is reserved for scripts that may exit before automatic persistence completes.
+
+---
+
+## Refactor Process
+
+### Step 1: inventory duplication
+
+Search walkers and server services for repeated implementations of:
+
+* root-scoped find functions
+* typed relationship traversal
+* ordered child retrieval
+* idempotency checks
+* ownership checks
+
+Record each candidate, its callers, graph path, key fields, and missing-record behavior before extraction.
+
+### Step 2: choose canonical topology
+
+For each extracted query, define:
+
+* starting node or authenticated root
+* edge type/path
+* resulting concrete node type
+* stable business-key filters
+* ordering, if contractually required
+* whether `None`, `[]`, or a structured error is correct when absent
+
+Do not extract a helper while callers disagree about topology. Resolve the inconsistency first without changing business behavior.
+
+### Step 3: extract one domain cluster at a time
+
+Recommended sequence:
+
+1. assessment attempt/evaluation queries
+2. roadmap structure queries
+3. generated lesson/challenge/submission queries
+4. mastery and skill queries
+5. progression queries
+
+Run focused checks and tests after each cluster. Avoid a repository-style big-bang refactor.
+
+### Step 4: remove duplicate local helpers
+
+After all callers use the canonical helper:
+
+* remove the duplicated local implementation
+* keep domain-specific calculations local
+* keep creation and mutation statements in their owning walkers
+* check for circular imports
+
+---
+
+## Return Types and Errors
+
+Helpers should return:
+
+* a concrete node type
+* `ConcreteNode | None` for optional single lookups
+* `list[ConcreteNode]` for collections
+* a small typed structural result only when one query naturally returns several related collections
+
+Helpers should not catch database availability or schema-rehydration errors and convert them to empty results. An empty graph result and a persistence failure are different outcomes.
+
+Frontend-safe error translation remains in walkers and server services.
 
 ---
 
 ## Testing
 
-Create repository tests for:
+Add focused deterministic tests for each extracted helper.
 
-* learner repository load/create
-* assessment repository create/load
-* assessment attempt/response persistence
-* assessment evaluation persistence
-* roadmap create/load
-* roadmap ordered lesson retrieval
-* generated lesson create/load
-* generated challenge create/load
-* challenge submission create/load
-* submission evaluation create/load
-* mastery record create/update
-* mastery evidence idempotency
-* skill relationship retrieval
-* progression create/update
-* dashboard source queries
-* transaction rollback
-* duplicate detection helpers
-* missing record behavior
+Required coverage where applicable:
 
-Tests should not require live AI providers.
+* returns only the expected concrete node type
+* follows the canonical typed edge path
+* respects the authenticated/root-scoped graph
+* returns `None` or `[]` for genuinely missing data
+* preserves required ordering
+* idempotency lookup returns the original record
+* similarly keyed records belonging to another learner/context are not returned
+* callers preserve their pre-refactor behavior
 
-Use deterministic fixtures.
+Tests must not require live AI providers.
 
----
-
-## Integration Testing
-
-After repository refactor, verify the full LMS flow still works:
-
-```text id="full-flow"
-Register/Login
-→ Start assessment
-→ Submit assessment
-→ Evaluate assessment
-→ Generate roadmap
-→ View roadmap
-→ Generate lesson
-→ View lesson
-→ Generate challenge
-→ Submit challenge
-→ Evaluate submission
-→ Update mastery
-→ Unlock next lesson
-→ Load skill map
-→ Load dashboard
-→ Load AI tutor panel
-```
-
-The behavior should match the pre-repository implementation.
-
-No feature should regress.
+After each cluster, run the existing focused walker/service tests that exercise its callers. At completion, run the full learner-flow regression suite and the Feature 25 cross-process persistence test.
 
 ---
 
@@ -732,41 +356,33 @@ No feature should regress.
 
 Do not implement:
 
-* new database schema
-* new UI
-* new walkers
-* new AI prompts
-* new mastery formulas
-* new progression rules
-* dashboard redesign
-* skill map redesign
-* certificates
-* notifications
-* admin panel
-
-This feature only creates and adopts a repository layer.
+* a repository layer
+* a new database schema or migration
+* new graph entities or relationships unless required to correct a documented topology defect
+* new business rules
+* new walkers or endpoints
+* UI changes
+* AI prompt or provider changes
+* scoring, mastery, progression, dashboard, or recommendation behavior changes
+* PostgreSQL, Prisma, or another persistence system
+* shared cross-user catalogs or permission grants
 
 ---
 
 ## Check When Done
 
-* Repository folder exists
-* Graph repository exists
-* Learner repository exists
-* Assessment repository exists
-* Roadmap repository exists
-* Lesson repository exists
-* Challenge repository exists
-* Submission repository exists
-* Mastery repository exists
-* Skill repository exists
-* Progression repository exists
-* Dashboard repository exists
-* Repositories expose typed helper functions
-* Multi-entity writes use transactions where available
-* Idempotency helpers exist
-* Walkers use repositories instead of direct persistence queries
-* Existing walker behavior is preserved
-* Repository tests pass
-* Full LMS flow still works
-* Data persists correctly after refactor
+* Repeated graph queries have been inventoried before extraction.
+* Only demonstrated duplication has been centralized.
+* No generic repository abstraction exists.
+* No entity-per-repository folder structure was created.
+* No generic CRUD, save, commit, or transaction wrappers were added.
+* Helper names expose graph topology and domain meaning.
+* Helpers return concrete typed nodes or typed structural results.
+* Graph creation and domain mutations remain visible in walkers.
+* Business calculations and decisions remain outside query helpers.
+* Root ownership and direct-jid authorization rules remain intact.
+* Duplicate local helpers are removed after adoption.
+* Existing behavior is preserved.
+* Focused helper and caller tests pass.
+* Feature 25 cross-process persistence still passes.
+* The full LMS flow does not regress.
