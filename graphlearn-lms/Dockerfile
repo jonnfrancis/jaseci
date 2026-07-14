@@ -38,4 +38,4 @@ COPY . .
 EXPOSE 10000
 
 # Crucially, run the Jac executable from the project environment created above.
-CMD ["sh", "-c", "jac start main.jac --port ${PORT:-10000}"]
+CMD ["sh", "-c", "echo 'Testing MongoDB connectivity...' && python -c 'import os; from pymongo import MongoClient; client = MongoClient(os.environ[\"MONGODB_URI\"], serverSelectionTimeoutMS=10000, connectTimeoutMS=10000); print(\"MongoDB ping OK:\", client.admin.command(\"ping\"), flush=True)' && echo 'Starting Jac...' && exec jac start main.jac --port ${PORT:-10000}"]
