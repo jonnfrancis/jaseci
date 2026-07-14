@@ -7,3 +7,7 @@ venv/
 node_modules/
 jac-test/
 jac-env/
+.jac-env/
+.codex/
+.jac/
+.qodo/

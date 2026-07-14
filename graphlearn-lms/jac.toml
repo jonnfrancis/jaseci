@@ -1,0 +1,88 @@
+[project]
+name = "graphlearn-lms"
+version = "0.1.0"
+description = "A full-stack Jac application"
+entry-point = "main.jac"
+kind = "fullstack"
+jac-version = "==0.16.7"
+
+[dependencies]
+byllm = "==0.6.19"
+"jac-scale[deploy]" = "==0.2.31"
+
+[dependencies.npm]
+"@hugeicons/react" = "*"
+"@hugeicons/core-free-icons" = "*"
+radix-ui = "*"
+class-variance-authority = "*"
+shadcn = "^3.8.5"
+tw-animate-css = "^1.4.0"
+react = "^18.2.0"
+react-dom = "^18.2.0"
+react-router-dom = "^6.22.0"
+react-error-boundary = "^5.0.0"
+react-hook-form = "^7.71.0"
+zod = "^4.3.6"
+"@hookform/resolvers" = "^5.2.2"
+clsx = "^2.1.1"
+tailwind-merge = "^2.6.0"
+lucide-react = "^0.468.0"
+"@monaco-editor/react" = "^4.7.0"
+
+[dependencies.npm.dev]
+vite = "^6.4.1"
+"@vitejs/plugin-react" = "^4.2.1"
+typescript = "^5.3.3"
+"@types/react" = "^18.2.0"
+"@types/react-dom" = "^18.2.0"
+tailwindcss = "latest"
+"@tailwindcss/vite" = "latest"
+
+[dev-dependencies]
+watchdog = ">=3.0.0"
+
+[serve]
+base_route_app = "app"
+
+[plugins.client.vite]
+plugins = ["tailwindcss()"]
+lib_imports = ["import tailwindcss from '@tailwindcss/vite'"]
+
+[plugins.byllm.model]
+api_key = "${GEMINI_API_KEY}"                       # Required
+default_model = "gemini/gemini-3.1-flash-lite"             # With default
+
+[plugins.client]
+debug = false
+
+[plugins.scale.server]
+docs_enabled = false
+suppress_health_check_logs = true
+
+[plugins.scale.database]
+mongodb_uri = "${MONGODB_URI}"
+
+[plugins.scale.secrets]
+MONGODB_URI = "${MONGODB_URI}"
+JWT_SECRET = "${JWT_SECRET}"
+GEMINI_API_KEY = "${GEMINI_API_KEY}"
+
+[plugins.scale.kubernetes]
+app_name = "graphlearn-lms"
+namespace = "graphlearn-production"
+min_replicas = 1
+max_replicas = 1
+cpu_request = "250m"
+cpu_limit = "1000m"
+memory_request = "512Mi"
+memory_limit = "2Gi"
+health_check_path = "/health"
+health_check_initial_delay = 30
+
+[jac-shadcn]
+style = "nova"
+baseColor = "neutral"
+theme = "cyan"
+font = "geist"
+radius = "default"
+menuAccent = "subtle"
