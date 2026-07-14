@@ -35,7 +35,12 @@ RUN set -eu; \
 
 COPY . .
 
+RUN MONGODB_URI="mongodb://localhost:27017/graphlearn" \
+    JWT_SECRET="build-only-placeholder" \
+    GEMINI_API_KEY="build-only-placeholder" \
+    jac build main.jac
+
 EXPOSE 10000
 
 # Crucially, run the Jac executable from the project environment created above.
-CMD ["sh", "-c", "echo 'Testing MongoDB connectivity...' && python -c 'import os; from pymongo import MongoClient; client = MongoClient(os.environ[\"MONGODB_URI\"], serverSelectionTimeoutMS=10000, connectTimeoutMS=10000); print(\"MongoDB ping OK:\", client.admin.command(\"ping\"), flush=True)' && echo 'Starting Jac...' && exec jac start main.jac --port ${PORT:-10000}"]
+CMD ["sh", "-c", "exec jac start main.jac --port ${PORT:-10000}"]
