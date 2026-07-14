@@ -35,12 +35,7 @@ RUN set -eu; \
 
 COPY . .
 
-RUN MONGODB_URI="mongodb://localhost:27017/graphlearn" \
-    JWT_SECRET="build-only-placeholder" \
-    GEMINI_API_KEY="build-only-placeholder" \
-    jac build main.jac
-
 EXPOSE 10000
 
 # Crucially, run the Jac executable from the project environment created above.
-CMD ["sh", "-c", "exec jac start main.jac --port ${PORT:-10000}"]
+CMD ["sh", "-c", "exec jac start main.jac --no_client --port ${PORT:-10000}"]
