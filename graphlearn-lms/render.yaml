@@ -2,6 +2,7 @@ services:
   - type: web
     name: graphlearn-lms
     runtime: docker
+    rootDir: graphlearn-lms
     dockerfilePath: ./Dockerfile
     dockerContext: .
     plan: free
