@@ -9,9 +9,14 @@ import from nodes.assessment {
     AssessmentEvaluationLink,
     AssessmentResponse
 }
+import from lib.observability.instrumentation { graph_operation_event }
+import from lib.observability.tracing { monotonic_ms }
 
 def assessment_attempts(assessment: Assessment) -> list[AssessmentAttempt] {
-    return [assessment ->:AssessmentAttemptLink:->][?:AssessmentAttempt];
+    started = monotonic_ms();
+    results = [assessment ->:AssessmentAttemptLink:->][?:AssessmentAttempt];
+    graph_operation_event("assessment_attempts", "read", True, max(0, monotonic_ms() - started), len(results));
+    return results;
 }
 
 def assessment_attempt_for(

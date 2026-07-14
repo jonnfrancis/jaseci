@@ -3,6 +3,7 @@
 import from datetime { datetime }
 import from byllm.lib { ByLLMError }
 import from edges.domain_edges { contains, evaluated, signals, submitted_for, targets }
+import from lib.observability.instrumentation { ai_call_completed, ai_call_failed, ai_call_started, observe_walker_finish, observe_walker_start }
 import from lib.ai.utilities {
     GeneratedFeedbackItem,
     SubmissionEvaluationContext,
@@ -419,6 +420,11 @@ walker evaluate_submission {
     has submission_id: str;
     has errors: list[SubmissionEvaluationError] = [];
     has reports: list[SubmissionEvaluationView] = [];
+    has request_id: str = "";
+    has correlation_id: str = "";
+
+    can observability_start with Root entry { observe_walker_start(self); }
+    can observability_finish with Root exit { observe_walker_finish(self); }
 
     can evaluate with Root entry {
         if self.learner_id.strip() == "" {
@@ -517,6 +523,7 @@ walker evaluate_submission {
             return;
         }
 
+        ai_started = ai_call_started("evaluate_submission", "evaluate_code_submission", self.request_id, self.correlation_id, {"language": challenge.language, "challenge_id": challenge.id});
         try {
             generated = evaluate_code_submission(
                 SubmissionEvaluationContext(
@@ -535,7 +542,9 @@ walker evaluate_submission {
                     target_skills=target_skills
                 )
             );
+            ai_call_completed("evaluate_submission", "evaluate_code_submission", self.request_id, self.correlation_id, ai_started);
         } except ByLLMError as e {
+            ai_call_failed("evaluate_submission", "evaluate_code_submission", self.request_id, self.correlation_id, ai_started, e.__class__.__name__);
             policy = standard_ai_error_policy(e);
             self.errors = self.errors + [
                 SubmissionEvaluationError(

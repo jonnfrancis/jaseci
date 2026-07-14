@@ -2,6 +2,7 @@
 
 import from datetime { datetime }
 import from edges.domain_edges { attempted, submitted_for }
+import from lib.observability.instrumentation { observe_walker_finish, observe_walker_start }
 import from nodes.challenge {
     ChallengeSubmission,
     ChallengeSubmissionStatus,
@@ -62,6 +63,11 @@ walker submit_challenge {
     has code: str;
     has errors: list[ChallengeSubmissionError] = [];
     has reports: list[ChallengeSubmissionView] = [];
+    has request_id: str = "";
+    has correlation_id: str = "";
+
+    can observability_start with Root entry { observe_walker_start(self); }
+    can observability_finish with Root exit { observe_walker_finish(self); }
 
     can submit with Root entry {
         if self.learner_id.strip() == "" {

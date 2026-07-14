@@ -4,9 +4,11 @@ version = "0.1.0"
 description = "A full-stack Jac application"
 entry-point = "main.jac"
 kind = "fullstack"
+jac-version = "==0.16.7"
 
 [dependencies]
-byllm = "*"
+byllm = "==0.6.19"
+"jac-scale[deploy]" = "==0.2.31"
 
 [dependencies.npm]
 "@hugeicons/react" = "*"
@@ -47,17 +49,35 @@ plugins = ["tailwindcss()"]
 lib_imports = ["import tailwindcss from '@tailwindcss/vite'"]
 
 [plugins.byllm.model]
-api_key = "${VITE_GEMINI_API_KEY}"                       # Required
+api_key = "${GEMINI_API_KEY}"                       # Required
 default_model = "gemini/gemini-3.1-flash-lite"             # With default
 
 [plugins.client]
+debug = false
 
-# [plugins.scale.database]
-# mongodb_uri = "${MONGODB_URI}"
+[plugins.scale.server]
+docs_enabled = false
+suppress_health_check_logs = true
 
-# [plugins.scale.secrets]
-# MONGODB_URI = "${MONGODB_URI}"
-# JWT_SECRET = "${JWT_SECRET}"
+[plugins.scale.database]
+mongodb_uri = "${MONGODB_URI}"
+
+[plugins.scale.secrets]
+MONGODB_URI = "${MONGODB_URI}"
+JWT_SECRET = "${JWT_SECRET}"
+GEMINI_API_KEY = "${GEMINI_API_KEY}"
+
+[plugins.scale.kubernetes]
+app_name = "graphlearn-lms"
+namespace = "graphlearn-production"
+min_replicas = 1
+max_replicas = 1
+cpu_request = "250m"
+cpu_limit = "1000m"
+memory_request = "512Mi"
+memory_limit = "2Gi"
+health_check_path = "/health"
+health_check_initial_delay = 30
 
 [jac-shadcn]
 style = "nova"

@@ -2,6 +2,7 @@
 
 import from datetime { datetime }
 import from edges.domain_edges { evidenced_by, mastered, signals, targets }
+import from lib.observability.instrumentation { observe_walker_finish, observe_walker_start }
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
@@ -267,6 +268,11 @@ walker update_mastery {
     has source_id: str;
     has errors: list[MasteryUpdateError] = [];
     has reports: list[MasteryUpdateSummary] = [];
+    has request_id: str = "";
+    has correlation_id: str = "";
+
+    can observability_start with Root entry { observe_walker_start(self); }
+    can observability_finish with Root exit { observe_walker_finish(self); }
 
     can update with Root entry {
         if self.learner_id.strip() == "" {

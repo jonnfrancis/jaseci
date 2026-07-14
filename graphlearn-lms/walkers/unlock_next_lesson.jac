@@ -1,6 +1,7 @@
 """Deterministic roadmap progression and lesson unlocking."""
 
 import from datetime { datetime }
+import from lib.observability.instrumentation { observe_walker_finish, observe_walker_start }
 import from edges.domain_edges {
     Prerequisite,
     assigned,
@@ -581,6 +582,11 @@ walker unlock_next_lesson {
     has source_id: str = "";
     has errors: list[ProgressionError] = [];
     has reports: list[ProgressionResult] = [];
+    has request_id: str = "";
+    has correlation_id: str = "";
+
+    can observability_start with Root entry { observe_walker_start(self); }
+    can observability_finish with Root exit { observe_walker_finish(self); }
 
     can unlock with Root entry {
         timestamp = _current_timestamp();

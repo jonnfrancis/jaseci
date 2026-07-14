@@ -3,6 +3,7 @@
 import from datetime { datetime }
 import from byllm.lib { ByLLMError }
 import from edges.domain_edges { assigned, contains, requires, targets }
+import from lib.observability.instrumentation { ai_call_completed, ai_call_failed, ai_call_started, observe_walker_finish, observe_walker_start }
 import from lib.ai.utilities {
     GeneratedRoadmapLesson,
     GeneratedRoadmapMilestone,
@@ -207,6 +208,11 @@ walker generate_roadmap {
     has language: str;
     has errors: list[RoadmapGenerationError] = [];
     has reports: list[Roadmap] = [];
+    has request_id: str = "";
+    has correlation_id: str = "";
+
+    can observability_start with Root entry { observe_walker_start(self); }
+    can observability_finish with Root exit { observe_walker_finish(self); }
 
     can generate with Root entry {
         language_normalized = self.language.strip().lower();
@@ -267,6 +273,7 @@ walker generate_roadmap {
         target_level = _target_level(evaluation.score.percentage);
         summary = _assessment_summary(language_normalized, assessment, attempt, evaluation, weak, strong);
 
+        ai_started = ai_call_started("generate_roadmap", "generate_learning_roadmap_outline", self.request_id, self.correlation_id, {"language": language_normalized});
         try {
             generated = generate_learning_roadmap_outline(
                 language_normalized,
@@ -277,7 +284,9 @@ walker generate_roadmap {
                 strong,
                 target_level
             );
+            ai_call_completed("generate_roadmap", "generate_learning_roadmap_outline", self.request_id, self.correlation_id, ai_started);
         } except ByLLMError as e {
+            ai_call_failed("generate_roadmap", "generate_learning_roadmap_outline", self.request_id, self.correlation_id, ai_started, e.__class__.__name__);
             policy = standard_ai_error_policy(e);
             self.errors = self.errors + [
                 RoadmapGenerationError(

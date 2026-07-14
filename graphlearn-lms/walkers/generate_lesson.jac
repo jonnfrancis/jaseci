@@ -3,6 +3,7 @@
 import from datetime { datetime }
 import from byllm.lib { ByLLMError }
 import from edges.domain_edges { assigned, contains, targets }
+import from lib.observability.instrumentation { ai_call_completed, ai_call_failed, ai_call_started, observe_walker_finish, observe_walker_start }
 import from lib.ai.utilities {
     LessonContentContext,
     LessonGenerationResult,
@@ -377,6 +378,11 @@ walker generate_lesson {
     has language: str;
     has errors: list[LessonGenerationError] = [];
     has reports: list[GeneratedLessonView] = [];
+    has request_id: str = "";
+    has correlation_id: str = "";
+
+    can observability_start with Root entry { observe_walker_start(self); }
+    can observability_finish with Root exit { observe_walker_finish(self); }
 
     can generate with Root entry {
         language_normalized = self.language.strip().lower();
@@ -439,6 +445,7 @@ walker generate_lesson {
         }
 
         context = _assessment_context(roadmap);
+        ai_started = ai_call_started("generate_lesson", "generate_lesson_content", self.request_id, self.correlation_id, {"language": language_normalized, "lesson_title": roadmap_lesson.title});
         try {
             generated = generate_lesson_content(
                 LessonContentContext(
@@ -454,7 +461,9 @@ walker generate_lesson {
                     previous_lesson_titles=_previous_lesson_titles(roadmap, roadmap_lesson)
                 )
             );
+            ai_call_completed("generate_lesson", "generate_lesson_content", self.request_id, self.correlation_id, ai_started);
         } except ByLLMError as e {
+            ai_call_failed("generate_lesson", "generate_lesson_content", self.request_id, self.correlation_id, ai_started, e.__class__.__name__);
             policy = standard_ai_error_policy(e);
             self.errors = self.errors + [
                 LessonGenerationError(

@@ -1,6 +1,7 @@
 """Read-only AI tutor next-action recommendation."""
 
 import from datetime { datetime }
+import from lib.observability.instrumentation { ai_call_completed, ai_call_failed, ai_call_started, observe_walker_finish, observe_walker_start }
 import from lib.ai.utilities {
     TutorRecommendationContext,
     TutorRecommendationPriority,
@@ -509,6 +510,11 @@ walker recommend_next_action {
     has language: str = "";
     has errors: list[TutorRecommendationError] = [];
     has reports: list[TutorRecommendationView] = [];
+    has request_id: str = "";
+    has correlation_id: str = "";
+
+    can observability_start with Root entry { observe_walker_start(self); }
+    can observability_finish with Root exit { observe_walker_finish(self); }
 
     can recommend with Root entry {
         language_normalized = self.language.strip().lower();
@@ -622,14 +628,17 @@ walker recommend_next_action {
         }
 
         context = _build_context(active, lessons, progress, progress_records, current, generated, challenges, evaluations, mastery);
+        ai_started = ai_call_started("recommend_next_action", "generate_next_action_recommendation", self.request_id, self.correlation_id, {"language": active.language});
         try {
             ai_result = generate_next_action_recommendation(context);
+            ai_call_completed("recommend_next_action", "generate_next_action_recommendation", self.request_id, self.correlation_id, ai_started);
             if ai_result.title.strip() == "" or ai_result.recommended_action.strip() == "" or ai_result.explanation.strip() == "" or ai_result.suggested_cta_label.strip() == "" {
                 self.errors = self.errors + [TutorRecommendationError(code="invalid_ai_output", message="AI recommendation was missing required display fields.")];
                 return;
             }
             report _from_ai(self.learner_id, active.id, active.language, ai_result);
-        } except Exception {
+        } except Exception as e {
+            ai_call_failed("recommend_next_action", "generate_next_action_recommendation", self.request_id, self.correlation_id, ai_started, e.__class__.__name__);
             fallback_lesson_id = (current as RoadmapLesson).id if current is not None else "";
             report _view(self.learner_id, active.id, active.language, "continue_lesson", "Continue learning", "Continue with your current available lesson.", "AI recommendations are temporarily unavailable, so GraphLearn is using the safest roadmap-based next step.", "high", 0.75, fallback_lesson_id, "", [], "Continue lesson");
         }

@@ -1,6 +1,7 @@
 """Read-only learner dashboard aggregation."""
 
 import from edges.domain_edges { contains }
+import from lib.observability.instrumentation { observe_walker_finish, observe_walker_start }
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
@@ -742,6 +743,11 @@ walker get_dashboard {
     has roadmap_id: str = "";
     has errors: list[DashboardError] = [];
     has reports: list[DashboardView] = [];
+    has request_id: str = "";
+    has correlation_id: str = "";
+
+    can observability_start with Root entry { observe_walker_start(self); }
+    can observability_finish with Root exit { observe_walker_finish(self); }
 
     can load with Root entry {
         if self.learner_id.strip() == "" {

@@ -1,0 +1,16 @@
+.git
+.gitignore
+.jac
+.env
+.env.*
+!.env.example
+node_modules
+__pycache__
+*.pyc
+.vscode
+.idea
+.qodo
+.agents
+.codex
+context
+tests

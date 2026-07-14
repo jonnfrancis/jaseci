@@ -2,6 +2,7 @@
 
 import from datetime { datetime }
 import from edges.domain_edges { Prerequisite, contains, requires, targets, teaches }
+import from lib.observability.instrumentation { observe_walker_finish, observe_walker_start }
 import from nodes.learner { Learner }
 import from nodes.mastery { MasteryLevel, SkillMastery }
 import from nodes.roadmap {
@@ -346,6 +347,11 @@ walker get_skill_map {
     has roadmap_id: str = "";
     has errors: list[SkillMapError] = [];
     has reports: list[SkillMapView] = [];
+    has request_id: str = "";
+    has correlation_id: str = "";
+
+    can observability_start with Root entry { observe_walker_start(self); }
+    can observability_finish with Root exit { observe_walker_finish(self); }
 
     can load with Root entry {
         language_normalized = self.language.strip().lower();

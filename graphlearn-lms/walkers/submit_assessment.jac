@@ -1,5 +1,6 @@
 """Assessment submission persistence walker."""
 
+import from lib.observability.instrumentation { observe_walker_finish, observe_walker_start }
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
@@ -241,6 +242,11 @@ walker submit_assessment {
     has responses: list[AssessmentResponseInput] = [];
     has errors: list[AssessmentSubmissionError] = [];
     has reports: list[AssessmentAttempt] = [];
+    has request_id: str = "";
+    has correlation_id: str = "";
+
+    can observability_start with Root entry { observe_walker_start(self); }
+    can observability_finish with Root exit { observe_walker_finish(self); }
 
     can submit with Root entry {
         assessment = _find_assessment(self.assessment_id);

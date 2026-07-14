@@ -1,6 +1,7 @@
 """Initial assessment creation walker."""
 
 import from edges.domain_edges { assigned }
+import from lib.observability.instrumentation { ai_call_completed, ai_call_started, observe_walker_finish, observe_walker_start }
 import from lib.ai.utilities {
     GeneratedOption,
     GeneratedQuestion,
@@ -60,6 +61,11 @@ walker initialize_assessment {
     has created_at: str = "";
     has selected_language: str = "";
     has reports: list[Assessment] = [];
+    has request_id: str = "";
+    has correlation_id: str = "";
+
+    can observability_start with Root entry { observe_walker_start(self); }
+    can observability_finish with Root exit { observe_walker_finish(self); }
 
     can create with Root entry {
         prior_count = len([root -->[?:Assessment, learner_id == self.learner_id]]);
@@ -256,6 +262,7 @@ walker initialize_assessment {
             return;
         }
 
+        ai_started = ai_call_started("initialize_assessment", "generate_initial_assessment", self.request_id, self.correlation_id, {"assessment_length": self.assessment_length});
         generated = generate_initial_assessment(
             self.learner_goals,
             self.learner_interests,
@@ -264,6 +271,7 @@ walker initialize_assessment {
             self.target_role,
             self.assessment_length
         );
+        ai_call_completed("initialize_assessment", "generate_initial_assessment", self.request_id, self.correlation_id, ai_started);
 
         assessment = (root ++> Assessment(
             id=assessment_id,

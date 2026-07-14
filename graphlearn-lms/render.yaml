@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: graphlearn-lms
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /health
+
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+
+      - key: JWT_SECRET
+        sync: false
+
+      - key: GEMINI_API_KEY
+        sync: false
+
+      - key: OBSERVABILITY_ENABLED
+        value: "true"
+
+      - key: TRACE_ENABLED
+        value: "true"
+
+      - key: METRICS_ENABLED
+        value: "true"
+
+      - key: LOG_LEVEL
+        value: info
+
+      - key: LOG_AI_PAYLOADS
+        value: "false"
+
+      - key: LOG_SUBMISSION_CODE
+        value: "false"
+
+      - key: OBSERVABILITY_WALKER_SLOW_MS
+        value: "1000"
+
+      - key: OBSERVABILITY_AI_SLOW_MS
+        value: "10000"
+
+      - key: OBSERVABILITY_DASHBOARD_SLOW_MS
+        value: "2000"

@@ -2,19 +2,27 @@
 
 import from edges.domain_edges { contains }
 import from nodes.roadmap { Roadmap, RoadmapLesson, RoadmapMilestone, RoadmapWeek }
+import from lib.observability.instrumentation { graph_operation_event }
+import from lib.observability.tracing { monotonic_ms }
 
 def roadmap_for(roadmap_id: str) -> Roadmap | None {
+    started = monotonic_ms();
     for roadmap in [root -->][?:Roadmap, id == roadmap_id] {
+        graph_operation_event("roadmap_for", "read", True, max(0, monotonic_ms() - started), 1);
         return roadmap;
     }
+    graph_operation_event("roadmap_for", "read", True, max(0, monotonic_ms() - started), 0);
     return None;
 }
 
 def roadmap_weeks(roadmap: Roadmap) -> list[RoadmapWeek] {
-    return sorted(
+    started = monotonic_ms();
+    results = sorted(
         [roadmap ->:contains:->][?:RoadmapWeek],
         key=lambda week: RoadmapWeek : week.week_number
     );
+    graph_operation_event("roadmap_weeks", "read", True, max(0, monotonic_ms() - started), len(results));
+    return results;
 }
 
 def week_lessons(week: RoadmapWeek) -> list[RoadmapLesson] {

@@ -3,6 +3,7 @@
 import from datetime { datetime }
 import from byllm.lib { ByLLMError }
 import from edges.domain_edges { assigned, contains, evaluates, targets }
+import from lib.observability.instrumentation { ai_call_completed, ai_call_failed, ai_call_started, observe_walker_finish, observe_walker_start }
 import from lib.ai.utilities {
     ChallengeGenerationContext,
     ChallengeGenerationResult,
@@ -463,6 +464,11 @@ walker generate_challenge {
     has language: str;
     has errors: list[ChallengeGenerationError] = [];
     has reports: list[GeneratedChallengeView] = [];
+    has request_id: str = "";
+    has correlation_id: str = "";
+
+    can observability_start with Root entry { observe_walker_start(self); }
+    can observability_finish with Root exit { observe_walker_finish(self); }
 
     can generate with Root entry {
         language_normalized = self.language.strip().lower();
@@ -540,6 +546,7 @@ walker generate_challenge {
         }
 
         assessment = _assessment_context(roadmap);
+        ai_started = ai_call_started("generate_challenge", "generate_coding_challenge", self.request_id, self.correlation_id, {"language": language_normalized, "lesson_title": roadmap_lesson.title});
         try {
             generated = generate_coding_challenge(
                 ChallengeGenerationContext(
@@ -556,7 +563,9 @@ walker generate_challenge {
                     previous_challenge_titles=_previous_challenge_titles(roadmap, generated_lesson.id)
                 )
             );
+            ai_call_completed("generate_challenge", "generate_coding_challenge", self.request_id, self.correlation_id, ai_started);
         } except ByLLMError as e {
+            ai_call_failed("generate_challenge", "generate_coding_challenge", self.request_id, self.correlation_id, ai_started, e.__class__.__name__);
             policy = standard_ai_error_policy(e);
             self.errors = self.errors + [
                 ChallengeGenerationError(
