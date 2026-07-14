@@ -7,22 +7,35 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install the same Jaseci toolchain used by the local project.
+# Install the compiler used to bootstrap the project environment.
 RUN python -m pip install --upgrade pip \
-    && python -m pip install "jaseci==2.3.28"
+    && python -m pip install \
+        "jaseci==2.3.28" \
+        "jac-scale[deploy]==0.2.31" \
+        "byllm==0.6.19"
 
-# Copy the dependency manifest first for better layer caching.
 COPY jac.toml ./
 
-# jac.toml references required runtime variables. These build-only placeholders
-# let Jac install dependencies without embedding real secrets in the image.
-RUN MONGODB_URI="mongodb://localhost:27017/graphlearn" \
-    JWT_SECRET="build-only-placeholder" \
-    GEMINI_API_KEY="build-only-placeholder" \
-    jac install
+# Install project dependencies at image-build time. Retry in the same layer so
+# Bun retains downloads if Jac's five-minute npm timeout is reached.
+RUN set -eu; \
+    attempt=1; \
+    while [ "$attempt" -le 3 ]; do \
+        echo "Jac dependency installation attempt ${attempt}/3"; \
+        if MONGODB_URI="mongodb://localhost:27017/graphlearn" \
+           JWT_SECRET="build-only-placeholder" \
+           GEMINI_API_KEY="build-only-placeholder" \
+           jac install; then \
+            exit 0; \
+        fi; \
+        attempt=$((attempt + 1)); \
+        echo "Dependency installation failed; retrying with the existing cache..."; \
+    done; \
+    exit 1
 
 COPY . .
 
 EXPOSE 10000
 
-CMD ["sh", "-c", "jac start main.jac --port ${PORT:-10000}"]
+# Crucially, run the Jac executable from the project environment created above.
+CMD ["sh", "-c", "/app/.jac/venv/bin/jac start main.jac --port ${PORT:-10000}"]
