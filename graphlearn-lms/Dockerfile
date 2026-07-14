@@ -38,4 +38,4 @@ COPY . .
 EXPOSE 10000
 
 # Crucially, run the Jac executable from the project environment created above.
-CMD ["sh", "-c", "/app/.jac/venv/bin/jac start main.jac --port ${PORT:-10000}"]
+CMD ["sh", "-c", "jac start main.jac --port ${PORT:-10000}"]
