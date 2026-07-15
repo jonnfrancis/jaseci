@@ -56,3 +56,15 @@ edge unlocked {}
 
 # Represents ProgressionEvent ownership/context links.
 edge belongs_to {}
+
+# Shared catalogue and versioned curriculum relationships.
+edge HAS_LEARNING_TRACK {
+    has created_at: str;
+}
+
+edge HAS_TRACK_VERSION {
+    has version_number: int;
+    has created_at: str;
+}
+
+edge HAS_TRACK_CONFIGURATION {}

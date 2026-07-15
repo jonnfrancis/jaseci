@@ -35,6 +35,7 @@ import from walkers.submit_assessment {
     AssessmentSubmissionError,
     submit_assessment
 }
+import from lib.learning_track.service { seed_builtin_tracks }
 
 glob JOURNEY_LEARNER_ID = "phase-1-assessment-learner";
 
@@ -43,6 +44,7 @@ obj LanguageTrackView {
     has name: str;
     has description: str;
     has topics: list[str] = [];
+    has track_id: str = "";
 }
 
 obj AssessmentScoreView {
@@ -85,18 +87,21 @@ obj AssessmentJourneyState {
 }
 
 def:pub supported_language_tracks() -> list[LanguageTrackView] {
+    _ = seed_builtin_tracks();
     return [
         LanguageTrackView(
             id="Python",
             name="Python",
             description="Fundamentals, syntax, functions, and control flow.",
-            topics=["fundamentals", "syntax", "functions", "control flow"]
+            topics=["fundamentals", "syntax", "functions", "control flow"],
+            track_id="trk_builtin_python"
         ),
         LanguageTrackView(
             id="Jac",
             name="Jac",
             description="Graph-native programming with walkers, nodes, edges, and traversal concepts.",
-            topics=["graph-native programming", "walkers", "nodes", "edges", "traversal concepts"]
+            topics=["graph-native programming", "walkers", "nodes", "edges", "traversal concepts"],
+            track_id="trk_builtin_jaseci"
         )
     ];
 }

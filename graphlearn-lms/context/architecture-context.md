@@ -85,6 +85,16 @@ Examples:
 * Python
 * JavaScript
 
+### Learning Track
+
+Represents the stable, shared curriculum identity used by both built-in
+programming paths and lecturer-created courses. A `LearningTrack` is connected
+through the deployment-wide `LearningCatalogue`, owns immutable curriculum
+`TrackVersion` snapshots and one `TrackConfiguration`, and never stores
+learner-specific progression. Public catalogue data lives under `root.shared`;
+learner assessments, roadmaps, lessons, submissions, and mastery remain under
+the authenticated learner root.
+
 ### Roadmap
 
 Personalized learning plan.
@@ -154,6 +164,10 @@ Stores:
 
 ```text
 User
+LearningCatalogue
+LearningTrack
+TrackVersion
+TrackConfiguration
 LearningPath
 Roadmap
 Week
@@ -170,6 +184,9 @@ ProgressionEvent
 
 ```text
 HAS_ROADMAP
+HAS_LEARNING_TRACK
+HAS_TRACK_VERSION
+HAS_TRACK_CONFIGURATION
 HAS_WEEK
 HAS_TOPIC
 HAS_LESSON
@@ -381,3 +398,6 @@ Advantages:
 11. Authenticated learner data is stored on and resolved from the caller's persistent Jac root.
 12. The server-derived root identifier is the canonical ownership binding; email and browser storage are not ownership authorities.
 13. Jac's graph store is the only LMS domain database. PostgreSQL/Prisma is not part of the current persistence architecture.
+14. Shared curriculum identity is represented by stable `LearningTrack.track_id` values; legacy language strings are compatibility inputs, not primary curriculum identifiers.
+15. Published `TrackVersion` nodes are immutable, and a track's active version must be a published version belonging to that same track.
+16. The global learning catalogue is anchored under `root.shared`; learner-specific state must not be attached to catalogue tracks or versions.

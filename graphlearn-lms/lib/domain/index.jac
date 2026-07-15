@@ -1,6 +1,6 @@
 """Domain model barrel exports."""
 
-import from edges.domain_edges { Prerequisite, assigned, attempted, belongs_to, completed, contains, evaluated, evaluates, evidenced_by, mastered, progresses, requires, signals, submitted_for, targets, teaches, tracks, unlocked }
+import from edges.domain_edges { HAS_LEARNING_TRACK, HAS_TRACK_CONFIGURATION, HAS_TRACK_VERSION, Prerequisite, assigned, attempted, belongs_to, completed, contains, evaluated, evaluates, evidenced_by, mastered, progresses, requires, signals, submitted_for, targets, teaches, tracks, unlocked }
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
@@ -39,6 +39,25 @@ import from nodes.challenge {
     SubmissionSkillSignal
 }
 import from nodes.learner { Learner }
+import from nodes.learning_track {
+    CreateLearningTrackInput,
+    LearningCatalogue,
+    LearningTrack,
+    LearningTrackDetail,
+    LearningTrackError,
+    LearningTrackMigrationReport,
+    LearningTrackResult,
+    LearningTrackStatus,
+    LearningTrackSummary,
+    LearningTrackType,
+    LearningTrackVisibility,
+    TrackConfiguration,
+    TrackDifficultyLevel,
+    TrackOwnershipType,
+    TrackSourceKind,
+    TrackVersion,
+    TrackVersionStatus
+}
 import from nodes.lesson {
     Difficulty,
     GeneratedLesson,
