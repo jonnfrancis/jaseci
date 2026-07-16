@@ -53,6 +53,8 @@ node Assessment {
     has scoring_strategy: str = "exact_match";
     has short_answer_strategy: str = "exact_match";
     has questions: list[AssessmentQuestion] = [];
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 obj StoredQuestionResponse {
@@ -77,6 +79,8 @@ node AssessmentAttempt {
     has status: AssessmentAttemptStatus;
     has submitted_at: str;
     has completed_at: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node AssessmentResponse {
@@ -116,6 +120,8 @@ node AssessmentEvaluation {
     has created_at: str;
     has question_results: list[QuestionResult] = [];
     has skill_signals: list[SkillSignal] = [];
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 edge AssessmentQuestionLink: Assessment --> AssessmentQuestion {}

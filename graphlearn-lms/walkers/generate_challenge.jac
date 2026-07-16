@@ -597,6 +597,8 @@ walker generate_challenge {
             starter_code=generated.starter_code,
             created_at=timestamp,
             updated_at=timestamp
+            , track_id=roadmap.track_id
+            , track_version_id=roadmap.track_version_id
         ))[0];
         learner +>:assigned:+> challenge;
         roadmap +>:contains:+> challenge;

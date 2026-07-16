@@ -60,6 +60,8 @@ walker initialize_assessment {
     has assessment_length: int = 5;
     has created_at: str = "";
     has selected_language: str = "";
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
     has reports: list[Assessment] = [];
     has request_id: str = "";
     has correlation_id: str = "";
@@ -82,6 +84,8 @@ walker initialize_assessment {
                 status=AssessmentStatus.active,
                 created_at=created_at_value,
                 short_answer_strategy="normalized_text_match"
+                , track_id=self.track_id
+                , track_version_id=self.track_version_id
             ))[0];
 
             for learner in [root -->[?:Learner, id == self.learner_id]] {
@@ -280,6 +284,8 @@ walker initialize_assessment {
             description=generated.description,
             status=AssessmentStatus.draft,
             created_at=created_at_value
+            , track_id=self.track_id
+            , track_version_id=self.track_version_id
         ))[0];
 
         for learner in [root -->[?:Learner, id == self.learner_id]] {

@@ -35,7 +35,8 @@ import from walkers.submit_assessment {
     AssessmentSubmissionError,
     submit_assessment
 }
-import from lib.learning_track.service { seed_builtin_tracks }
+import from lib.learning_track.registry { BUILTIN_PROGRAMMING_TRACKS }
+import from lib.learning_track.service { resolve_track_context, seed_builtin_tracks }
 
 glob JOURNEY_LEARNER_ID = "phase-1-assessment-learner";
 
@@ -45,6 +46,10 @@ obj LanguageTrackView {
     has description: str;
     has topics: list[str] = [];
     has track_id: str = "";
+    has track_version_id: str = "";
+    has slug: str = "";
+    has track_type: str = "PROGRAMMING_LANGUAGE";
+    has legacy_language: str = "";
 }
 
 obj AssessmentScoreView {
@@ -76,6 +81,8 @@ obj AssessmentEvaluationView {
 obj AssessmentJourneyState {
     has status: str;
     has selected_language: str = "";
+    has track_id: str = "";
+    has track_version_id: str = "";
     has learner_id: str = JOURNEY_LEARNER_ID;
     has assessment_id: str = "";
     has attempt_id: str = "";
@@ -88,22 +95,24 @@ obj AssessmentJourneyState {
 
 def:pub supported_language_tracks() -> list[LanguageTrackView] {
     _ = seed_builtin_tracks();
-    return [
-        LanguageTrackView(
-            id="Python",
-            name="Python",
-            description="Fundamentals, syntax, functions, and control flow.",
-            topics=["fundamentals", "syntax", "functions", "control flow"],
-            track_id="trk_builtin_python"
-        ),
-        LanguageTrackView(
-            id="Jac",
-            name="Jac",
-            description="Graph-native programming with walkers, nodes, edges, and traversal concepts.",
-            topics=["graph-native programming", "walkers", "nodes", "edges", "traversal concepts"],
-            track_id="trk_builtin_jaseci"
-        )
-    ];
+    views: list[LanguageTrackView] = [];
+    for definition in BUILTIN_PROGRAMMING_TRACKS {
+        if definition.enabled {
+            legacy_id = "Python" if definition.canonical_language == "python" else "Jac";
+            topics = ["fundamentals", "syntax", "functions", "control flow"] if definition.canonical_language == "python" else ["graph-native programming", "walkers", "nodes", "edges", "traversal concepts"];
+            views.append(LanguageTrackView(
+                id=legacy_id,
+                name=legacy_id,
+                description=definition.description,
+                topics=topics,
+                track_id=definition.track_id,
+                track_version_id=definition.track_version_id,
+                slug=definition.slug,
+                legacy_language=definition.canonical_language
+            ));
+        }
+    }
+    return views;
 }
 
 def _ensure_journey_learner(learner_id: str, learner_name: str = "Assessment Learner") -> Learner {
@@ -255,6 +264,8 @@ def _state_for_assessment(
             return AssessmentJourneyState(
                 status="results",
                 selected_language=_language_from_assessment(assessment),
+                track_id=assessment.track_id or "",
+                track_version_id=assessment.track_version_id or "",
                 learner_id=assessment.learner_id,
                 assessment_id=assessment.id,
                 attempt_id=attempt.id,
@@ -267,6 +278,8 @@ def _state_for_assessment(
         return AssessmentJourneyState(
             status=status,
             selected_language=_language_from_assessment(assessment),
+            track_id=assessment.track_id or "",
+            track_version_id=assessment.track_version_id or "",
             learner_id=assessment.learner_id,
             assessment_id=assessment.id,
             attempt_id=attempt.id,
@@ -277,6 +290,8 @@ def _state_for_assessment(
     return AssessmentJourneyState(
         status=status,
         selected_language=_language_from_assessment(assessment),
+        track_id=assessment.track_id or "",
+        track_version_id=assessment.track_version_id or "",
         learner_id=assessment.learner_id,
         assessment_id=assessment.id,
         assessment=_assessment_to_view(assessment),
@@ -346,26 +361,37 @@ def:priv load_assessment_journey(learner_id: str = JOURNEY_LEARNER_ID) -> Assess
 def:priv start_assessment_journey(
     language: str,
     learner_id: str = JOURNEY_LEARNER_ID,
-    learner_name: str = "Assessment Learner"
+    learner_name: str = "Assessment Learner",
+    track_id: str | None = None,
+    track_version_id: str | None = None
 ) -> AssessmentJourneyState {
-    if not _language_supported(language) {
+    _ = seed_builtin_tracks();
+    context = resolve_track_context(track_id, track_version_id, language);
+    if context is None or context.legacy_language is None {
         raise Exception("Unsupported assessment language.");
     }
     if learner_id.strip() == "" {
         raise Exception("Log in before starting an assessment.");
     }
 
-    _ensure_journey_learner(learner_id, learner_name);
+    learner = _ensure_journey_learner(learner_id, learner_name);
+    learner.active_track_id = context.track_id;
+    learner.active_track_version_id = context.track_version_id;
+    learner.track_id = context.track_id;
+    learner.track_version_id = context.track_version_id;
+    selected_language = "Python" if context.legacy_language == "python" else "Jac";
     result = root spawn initialize_assessment(
         learner_id=learner_id,
-        learner_goals=f"Assess readiness for {language}.",
-        learner_interests=[language],
+        learner_goals=f"Assess readiness for {selected_language}.",
+        learner_interests=[selected_language],
         learner_experience_level="beginner",
         target_skills=[],
-        target_role=f"{language} learner",
+        target_role=f"{selected_language} learner",
         assessment_length=3,
         created_at="assessment-started",
-        selected_language=language
+        selected_language=selected_language,
+        track_id=context.track_id,
+        track_version_id=context.track_version_id
     );
     if len(result.reports) == 0 {
         raise Exception("Unable to start assessment.");
@@ -471,17 +497,24 @@ def:priv generate_roadmap_for_journey(
     assessment_id: str,
     attempt_id: str,
     evaluation_id: str,
-    language: str
+    language: str,
+    track_id: str | None = None,
+    track_version_id: str | None = None
 ) -> AssessmentJourneyState {
     if learner_id.strip() == "" {
         raise Exception("Log in before generating a roadmap.");
     }
+    _ = seed_builtin_tracks();
+    context = resolve_track_context(track_id, track_version_id, language);
+    if context is None or context.legacy_language is None { raise Exception("Unable to resolve learning track."); }
     result = root spawn generate_roadmap(
         learner_id=learner_id,
         assessment_id=assessment_id,
         assessment_attempt_id=attempt_id,
         assessment_evaluation_id=evaluation_id,
-        language=language
+        language=context.legacy_language,
+        track_id=context.track_id,
+        track_version_id=context.track_version_id
     );
     if len(result.errors) > 0 or len(result.reports) == 0 {
         print("generate_roadmap errors:", result.errors);

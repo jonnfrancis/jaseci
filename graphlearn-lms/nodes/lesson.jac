@@ -18,6 +18,8 @@ node Lesson {
     has skillId: str;
     has difficulty: Difficulty;
     has estimatedMinutes: int;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node GeneratedLesson {
@@ -37,6 +39,8 @@ node GeneratedLesson {
     has examples: list[LessonExample] = [];
     has mini_exercises: list[LessonMiniExercise] = [];
     has key_takeaways: list[LessonTakeaway] = [];
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node LessonSection {

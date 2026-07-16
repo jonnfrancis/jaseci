@@ -162,7 +162,9 @@ def:pub AssessmentJourneyPage() -> JsxElement {
             next_journey.assessment_id,
             next_journey.attempt_id,
             evaluation_id,
-            next_journey.roadmap_id
+            next_journey.roadmap_id,
+            next_journey.track_id,
+            next_journey.track_version_id
         );
     }
 

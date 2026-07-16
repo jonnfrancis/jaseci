@@ -15,6 +15,7 @@ import from lib.ai.utilities {
 }
 import from lib.graph.assessment_queries { assessment_attempt_for, attempt_evaluation_for }
 import from lib.graph.roadmap_queries { roadmap_for }
+import from lib.learning_track.service { resolve_track_context, seed_builtin_tracks }
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
@@ -206,6 +207,8 @@ walker generate_roadmap {
     has assessment_attempt_id: str;
     has assessment_evaluation_id: str;
     has language: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
     has errors: list[RoadmapGenerationError] = [];
     has reports: list[Roadmap] = [];
     has request_id: str = "";
@@ -215,8 +218,9 @@ walker generate_roadmap {
     can observability_finish with Root exit { observe_walker_finish(self); }
 
     can generate with Root entry {
-        language_normalized = self.language.strip().lower();
-        if language_normalized not in ["python", "jac"] {
+        _ = seed_builtin_tracks();
+        context = resolve_track_context(self.track_id, self.track_version_id, self.language);
+        if context is None or context.legacy_language is None {
             self.errors = self.errors + [
                 RoadmapGenerationError(
                     code="unsupported_language",
@@ -225,6 +229,7 @@ walker generate_roadmap {
             ];
             return;
         }
+        language_normalized = "jac" if context.legacy_language == "jaseci" else context.legacy_language;
 
         learner = _find_learner(self.learner_id);
         if learner is None {
@@ -315,6 +320,8 @@ walker generate_roadmap {
             assessment_id=self.assessment_id,
             assessment_attempt_id=self.assessment_attempt_id,
             assessment_evaluation_id=self.assessment_evaluation_id
+            , track_id=context.track_id
+            , track_version_id=context.track_version_id
         ))[0];
         learner +>:assigned:+> roadmap;
 
@@ -326,6 +333,8 @@ walker generate_roadmap {
                 week_number=generated_week.week_number,
                 title=generated_week.title,
                 summary=generated_week.summary
+                , track_id=context.track_id
+                , track_version_id=context.track_version_id
             ))[0];
             roadmap.weeks.append(week);
 
@@ -342,6 +351,8 @@ walker generate_roadmap {
                     estimated_minutes=generated_lesson.estimated_minutes,
                     order_index=generated_lesson.order_index,
                     generation_status=RoadmapLessonGenerationStatus.pending
+                    , track_id=context.track_id
+                    , track_version_id=context.track_version_id
                 ))[0];
                 week.lessons.append(lesson);
                 roadmap.lessons.append(lesson);
@@ -359,6 +370,8 @@ walker generate_roadmap {
                     title=generated_milestone.title,
                     description=generated_milestone.description,
                     required_skill_ids=generated_milestone.required_skill_ids
+                    , track_id=context.track_id
+                    , track_version_id=context.track_version_id
                 ))[0];
                 week.milestones.append(milestone);
                 roadmap.milestones.append(milestone);

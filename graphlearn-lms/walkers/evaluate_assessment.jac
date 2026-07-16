@@ -152,6 +152,8 @@ walker evaluate_assessment {
             skill_signals=outcome.skill_signals,
             evaluation_version=EVALUATION_VERSION,
             created_at=self.evaluated_at
+            , track_id=assessment.track_id
+            , track_version_id=assessment.track_version_id
         ))[0];
 
         report evaluation;

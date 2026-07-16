@@ -22,6 +22,8 @@ node RoadmapLesson {
     has estimated_minutes: int;
     has order_index: int;
     has generation_status: RoadmapLessonGenerationStatus;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node RoadmapMilestone {
@@ -31,6 +33,8 @@ node RoadmapMilestone {
     has title: str;
     has description: str;
     has required_skill_ids: list[str];
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node RoadmapWeek {
@@ -41,6 +45,8 @@ node RoadmapWeek {
     has summary: str;
     has lessons: list[RoadmapLesson] = [];
     has milestones: list[RoadmapMilestone] = [];
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node Roadmap {
@@ -58,4 +64,6 @@ node Roadmap {
     has weeks: list[RoadmapWeek] = [];
     has lessons: list[RoadmapLesson] = [];
     has milestones: list[RoadmapMilestone] = [];
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }

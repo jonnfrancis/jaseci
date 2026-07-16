@@ -250,6 +250,8 @@ def _get_or_create_lesson_progress(
         completed_at="",
         unlocked_at=unlocked_at,
         updated_at=timestamp
+        , track_id=roadmap.track_id
+        , track_version_id=roadmap.track_version_id
     ))[0];
     learner +>:progresses:+> progress;
     roadmap +>:tracks:+> progress;
@@ -281,6 +283,8 @@ def _get_or_create_roadmap_progress(
         current_roadmap_lesson_id="",
         status=RoadmapProgressStatus.not_started,
         updated_at=timestamp
+        , track_id=roadmap.track_id
+        , track_version_id=roadmap.track_version_id
     ))[0];
     learner +>:progresses:+> progress;
     roadmap +>:tracks:+> progress;
@@ -331,6 +335,8 @@ def _create_event_once(
         source_id=draft.source_id,
         message=draft.message,
         created_at=timestamp
+        , track_id=roadmap.track_id
+        , track_version_id=roadmap.track_version_id
     ))[0];
     learner +>:belongs_to:+> event;
     roadmap +>:belongs_to:+> event;

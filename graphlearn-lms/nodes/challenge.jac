@@ -19,6 +19,8 @@ node Challenge {
     has description: str;
     has skillId: str;
     has difficulty: Difficulty;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node GeneratedChallenge {
@@ -39,6 +41,8 @@ node GeneratedChallenge {
     has constraints: list[ChallengeConstraint] = [];
     has hints: list[ChallengeHint] = [];
     has evaluation_criteria: list[ChallengeEvaluationCriterion] = [];
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node ChallengeInstruction {
@@ -88,6 +92,8 @@ node ChallengeSubmission {
     has submitted_at: str;
     has created_at: str;
     has updated_at: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node SubmissionEvaluation {
@@ -106,6 +112,8 @@ node SubmissionEvaluation {
     has criterion_results: list[CriterionResult] = [];
     has skill_signals: list[SubmissionSkillSignal] = [];
     has feedback_items: list[FeedbackItem] = [];
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node CriterionResult {

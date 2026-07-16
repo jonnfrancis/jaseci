@@ -86,6 +86,16 @@ import from nodes.progression {
     RoadmapProgress,
     RoadmapProgressStatus
 }
+import from nodes.programming_track_migration {
+    BuiltinTrackSeedOutcome,
+    BuiltinTrackSeedReport,
+    HAS_MIGRATION_RECORD,
+    LegacyTrackResolution,
+    ProgrammingTrackMigrationLedger,
+    ProgrammingTrackMigrationRecord,
+    ProgrammingTrackMigrationReport,
+    TrackContext
+}
 import from nodes.roadmap {
     Roadmap,
     RoadmapLesson,
@@ -95,3 +105,4 @@ import from nodes.roadmap {
     RoadmapWeek
 }
 import from nodes.skill { Skill }
+import from nodes.track_context { DashboardSnapshot, Recommendation, SkillMapSnapshot, TrackValidationResult }

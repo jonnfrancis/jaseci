@@ -19,6 +19,8 @@ node Mastery {
     has skillId: str;
     has score: MasteryScore;
     has updatedAt: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 enum MasteryLevel: str {
@@ -53,6 +55,8 @@ node SkillMastery {
     has last_source_id: str;
     has updated_at: str;
     has created_at: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node MasteryEvidence {
@@ -66,6 +70,8 @@ node MasteryEvidence {
     has weighted_score: float;
     has evidence_summary: str;
     has created_at: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node MasteryUpdateResult {
@@ -75,4 +81,6 @@ node MasteryUpdateResult {
     has source_id: str;
     has updated_at: str;
     has updated_skills: list[UpdatedSkillMasteryRecord] = [];
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }

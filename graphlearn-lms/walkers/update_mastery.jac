@@ -352,12 +352,16 @@ walker update_mastery {
 
         timestamp = _current_timestamp();
         source_weight = _source_weight(source);
+        source_track_id: str | None = source_evaluation.track_id if source_evaluation is not None else None;
+        source_track_version_id: str | None = source_evaluation.track_version_id if source_evaluation is not None else None;
         result = (root ++> MasteryUpdateResult(
             id=f"mastery-update-{self.learner_id}-{source.value}-{self.source_id}",
             learner_id=self.learner_id,
             source_type=source,
             source_id=self.source_id,
             updated_at=timestamp
+            , track_id=source_track_id
+            , track_version_id=source_track_version_id
         ))[0];
         updated_records: list[UpdatedSkillMasteryRecord] = [];
 
@@ -377,6 +381,8 @@ walker update_mastery {
                     last_source_id="",
                     updated_at=timestamp,
                     created_at=timestamp
+                    , track_id=source_track_id
+                    , track_version_id=source_track_version_id
                 ))[0];
                 learner +>:mastered:+> mastery;
                 mastery +>:targets:+> skill;
@@ -403,6 +409,8 @@ walker update_mastery {
                 weighted_score=(signal.signal_score * 100.0) * effective_weight,
                 evidence_summary=signal.evidence_summary,
                 created_at=timestamp
+                , track_id=source_track_id
+                , track_version_id=source_track_version_id
             ))[0];
             learner +>:evidenced_by:+> evidence;
             evidence +>:targets:+> skill;

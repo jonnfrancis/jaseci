@@ -1,4 +1,6 @@
-"""Thin typed read API for the shared learning-track catalogue."""
+"""Typed catalogue and guarded programming-track migration API."""
+
+import os;
 
 import from lib.learning_track.service {
     find_track,
@@ -7,6 +9,8 @@ import from lib.learning_track.service {
     seed_builtin_tracks,
     track_detail
 }
+import from lib.learning_track.registry { BUILTIN_PROGRAMMING_TRACKS }
+import from lib.learning_track.migration { rollback_programming_track_migration, run_programming_track_migration }
 import from nodes.learning_track {
     LearningTrackDetail,
     LearningTrackError,
@@ -14,6 +18,7 @@ import from nodes.learning_track {
     LearningTrackResult,
     LearningTrackSummary
 }
+import from nodes.programming_track_migration { ProgrammingTrackMigrationReport }
 
 obj LearningTrackResolutionView {
     has ok: bool;
@@ -21,9 +26,43 @@ obj LearningTrackResolutionView {
     has error: LearningTrackError | None = None;
 }
 
+obj ProgrammingTrackOptionView {
+    has track_id: str;
+    has track_version_id: str;
+    has slug: str;
+    has title: str;
+    has track_type: str;
+    has legacy_language: str;
+}
+
+obj SupportedProgrammingTracksView {
+    has languages: list[str];
+    has tracks: list[ProgrammingTrackOptionView];
+}
+
 def:pub list_learning_tracks -> list[LearningTrackSummary] {
     _ = seed_builtin_tracks();
     return list_discoverable_tracks();
+}
+
+def:pub supported_programming_tracks -> SupportedProgrammingTracksView {
+    _ = seed_builtin_tracks();
+    languages: list[str] = [];
+    tracks: list[ProgrammingTrackOptionView] = [];
+    for definition in BUILTIN_PROGRAMMING_TRACKS {
+        if definition.enabled {
+            languages.append(definition.canonical_language);
+            tracks.append(ProgrammingTrackOptionView(
+                track_id=definition.track_id,
+                track_version_id=definition.track_version_id,
+                slug=definition.slug,
+                title=definition.title,
+                track_type="PROGRAMMING_LANGUAGE",
+                legacy_language=definition.canonical_language
+            ));
+        }
+    }
+    return SupportedProgrammingTracksView(languages=languages, tracks=tracks);
 }
 
 def:pub get_learning_track(track_id: str) -> LearningTrackDetail | None {
@@ -63,4 +102,18 @@ def:priv resolve_legacy_learning_track(track_id: str | None = None, language: st
 
 def:priv migrate_learning_tracks -> LearningTrackMigrationReport {
     return seed_builtin_tracks();
+}
+
+def:priv execute_programming_track_migration(mode: str = "dry_run", batch_size: int = 100, scope_learner_id: str = "") -> ProgrammingTrackMigrationReport {
+    if os.getenv("PROGRAMMING_TRACK_MIGRATION_ENABLED", "false").strip().lower() not in ["1", "true", "yes", "on"] {
+        raise Exception("Programming-track migration is disabled.");
+    }
+    return run_programming_track_migration(mode, batch_size, scope_learner_id);
+}
+
+def:priv rollback_programming_track_migration_v1() -> ProgrammingTrackMigrationReport {
+    if os.getenv("PROGRAMMING_TRACK_MIGRATION_ENABLED", "false").strip().lower() not in ["1", "true", "yes", "on"] {
+        raise Exception("Programming-track migration is disabled.");
+    }
+    return rollback_programming_track_migration();
 }

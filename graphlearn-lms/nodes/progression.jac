@@ -29,6 +29,8 @@ node LessonProgress {
     has completed_at: str;
     has unlocked_at: str;
     has updated_at: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node RoadmapProgress {
@@ -43,6 +45,8 @@ node RoadmapProgress {
     has current_roadmap_lesson_id: str;
     has status: RoadmapProgressStatus;
     has updated_at: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }
 
 node ProgressionEvent {
@@ -55,4 +59,6 @@ node ProgressionEvent {
     has source_id: str;
     has message: str;
     has created_at: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
 }

@@ -120,6 +120,8 @@ walker submit_challenge {
             submitted_at=timestamp,
             created_at=timestamp,
             updated_at=timestamp
+            , track_id=challenge.track_id
+            , track_version_id=challenge.track_version_id
         ))[0];
         learner +>:attempted:+> submission;
         challenge +>:submitted_for:+> submission;

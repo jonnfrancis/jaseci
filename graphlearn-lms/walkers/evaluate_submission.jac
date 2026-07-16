@@ -575,6 +575,8 @@ walker evaluate_submission {
             evaluation_version=SUBMISSION_EVALUATION_VERSION,
             evaluated_at=timestamp,
             created_at=timestamp
+            , track_id=challenge.track_id
+            , track_version_id=challenge.track_version_id
         ))[0];
         learner +>:evaluated:+> evaluation;
         challenge +>:evaluated:+> evaluation;

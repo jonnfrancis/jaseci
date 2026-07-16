@@ -6,6 +6,15 @@ import from uuid { uuid4 }
 import from edges.domain_edges { HAS_LEARNING_TRACK, HAS_TRACK_CONFIGURATION, HAS_TRACK_VERSION }
 import from lib.observability.events { ObservabilityEvent }
 import from lib.observability.logger { emit_event }
+import from lib.learning_track.registry {
+    BUILTIN_PROGRAMMING_TRACKS,
+    BuiltinProgrammingTrackDefinition,
+    builtin_track_by_id,
+    builtin_track_by_language,
+    builtin_track_by_version_id,
+    normalize_legacy_language,
+    registry_is_valid
+}
 import from nodes.learning_track {
     CreateLearningTrackInput,
     LearningCatalogue,
@@ -24,6 +33,12 @@ import from nodes.learning_track {
     TrackSourceKind,
     TrackVersion,
     TrackVersionStatus
+}
+import from nodes.programming_track_migration {
+    BuiltinTrackSeedOutcome,
+    BuiltinTrackSeedReport,
+    LegacyTrackResolution,
+    TrackContext
 }
 
 glob MAX_TRACK_TITLE_LENGTH: int = 160;
@@ -108,6 +123,23 @@ def default_catalogue -> LearningCatalogue {
     catalogue = (root.shared ++> LearningCatalogue(created_at=timestamp, updated_at=timestamp))[0];
     grant(catalogue, level=ConnectPerm);
     return catalogue;
+}
+
+def existing_catalogue -> LearningCatalogue | None {
+    catalogues: list[LearningCatalogue] = [root.shared -->][?:LearningCatalogue];
+    for catalogue in catalogues {
+        if catalogue.catalogue_id == "global" { return catalogue; }
+    }
+    return None;
+}
+
+def find_track_readonly(track_id: str) -> LearningTrack | None {
+    catalogue = existing_catalogue();
+    if catalogue is None { return None; }
+    for track in [catalogue ->:HAS_LEARNING_TRACK:->][?:LearningTrack] {
+        if track.track_id == track_id { return track; }
+    }
+    return None;
 }
 
 def catalogue_tracks -> list[LearningTrack] {
@@ -210,6 +242,9 @@ def create_track(
         return _error("TRACK_VALIDATION_FAILED", "Course code contains unsupported characters or is too long.");
     }
 
+    if track_id_override is not None and track_id_override.startswith("trk_builtin_") and not trusted_system {
+        return _error("LEARNING_TRACK_ID_CONFLICT", "The built-in identifier namespace is reserved.");
+    }
     track_id = track_id_override if track_id_override is not None else f"trk_{uuid4().hex}";
     if find_track(track_id) is not None {
         return _error("LEARNING_TRACK_ID_CONFLICT", "The learning-track identifier already exists.", {"track_id": track_id});
@@ -242,8 +277,9 @@ def create_track(
     );
     catalogue = default_catalogue();
     track = (catalogue +>:HAS_LEARNING_TRACK(created_at=timestamp):+> track)[0];
+    configuration_id = f"cfg_{track_id[4:]}" if trusted_system and track_id.startswith("trk_builtin_") else f"cfg_{track_id}";
     configuration = (track +>:HAS_TRACK_CONFIGURATION:+> TrackConfiguration(
-        configuration_id=f"cfg_{track_id}",
+        configuration_id=configuration_id,
         track_id=track_id,
         supports_code_challenge=input.track_type == LearningTrackType.PROGRAMMING_LANGUAGE,
         created_at=timestamp,
@@ -426,97 +462,230 @@ def list_discoverable_tracks(viewer_id: str = "") -> list[LearningTrackSummary] 
     return [_summary(track) for track in catalogue_tracks() if can_discover(track, viewer_id)];
 }
 
+def resolve_legacy_programming_track(
+    track_id: str | None,
+    track_version_id: str | None,
+    language: str | None
+) -> LegacyTrackResolution {
+    clean_track_id = track_id.strip() if track_id is not None else "";
+    clean_version_id = track_version_id.strip() if track_version_id is not None else "";
+    normalized = normalize_legacy_language(language);
+    source = language;
+
+    if clean_track_id != "" {
+        track = find_track(clean_track_id);
+        if track is None {
+            return LegacyTrackResolution(False, None, None, None, source, "UNRESOLVED", "LEARNING_TRACK_NOT_FOUND", "The supplied track does not exist.");
+        }
+        version_id = clean_version_id;
+        if version_id == "" {
+            if track.active_version_id is None {
+                return LegacyTrackResolution(False, None, track.track_id, None, source, "UNRESOLVED", "TRACK_ACTIVE_VERSION_INVALID", "The track has no active version.");
+            }
+            version_id = track.active_version_id;
+        }
+        version = _find_version(track, version_id);
+        if version is None or version.track_id != track.track_id {
+            return LegacyTrackResolution(False, None, track.track_id, version_id, source, "CONFLICT", "TRACK_VERSION_MISMATCH", "The supplied version does not belong to the track.");
+        }
+        definition = builtin_track_by_id(track.track_id);
+        canonical = definition.canonical_language if definition is not None else None;
+        if normalized is not None {
+            language_definition = builtin_track_by_language(normalized);
+            if language_definition is None or language_definition.track_id != track.track_id {
+                return LegacyTrackResolution(False, canonical, track.track_id, version.track_version_id, source, "CONFLICT", "TRACK_LANGUAGE_CONFLICT", "The legacy language conflicts with the authoritative track.");
+            }
+        }
+        return LegacyTrackResolution(True, canonical, track.track_id, version.track_version_id, source, "TRACK_ID", None, "Resolved from the authoritative track reference.");
+    }
+
+    if clean_version_id != "" {
+        definition = builtin_track_by_version_id(clean_version_id);
+        if definition is None {
+            return LegacyTrackResolution(False, None, None, clean_version_id, source, "UNRESOLVED", "TRACK_VERSION_NOT_FOUND", "The supplied version is not registered.");
+        }
+        return LegacyTrackResolution(False, definition.canonical_language, None, clean_version_id, source, "CONFLICT", "TRACK_VERSION_MISMATCH", "A version cannot be resolved without its track.");
+    }
+    if normalized is None {
+        return LegacyTrackResolution(False, None, None, None, source, "MISSING", "TRACK_CONTEXT_MISSING", "No curriculum identity was supplied.");
+    }
+    definition = builtin_track_by_language(normalized);
+    if definition is None {
+        return LegacyTrackResolution(False, None, None, None, source, "UNRESOLVED", "LEGACY_LANGUAGE_UNRESOLVED", "The legacy language is not a supported exact alias.");
+    }
+    track = find_track(definition.track_id);
+    if track is None or _find_version(track, definition.track_version_id) is None {
+        return LegacyTrackResolution(False, definition.canonical_language, definition.track_id, definition.track_version_id, source, "UNRESOLVED", "BUILTIN_TRACK_NOT_SEEDED", "The registered track graph is incomplete.");
+    }
+    resolution_type = "CANONICAL_LANGUAGE" if normalized == definition.canonical_language else "ALIAS";
+    return LegacyTrackResolution(True, definition.canonical_language, definition.track_id, definition.track_version_id, source, resolution_type, None, "Resolved through the canonical built-in registry.");
+}
+
+def resolve_track_context(track_id: str | None, track_version_id: str | None, language: str | None) -> TrackContext | None {
+    resolution = resolve_legacy_programming_track(track_id, track_version_id, language);
+    if not resolution.resolved or resolution.track_id is None or resolution.track_version_id is None { return None; }
+    track = find_track(resolution.track_id);
+    if track is None { return None; }
+    return TrackContext(
+        track_id=resolution.track_id,
+        track_version_id=resolution.track_version_id,
+        title=track.title,
+        legacy_language=resolution.canonical_language,
+        resolution_source=resolution.resolution_type
+    );
+}
+
 def resolve_learning_track(track_id: str | None, language: str | None) -> LearningTrackResult {
-    if track_id is not None and track_id.strip() != "" {
-        track = find_track(track_id.strip());
-        if track is None { return _error("LEARNING_TRACK_NOT_FOUND", "Learning track was not found.", {"track_id": track_id.strip()}); }
-        return LearningTrackResult(ok=True, track=track);
+    resolution = resolve_legacy_programming_track(track_id, None, language);
+    if not resolution.resolved or resolution.track_id is None {
+        return _error(resolution.error_code or "TRACK_VALIDATION_FAILED", resolution.message);
     }
-    if language is None or language.strip() == "" {
-        return _error("TRACK_VALIDATION_FAILED", "A track_id or legacy language is required.");
-    }
-    normalized = language.strip().lower();
-    legacy_id = "";
-    if normalized == "python" { legacy_id = "trk_builtin_python"; }
-    elif normalized == "jac" or normalized == "jaseci" { legacy_id = "trk_builtin_jaseci"; }
-    else { return _error("INVALID_TRACK_TYPE", "The legacy language is not supported.", {"language": normalized}); }
-    track = find_track(legacy_id);
-    if track is None { return _error("LEARNING_TRACK_NOT_FOUND", "The built-in learning track has not been seeded.", {"track_id": legacy_id}); }
+    track = find_track(resolution.track_id);
+    if track is None { return _error("LEARNING_TRACK_NOT_FOUND", "Learning track was not found."); }
     return LearningTrackResult(ok=True, track=track);
 }
 
-def _seed_builtin(
-    track_id: str,
-    version_id: str,
-    title: str,
-    description: str,
-    report_value: LearningTrackMigrationReport
-) {
-    existing = find_track(track_id);
-    if existing is not None {
-        report_value.tracks_existing += 1;
-        _emit("builtin_track.seed_skipped", existing, actor_id="system");
-        return;
+def _seed_failure(definition: BuiltinProgrammingTrackDefinition, message: str) -> BuiltinTrackSeedOutcome {
+    return BuiltinTrackSeedOutcome(definition.canonical_language, definition.track_id, "FAILED", message);
+}
+
+def _ensure_builtin(definition: BuiltinProgrammingTrackDefinition) -> BuiltinTrackSeedOutcome {
+    if not definition.enabled { return BuiltinTrackSeedOutcome(definition.canonical_language, definition.track_id, "SKIPPED", "Registry entry is disabled."); }
+    track = find_track(definition.track_id);
+    created = False;
+    repaired = False;
+    if track is None {
+        for other in catalogue_tracks() {
+            if other.slug == definition.slug { return _seed_failure(definition, "The deterministic slug belongs to another track."); }
+        }
+        result = create_track(
+            CreateLearningTrackInput(
+                title=definition.title,
+                short_description=definition.description,
+                track_type=LearningTrackType.PROGRAMMING_LANGUAGE,
+                visibility=LearningTrackVisibility.PUBLIC,
+                ownership_type=TrackOwnershipType.SYSTEM,
+                subject_area=definition.subject_area,
+                default_difficulty=TrackDifficultyLevel.MIXED,
+                estimated_duration_weeks=12
+            ),
+            actor_id="system",
+            trusted_system=True,
+            track_id_override=definition.track_id
+        );
+        if not result.ok or result.track is None { return _seed_failure(definition, "The deterministic track could not be created."); }
+        track = result.track;
+        created = True;
     }
-    created = create_track(
-        CreateLearningTrackInput(
-            title=title,
-            short_description=description,
-            track_type=LearningTrackType.PROGRAMMING_LANGUAGE,
-            visibility=LearningTrackVisibility.PUBLIC,
-            ownership_type=TrackOwnershipType.SYSTEM,
-            default_difficulty=TrackDifficultyLevel.MIXED,
-            estimated_duration_weeks=12
-        ),
-        actor_id="system",
-        trusted_system=True,
-        track_id_override=track_id
-    );
-    if not created.ok or created.track is None { report_value.records_failed += 1; return; }
-    track = created.track;
+    if track.track_type != LearningTrackType.PROGRAMMING_LANGUAGE or track.ownership_type != TrackOwnershipType.SYSTEM or track.owner_id is not None or track.slug != definition.slug {
+        return _seed_failure(definition, "An immutable track identity field conflicts with the registry.");
+    }
+
     timestamp = _now();
-    version = (track +>:HAS_TRACK_VERSION(version_number=1, created_at=timestamp):+> TrackVersion(
-        track_version_id=version_id,
-        track_id=track_id,
-        version_number=1,
-        title_snapshot=track.title,
-        description_snapshot=track.short_description,
-        source_kind=TrackSourceKind.SEEDED,
-        created_by="system",
-        created_at=timestamp,
-        updated_at=timestamp,
-        status=TrackVersionStatus.PUBLISHED,
-        approved_by="system",
-        approved_at=timestamp,
-        published_at=timestamp
-    ))[0];
-    track.active_version_id = version_id;
-    track.current_version_number = 1;
-    track.status = LearningTrackStatus.PUBLISHED;
-    track.is_enrollment_open = True;
-    track.published_at = timestamp;
-    track.updated_at = timestamp;
-    grant(version, level=ReadPerm);
-    report_value.tracks_created += 1;
-    report_value.versions_created += 1;
-    _emit("builtin_track.seeded", track, version, "system");
+    versions = track_versions(track);
+    version: TrackVersion | None = None;
+    for candidate in versions {
+        if candidate.track_version_id == definition.track_version_id { version = candidate; }
+        elif candidate.version_number == 1 { return _seed_failure(definition, "Version 1 uses a conflicting deterministic identity."); }
+    }
+    if version is None {
+        version = (track +>:HAS_TRACK_VERSION(version_number=1, created_at=timestamp):+> TrackVersion(
+            track_version_id=definition.track_version_id,
+            track_id=definition.track_id,
+            version_number=1,
+            title_snapshot=definition.title,
+            description_snapshot=definition.description,
+            source_kind=TrackSourceKind.SEEDED,
+            created_by="system",
+            created_at=timestamp,
+            updated_at=timestamp,
+            status=TrackVersionStatus.PUBLISHED,
+            approved_by="system",
+            approved_at=timestamp,
+            published_at=timestamp
+        ))[0];
+        grant(version, level=ReadPerm);
+        repaired = not created;
+    } elif version.track_id != definition.track_id or version.version_number != 1 or version.source_kind != TrackSourceKind.SEEDED {
+        return _seed_failure(definition, "The deterministic version conflicts with the registry.");
+    }
+
+    configuration = track_configuration(track);
+    if configuration is None {
+        configuration = (track +>:HAS_TRACK_CONFIGURATION:+> TrackConfiguration(
+            configuration_id=definition.configuration_id,
+            track_id=definition.track_id,
+            supports_code_challenge=definition.supports_code_challenge,
+            created_at=timestamp,
+            updated_at=timestamp
+        ))[0];
+        grant(configuration, level=ReadPerm);
+        repaired = not created;
+    } elif configuration.configuration_id == f"cfg_{definition.track_id}" {
+        configuration.configuration_id = definition.configuration_id;
+        configuration.updated_at = timestamp;
+        repaired = True;
+    } elif configuration.configuration_id != definition.configuration_id or configuration.track_id != definition.track_id {
+        return _seed_failure(definition, "The deterministic configuration conflicts with the registry.");
+    }
+    configuration.supports_code_challenge = definition.supports_code_challenge;
+
+    if version.status != TrackVersionStatus.PUBLISHED {
+        if version.status in [TrackVersionStatus.DRAFT, TrackVersionStatus.REVIEW_REQUIRED, TrackVersionStatus.APPROVED] {
+            version.status = TrackVersionStatus.PUBLISHED;
+            version.published_at = timestamp;
+            version.updated_at = timestamp;
+            repaired = True;
+        } else { return _seed_failure(definition, "Version 1 is in an unsafe lifecycle state."); }
+    }
+    if track.active_version_id is not None and track.active_version_id != definition.track_version_id {
+        return _seed_failure(definition, "The active version conflicts with the deterministic version.");
+    }
+    if track.status not in [LearningTrackStatus.DRAFT, LearningTrackStatus.PUBLISHED] {
+        return _seed_failure(definition, "The track is in an unsafe lifecycle state.");
+    }
+    if track.active_version_id != definition.track_version_id or track.status != LearningTrackStatus.PUBLISHED or not track.is_enrollment_open or track.current_version_number < 1 {
+        repaired = repaired or not created;
+        track.active_version_id = definition.track_version_id;
+        track.status = LearningTrackStatus.PUBLISHED;
+        track.visibility = LearningTrackVisibility.PUBLIC;
+        track.current_version_number = 1;
+        track.is_enrollment_open = True;
+        track.published_at = version.published_at or timestamp;
+        track.updated_at = timestamp;
+    }
+    status = "CREATED" if created else ("REPAIRED" if repaired else "UNCHANGED");
+    event_name = "builtin_programming_track.created" if created else ("builtin_programming_track.repaired" if repaired else "builtin_programming_track.reused");
+    _emit(event_name, track, version, "system");
+    return BuiltinTrackSeedOutcome(definition.canonical_language, definition.track_id, status);
+}
+
+def seed_builtin_programming_tracks -> BuiltinTrackSeedReport {
+    report_value = BuiltinTrackSeedReport(status="completed");
+    if not registry_is_valid() {
+        report_value.status = "failed";
+        report_value.failed = len(BUILTIN_PROGRAMMING_TRACKS);
+        return report_value;
+    }
+    for definition in BUILTIN_PROGRAMMING_TRACKS {
+        outcome = _ensure_builtin(definition);
+        report_value.outcomes.append(outcome);
+        if outcome.status == "CREATED" { report_value.created += 1; }
+        elif outcome.status == "UNCHANGED" { report_value.unchanged += 1; }
+        elif outcome.status == "REPAIRED" { report_value.repaired += 1; }
+        elif outcome.status == "SKIPPED" { report_value.skipped += 1; }
+        else { report_value.failed += 1; }
+    }
+    if report_value.failed > 0 { report_value.status = "failed"; }
+    return report_value;
 }
 
 def seed_builtin_tracks -> LearningTrackMigrationReport {
-    report_value = LearningTrackMigrationReport();
-    _seed_builtin(
-        "trk_builtin_python",
-        "trv_builtin_python_v1",
-        "Python Programming",
-        "Fundamentals, syntax, functions, and control flow.",
-        report_value
+    seeded = seed_builtin_programming_tracks();
+    return LearningTrackMigrationReport(
+        tracks_created=seeded.created,
+        tracks_existing=seeded.unchanged + seeded.repaired,
+        versions_created=seeded.created,
+        records_failed=seeded.failed
     );
-    _seed_builtin(
-        "trk_builtin_jaseci",
-        "trv_builtin_jaseci_v1",
-        "Jaseci Programming",
-        "Graph-native programming with walkers, nodes, edges, and traversal concepts.",
-        report_value
-    );
-    return report_value;
 }

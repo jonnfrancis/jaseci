@@ -1,4 +1,13 @@
 export type AssessmentStatus = "draft" | "active" | "completed";
+
+export interface LearningTrackOption {
+  trackId: string;
+  trackVersionId: string;
+  slug: string;
+  title: string;
+  trackType: "PROGRAMMING_LANGUAGE" | "LECTURER_COURSE";
+  legacyLanguage?: string | null;
+}
 export type AssessmentQuestionType = "multiple_choice" | "short_answer";
 export type AssessmentDifficulty = "beginner" | "intermediate" | "advanced";
 

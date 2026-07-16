@@ -270,6 +270,8 @@ walker submit_assessment {
             status=AssessmentAttemptStatus.submitted,
             submitted_at=self.submitted_at,
             completed_at=self.submitted_at
+            , track_id=assessment_node.track_id
+            , track_version_id=assessment_node.track_version_id
         ))[0];
         learner_node +>:LearnerAssessmentAttemptLink:+> attempt;
 
