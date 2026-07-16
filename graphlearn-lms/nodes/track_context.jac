@@ -21,6 +21,11 @@ node Recommendation {
     has target_skill_id: str | None = None;
     has target_lesson_id: str | None = None;
     has consumed_at: str | None = None;
+    has enrollment_id: str | None = None;
+    has target_id: str | None = None;
+    has reason: str = "";
+    has priority: float = 0.0;
+    has acted_at: str | None = None;
 }
 
 node SkillMapSnapshot {

@@ -66,4 +66,9 @@ node Roadmap {
     has milestones: list[RoadmapMilestone] = [];
     has track_id: str | None = None;
     has track_version_id: str | None = None;
+    has roadmap_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has generation_version: int = 1;
+    has updated_at: str = "";
+    has completed_at: str | None = None;
 }

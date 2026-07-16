@@ -586,6 +586,11 @@ walker unlock_next_lesson {
     has completed_roadmap_lesson_id: str = "";
     has source_type: str = "manual_check";
     has source_id: str = "";
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has language: str | None = None;
+    has idempotency_key: str | None = None;
     has errors: list[ProgressionError] = [];
     has reports: list[ProgressionResult] = [];
     has request_id: str = "";

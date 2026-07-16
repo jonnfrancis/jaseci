@@ -81,6 +81,13 @@ node AssessmentAttempt {
     has completed_at: str;
     has track_id: str | None = None;
     has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has assessment_type: str = "DIAGNOSTIC";
+    has score: float | None = None;
+    has level_result: str | None = None;
+    has responses_json: str = "[]";
+    has result_json: str = "{}";
+    has started_at: str = "";
 }
 
 node AssessmentResponse {

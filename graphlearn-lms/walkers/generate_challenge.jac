@@ -4,6 +4,8 @@ import from datetime { datetime }
 import from byllm.lib { ByLLMError }
 import from edges.domain_edges { assigned, contains, evaluates, targets }
 import from lib.observability.instrumentation { ai_call_completed, ai_call_failed, ai_call_started, observe_walker_finish, observe_walker_start }
+import from lib.learning_track.context_resolver { ResolveTrackContextInput, TrackContext, resolve_track_context }
+import from lib.learning_track.service { seed_builtin_tracks }
 import from lib.ai.utilities {
     ChallengeGenerationContext,
     ChallengeGenerationResult,
@@ -90,6 +92,8 @@ obj GeneratedChallengeView {
     has starter_code: str;
     has created_at: str;
     has updated_at: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
     has instructions: list[ChallengeInstructionView] = [];
     has expected_outcomes: list[ChallengeExpectedOutcomeView] = [];
     has constraints: list[ChallengeConstraintView] = [];
@@ -448,6 +452,8 @@ def generated_challenge_to_view(challenge: GeneratedChallenge) -> GeneratedChall
         starter_code=challenge.starter_code,
         created_at=challenge.created_at,
         updated_at=challenge.updated_at,
+        track_id=challenge.track_id,
+        track_version_id=challenge.track_version_id,
         instructions=instruction_views,
         expected_outcomes=outcome_views,
         constraints=constraint_views,
@@ -461,7 +467,11 @@ walker generate_challenge {
     has roadmap_id: str;
     has roadmap_lesson_id: str;
     has generated_lesson_id: str;
-    has language: str;
+    has language: str = "";
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has idempotency_key: str | None = None;
     has errors: list[ChallengeGenerationError] = [];
     has reports: list[GeneratedChallengeView] = [];
     has request_id: str = "";
@@ -471,7 +481,32 @@ walker generate_challenge {
     can observability_finish with Root exit { observe_walker_finish(self); }
 
     can generate with Root entry {
-        language_normalized = self.language.strip().lower();
+        _ = seed_builtin_tracks();
+        resolved = resolve_track_context(ResolveTrackContextInput(
+            learner_id=self.learner_id, roadmap_id=self.roadmap_id,
+            lesson_id=self.generated_lesson_id,
+            track_id=self.track_id, track_version_id=self.track_version_id,
+            enrollment_id=self.enrollment_id, language=self.language
+        ), "generate_challenge");
+        if not resolved.ok or resolved.value is None {
+            error_code = resolved.error.code if resolved.error is not None else "TRACK_CONTEXT_MISSING";
+            error_message = resolved.error.message if resolved.error is not None else "Track context is required.";
+            if error_code == "LEGACY_LANGUAGE_UNRESOLVED" {
+                error_code = "unsupported_language";
+                error_message = "Generated challenges currently support python and jac only.";
+            }
+            self.errors = self.errors + [ChallengeGenerationError(
+                code=error_code,
+                message=error_message
+            )];
+            return;
+        }
+        track_context = resolved.value as TrackContext;
+        if track_context.legacy_language is None {
+            self.errors = self.errors + [ChallengeGenerationError(code="UNSUPPORTED_ACTIVITY_TYPE", message="This track does not support code challenges.")];
+            return;
+        }
+        language_normalized = "jac" if track_context.legacy_language == "jaseci" else track_context.legacy_language;
         if language_normalized not in ["python", "jac"] {
             self.errors = self.errors + [
                 ChallengeGenerationError(

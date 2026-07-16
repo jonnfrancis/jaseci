@@ -741,6 +741,9 @@ walker get_dashboard {
     has learner_id: str;
     has language: str = "";
     has roadmap_id: str = "";
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
     has errors: list[DashboardError] = [];
     has reports: list[DashboardView] = [];
     has request_id: str = "";

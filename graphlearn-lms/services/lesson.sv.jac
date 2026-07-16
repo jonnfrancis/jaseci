@@ -2,6 +2,7 @@
 
 import from edges.domain_edges { contains }
 import from lib.graph.roadmap_queries { roadmap_for, roadmap_lesson_for, roadmap_lessons }
+import from lib.learning_track.service { seed_builtin_tracks }
 import from nodes.roadmap { Roadmap, RoadmapLesson, RoadmapWeek }
 import from walkers.generate_lesson {
     GeneratedLessonView,
@@ -111,6 +112,7 @@ def:priv open_lesson(
     roadmap_id: str,
     roadmap_lesson_id: str
 ) -> LessonOpenState {
+    _ = seed_builtin_tracks();
     if learner_id.strip() == "" {
         return LessonOpenState(status="missing_learner", message="Log in again to open this lesson.");
     }
@@ -151,7 +153,10 @@ def:priv open_lesson(
         learner_id=learner_id,
         roadmap_id=roadmap_id,
         roadmap_lesson_id=roadmap_lesson_id,
-        language=roadmap.language
+        language=roadmap.language,
+        track_id=roadmap.track_id,
+        track_version_id=roadmap.track_version_id,
+        enrollment_id=roadmap.enrollment_id
     );
     if len(result.errors) > 0 or len(result.reports) == 0 {
         return LessonOpenState(

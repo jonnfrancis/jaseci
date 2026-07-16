@@ -1,6 +1,28 @@
 """Domain model barrel exports."""
 
-import from edges.domain_edges { HAS_LEARNING_TRACK, HAS_TRACK_CONFIGURATION, HAS_TRACK_VERSION, Prerequisite, assigned, attempted, belongs_to, completed, contains, evaluated, evaluates, evidenced_by, mastered, progresses, requires, signals, submitted_for, targets, teaches, tracks, unlocked }
+import from edges.domain_edges {
+    ASSESSES_SKILL, CONTAINS_MODULE, CONTAINS_SKILL, DEPENDS_ON_ROADMAP_ITEM,
+    DERIVED_FROM, EVIDENCE_FOR_MASTERY, FOR_TRACK, FOR_TRACK_VERSION,
+    HAS_ACTIVITY_TEMPLATE, HAS_ASSESSMENT_ATTEMPT, HAS_BLUEPRINT, HAS_CATALOGUE,
+    HAS_CONTENT_CHUNK, HAS_ENROLLMENT, HAS_LEARNING_TRACK, HAS_LESSON_PROGRESS,
+    HAS_LESSON_TEMPLATE, HAS_MASTERY, HAS_RECOMMENDATION, HAS_ROADMAP,
+    HAS_ROADMAP_ITEM, HAS_SOURCE_DOCUMENT, HAS_SUBMISSION, HAS_TRACK_CONFIGURATION,
+    HAS_TRACK_VERSION, LESSON_HAS_ACTIVITY, MASTERY_OF_SKILL, MODULE_CONTAINS_SKILL,
+    MODULE_HAS_LESSON, OWNS_TRACK, PREREQUISITE, PROGRESS_FOR_LESSON,
+    RECOMMENDS_ROADMAP_ITEM, RECOMMENDS_SKILL, SUBMISSION_FOR_ACTIVITY,
+    TARGETS_SKILL, TEACHES_SKILL, USES_LESSON_TEMPLATE, Prerequisite, assigned,
+    attempted, belongs_to, completed, contains, evaluated, evaluates, evidenced_by,
+    mastered, progresses, requires, signals, submitted_for, targets, teaches, tracks,
+    unlocked
+}
+import from nodes.curriculum {
+    ActivityTemplate, CourseBlueprint, CourseContentChunk, CourseDocument,
+    CourseModule, LessonTemplate
+}
+import from nodes.enrollment { Enrollment, RoadmapItem, Submission }
+import from nodes.graph_integrity {
+    GraphIntegrityIssue, GraphIntegrityReport, SkillGraphItem, SkillUnlockEvaluation
+}
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,

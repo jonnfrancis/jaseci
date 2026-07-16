@@ -2,6 +2,8 @@
 
 import from edges.domain_edges { assigned }
 import from lib.observability.instrumentation { ai_call_completed, ai_call_started, observe_walker_finish, observe_walker_start }
+import from lib.learning_track.context_resolver { ResolveTrackContextInput, TrackContext, resolve_track_context }
+import from lib.learning_track.service { seed_builtin_tracks }
 import from lib.ai.utilities {
     GeneratedOption,
     GeneratedQuestion,
@@ -60,8 +62,11 @@ walker initialize_assessment {
     has assessment_length: int = 5;
     has created_at: str = "";
     has selected_language: str = "";
+    has language: str | None = None;
     has track_id: str | None = None;
     has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has idempotency_key: str | None = None;
     has reports: list[Assessment] = [];
     has request_id: str = "";
     has correlation_id: str = "";
@@ -70,6 +75,19 @@ walker initialize_assessment {
     can observability_finish with Root exit { observe_walker_finish(self); }
 
     can create with Root entry {
+        _ = seed_builtin_tracks();
+        legacy_input = self.language if self.language is not None else self.selected_language;
+        resolved = resolve_track_context(ResolveTrackContextInput(
+            learner_id=self.learner_id, track_id=self.track_id,
+            track_version_id=self.track_version_id,
+            enrollment_id=self.enrollment_id, language=legacy_input
+        ), "initialize_assessment");
+        if not resolved.ok or resolved.value is None { return; }
+        track_context = resolved.value as TrackContext;
+        if track_context.legacy_language is None { return; }
+        self.track_id = track_context.track_id;
+        self.track_version_id = track_context.track_version_id;
+        self.selected_language = "Python" if track_context.legacy_language == "python" else "Jac";
         prior_count = len([root -->[?:Assessment, learner_id == self.learner_id]]);
         assessment_id = f"{self.learner_id}-assessment-{prior_count + 1}";
         created_at_value = self.created_at if self.created_at != "" else "generated";

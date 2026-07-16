@@ -3,6 +3,7 @@
 import from datetime { datetime }
 import from edges.domain_edges { evidenced_by, mastered, signals, targets }
 import from lib.observability.instrumentation { observe_walker_finish, observe_walker_start }
+import from lib.learning_track.context_resolver { ResolveTrackContextInput, resolve_track_context }
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
@@ -266,6 +267,11 @@ walker update_mastery {
     has learner_id: str;
     has source_type: str;
     has source_id: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has language: str | None = None;
+    has idempotency_key: str | None = None;
     has errors: list[MasteryUpdateError] = [];
     has reports: list[MasteryUpdateSummary] = [];
     has request_id: str = "";
@@ -275,6 +281,20 @@ walker update_mastery {
     can observability_finish with Root exit { observe_walker_finish(self); }
 
     can update with Root entry {
+        resolved = resolve_track_context(ResolveTrackContextInput(
+            learner_id=self.learner_id,
+            assessment_id=self.source_id if self.source_type == "assessment_evaluation" else None,
+            submission_id=self.source_id if self.source_type == "submission_evaluation" else None,
+            track_id=self.track_id, track_version_id=self.track_version_id,
+            enrollment_id=self.enrollment_id, language=self.language
+        ), "update_mastery");
+        if not resolved.ok {
+            self.errors = self.errors + [MasteryUpdateError(
+                code=resolved.error.code if resolved.error is not None else "TRACK_CONTEXT_MISSING",
+                message=resolved.error.message if resolved.error is not None else "Track context is required."
+            )];
+            return;
+        }
         if self.learner_id.strip() == "" {
             self.errors = self.errors + [MasteryUpdateError(code="missing_learner", message="Log in again to update mastery.")];
             return;

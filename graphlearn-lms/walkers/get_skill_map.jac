@@ -343,8 +343,11 @@ def _skill_map_view(learner_id: str, language: str, roadmap: Roadmap) -> SkillMa
 
 walker get_skill_map {
     has learner_id: str;
-    has language: str;
+    has language: str = "";
     has roadmap_id: str = "";
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
     has errors: list[SkillMapError] = [];
     has reports: list[SkillMapView] = [];
     has request_id: str = "";

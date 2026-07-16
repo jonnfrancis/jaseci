@@ -15,7 +15,8 @@ import from lib.ai.utilities {
 }
 import from lib.graph.assessment_queries { assessment_attempt_for, attempt_evaluation_for }
 import from lib.graph.roadmap_queries { roadmap_for }
-import from lib.learning_track.service { resolve_track_context, seed_builtin_tracks }
+import from lib.learning_track.context_resolver { ResolveTrackContextInput, TrackContext, resolve_track_context }
+import from lib.learning_track.service { seed_builtin_tracks }
 import from nodes.assessment {
     Assessment,
     AssessmentAttempt,
@@ -206,9 +207,11 @@ walker generate_roadmap {
     has assessment_id: str;
     has assessment_attempt_id: str;
     has assessment_evaluation_id: str;
-    has language: str;
+    has language: str = "";
     has track_id: str | None = None;
     has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has idempotency_key: str | None = None;
     has errors: list[RoadmapGenerationError] = [];
     has reports: list[Roadmap] = [];
     has request_id: str = "";
@@ -219,14 +222,29 @@ walker generate_roadmap {
 
     can generate with Root entry {
         _ = seed_builtin_tracks();
-        context = resolve_track_context(self.track_id, self.track_version_id, self.language);
-        if context is None or context.legacy_language is None {
+        resolved = resolve_track_context(ResolveTrackContextInput(
+            learner_id=self.learner_id, assessment_id=self.assessment_id,
+            track_id=self.track_id, track_version_id=self.track_version_id,
+            enrollment_id=self.enrollment_id, language=self.language
+        ), "generate_roadmap");
+        if not resolved.ok or resolved.value is None {
+            error_code = resolved.error.code if resolved.error is not None else "TRACK_CONTEXT_MISSING";
+            error_message = resolved.error.message if resolved.error is not None else "Track context is required.";
+            if error_code == "LEGACY_LANGUAGE_UNRESOLVED" {
+                error_code = "unsupported_language";
+                error_message = "Roadmaps currently support python and jac only.";
+            }
             self.errors = self.errors + [
                 RoadmapGenerationError(
-                    code="unsupported_language",
-                    message="Roadmaps currently support python and jac only."
+                    code=error_code,
+                    message=error_message
                 )
             ];
+            return;
+        }
+        context = resolved.value as TrackContext;
+        if context.legacy_language is None {
+            self.errors = self.errors + [RoadmapGenerationError(code="UNSUPPORTED_ACTIVITY_TYPE", message="This track does not support the programming roadmap generator yet.")];
             return;
         }
         language_normalized = "jac" if context.legacy_language == "jaseci" else context.legacy_language;

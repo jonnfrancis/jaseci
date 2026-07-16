@@ -240,6 +240,11 @@ walker submit_assessment {
     has assessment_id: str;
     has submitted_at: str;
     has responses: list[AssessmentResponseInput] = [];
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has language: str | None = None;
+    has idempotency_key: str | None = None;
     has errors: list[AssessmentSubmissionError] = [];
     has reports: list[AssessmentAttempt] = [];
     has request_id: str = "";

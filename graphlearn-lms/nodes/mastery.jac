@@ -83,4 +83,10 @@ node MasteryUpdateResult {
     has updated_skills: list[UpdatedSkillMasteryRecord] = [];
     has track_id: str | None = None;
     has track_version_id: str | None = None;
+    has mastery_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has confidence: float = 0.0;
+    has evidence_count: int = 0;
+    has status: str = "NOT_STARTED";
+    has last_evidence_at: str | None = None;
 }

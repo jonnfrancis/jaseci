@@ -61,6 +61,11 @@ walker submit_challenge {
     has roadmap_lesson_id: str;
     has challenge_id: str;
     has code: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has language: str | None = None;
+    has idempotency_key: str | None = None;
     has errors: list[ChallengeSubmissionError] = [];
     has reports: list[ChallengeSubmissionView] = [];
     has request_id: str = "";

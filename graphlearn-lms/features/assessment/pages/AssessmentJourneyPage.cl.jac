@@ -228,7 +228,7 @@ def:pub AssessmentJourneyPage() -> JsxElement {
         loading = False;
     }
 
-    async def start_language(language: str) {
+    async def start_language(language: str, track_id: str = "", track_version_id: str = "") {
         if learner_id_value == "" {
             error_message = "Log in again before starting an assessment.";
             return;
@@ -238,7 +238,13 @@ def:pub AssessmentJourneyPage() -> JsxElement {
         reset_local_assessment_state();
         try {
             learner_name = learner_display if learner_display != "" else learner_id_value;
-            journey = await start_assessment_journey(language, learner_id_value, learner_name);
+            journey = await start_assessment_journey(
+                language,
+                learner_id_value,
+                learner_name,
+                track_id if track_id != "" else None,
+                track_version_id if track_version_id != "" else None
+            );
             persist_journey(journey);
         } except Exception {
             error_message = "Unable to start assessment.";
@@ -563,7 +569,7 @@ def:pub AssessmentHome(
     starting: bool,
     error_message: str,
     learner_display: str,
-    onStartLanguage: Callable[[str], None],
+    onStartLanguage: Callable[[str, str, str], None],
     onRefresh: Callable[[], None],
     onLogout: Callable[[], None]
 ) -> JsxElement {
@@ -609,7 +615,7 @@ def:pub AssessmentHome(
 def:pub LanguageTrackCard(
     track: any,
     starting: bool,
-    onStartLanguage: Callable[[str], None]
+    onStartLanguage: Callable[[str, str, str], None]
 ) -> JsxElement {
     return
         <Card className="border-surface-border bg-surface">
@@ -632,7 +638,7 @@ def:pub LanguageTrackCard(
                         </span>
                     }}
                 </div>
-                <Button onClick={lambda (_e: MouseEvent) { onStartLanguage(track.id as str); }} disabled={starting}>
+                <Button onClick={lambda (_e: MouseEvent) { onStartLanguage(track.id as str, track.track_id as str, track.track_version_id as str); }} disabled={starting}>
                     <Play className="size-4" />
                     Start assessment
                 </Button>
@@ -679,7 +685,7 @@ def:pub ResultsScreen(
     starting: bool,
     generating_roadmap: bool,
     error_message: str,
-    onStartLanguage: Callable[[str], None],
+    onStartLanguage: Callable[[str, str, str], None],
     onGenerateRoadmap: Callable[[], None],
     onLogout: Callable[[], None]
 ) -> JsxElement {
@@ -697,7 +703,7 @@ def:pub ResultsScreen(
                             { "Creating your personalized course outline..." if generating_roadmap else "Generate My Roadmap" }
                         </Button>
                         {for track in tracks {
-                            <Button key={track.id} variant="outline" onClick={lambda (_e: MouseEvent) { onStartLanguage(track.id as str); }} disabled={starting}>
+                            <Button key={track.id} variant="outline" onClick={lambda (_e: MouseEvent) { onStartLanguage(track.id as str, track.track_id as str, track.track_version_id as str); }} disabled={starting}>
                                 <Play className="size-4" />
                                 New {track.name}
                             </Button>

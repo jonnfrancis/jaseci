@@ -61,4 +61,11 @@ node ProgressionEvent {
     has created_at: str;
     has track_id: str | None = None;
     has track_version_id: str | None = None;
+    has lesson_progress_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has roadmap_item_id: str | None = None;
+    has lesson_template_id: str | None = None;
+    has progress_percent: float = 0.0;
+    has started_at: str | None = None;
+    has last_viewed_at: str | None = None;
 }

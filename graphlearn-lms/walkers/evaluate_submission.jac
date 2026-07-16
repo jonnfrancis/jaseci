@@ -4,6 +4,7 @@ import from datetime { datetime }
 import from byllm.lib { ByLLMError }
 import from edges.domain_edges { contains, evaluated, signals, submitted_for, targets }
 import from lib.observability.instrumentation { ai_call_completed, ai_call_failed, ai_call_started, observe_walker_finish, observe_walker_start }
+import from lib.learning_track.context_resolver { ResolveTrackContextInput, resolve_track_context }
 import from lib.ai.utilities {
     GeneratedFeedbackItem,
     SubmissionEvaluationContext,
@@ -418,6 +419,11 @@ walker evaluate_submission {
     has learner_id: str;
     has challenge_id: str;
     has submission_id: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has language: str | None = None;
+    has idempotency_key: str | None = None;
     has errors: list[SubmissionEvaluationError] = [];
     has reports: list[SubmissionEvaluationView] = [];
     has request_id: str = "";
@@ -427,6 +433,19 @@ walker evaluate_submission {
     can observability_finish with Root exit { observe_walker_finish(self); }
 
     can evaluate with Root entry {
+        resolved = resolve_track_context(ResolveTrackContextInput(
+            learner_id=self.learner_id, activity_id=self.challenge_id,
+            submission_id=self.submission_id, track_id=self.track_id,
+            track_version_id=self.track_version_id,
+            enrollment_id=self.enrollment_id, language=self.language
+        ), "evaluate_submission");
+        if not resolved.ok {
+            self.errors = self.errors + [SubmissionEvaluationError(
+                code=resolved.error.code if resolved.error is not None else "TRACK_CONTEXT_MISSING",
+                message=resolved.error.message if resolved.error is not None else "Track context is required."
+            )];
+            return;
+        }
         if self.learner_id.strip() == "" {
             self.errors = self.errors + [SubmissionEvaluationError(code="missing_learner", message="Log in again to evaluate this submission.")];
             return;

@@ -68,3 +68,54 @@ edge HAS_TRACK_VERSION {
 }
 
 edge HAS_TRACK_CONFIGURATION {}
+
+# Feature 32 graph-native curriculum and enrollment relationships.
+edge HAS_CATALOGUE {}
+edge OWNS_TRACK { has granted_at: str; }
+edge CONTAINS_MODULE { has order_index: int; }
+edge CONTAINS_SKILL { has order_index: int | None = None; }
+edge MODULE_CONTAINS_SKILL { has order_index: int; }
+edge PREREQUISITE {
+    has strength: float = 1.0;
+    has required_mastery: float = 0.80;
+    has relation_type: str = "REQUIRED";
+}
+edge HAS_LESSON_TEMPLATE { has order_index: int | None = None; }
+edge MODULE_HAS_LESSON { has order_index: int; }
+edge TEACHES_SKILL {
+    has coverage_weight: float = 1.0;
+    has role: str = "PRIMARY";
+}
+edge HAS_ACTIVITY_TEMPLATE { has order_index: int | None = None; }
+edge LESSON_HAS_ACTIVITY {
+    has order_index: int;
+    has required: bool = True;
+}
+edge ASSESSES_SKILL { has assessment_weight: float = 1.0; }
+edge HAS_SOURCE_DOCUMENT { has order_index: int; }
+edge HAS_CONTENT_CHUNK { has order_index: int; }
+edge HAS_BLUEPRINT {}
+edge DERIVED_FROM {
+    has page_start: int | None = None;
+    has page_end: int | None = None;
+    has confidence: float = 1.0;
+}
+edge HAS_ENROLLMENT { has enrolled_at: str; }
+edge FOR_TRACK {}
+edge FOR_TRACK_VERSION {}
+edge HAS_ASSESSMENT_ATTEMPT { has created_at: str; }
+edge HAS_ROADMAP { has active: bool = True; }
+edge HAS_MASTERY {}
+edge HAS_LESSON_PROGRESS {}
+edge HAS_SUBMISSION {}
+edge HAS_RECOMMENDATION {}
+edge HAS_ROADMAP_ITEM { has order_index: int; }
+edge TARGETS_SKILL {}
+edge USES_LESSON_TEMPLATE {}
+edge DEPENDS_ON_ROADMAP_ITEM { has required: bool = True; }
+edge PROGRESS_FOR_LESSON {}
+edge SUBMISSION_FOR_ACTIVITY {}
+edge MASTERY_OF_SKILL {}
+edge EVIDENCE_FOR_MASTERY { has contribution_weight: float = 1.0; }
+edge RECOMMENDS_SKILL {}
+edge RECOMMENDS_ROADMAP_ITEM {}

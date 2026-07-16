@@ -49,6 +49,14 @@ Jac Walkers
 
        ↓
 
+Track application services
+
+       ↓
+
+Focused graph repositories + domain services
+
+       ↓
+
 OSP Learning Graph
 
        ↓
@@ -59,6 +67,22 @@ byLLM Agents
 
 Database
 ```
+
+## Track Repository And Service Boundary
+
+Track-aware features use `lib/learning_track/repositories.jac` for focused,
+bounded graph access and `lib/learning_track/application_services.jac` for
+authorization, lifecycle, idempotency, publication, enrollment, and progress
+coordination. Curriculum repository calls require a validated track version;
+learner-progress calls begin at one enrollment. Scalar track/version fields are
+index and compatibility data only: named graph relationships prove ownership.
+
+Mutating application operations persist an `ApplicationOperation` marker under
+`root.shared`. A marker is scoped by operation and idempotency key, returns the
+original logical result after success, and exposes `INCOMPLETE` state for repair
+after partial failure. Published or superseded curriculum is immutable through
+repository/domain mutation paths. Walkers remain transport adapters and are
+migrated to this boundary in Feature 34.
 
 ---
 

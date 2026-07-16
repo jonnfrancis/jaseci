@@ -59,13 +59,13 @@ debug = false
 docs_enabled = false
 suppress_health_check_logs = true
 
-[plugins.scale.database]
-mongodb_uri = "${MONGODB_URI}"
+# [plugins.scale.database]
+# mongodb_uri = "${MONGODB_URI}"
 
-[plugins.scale.secrets]
-MONGODB_URI = "${MONGODB_URI}"
-JWT_SECRET = "${JWT_SECRET}"
-GEMINI_API_KEY = "${GEMINI_API_KEY}"
+# [plugins.scale.secrets]
+# MONGODB_URI = "${MONGODB_URI}"
+# JWT_SECRET = "${JWT_SECRET}"
+# GEMINI_API_KEY = "${GEMINI_API_KEY}"
 
 [plugins.scale.kubernetes]
 app_name = "graphlearn-lms"

@@ -6,6 +6,7 @@ import from lib.assessment.evaluation {
     validate_evaluation_inputs
 }
 import from lib.observability.instrumentation { observe_walker_finish, observe_walker_start }
+import from lib.learning_track.context_resolver { ResolveTrackContextInput, resolve_track_context }
 import from lib.graph.assessment_queries {
     assessment_attempt_for,
     attempt_evaluations,
@@ -61,6 +62,12 @@ walker evaluate_assessment {
     has assessment_id: str;
     has assessment_attempt_id: str;
     has evaluated_at: str;
+    has learner_id: str | None = None;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has language: str | None = None;
+    has idempotency_key: str | None = None;
     has errors: list[AssessmentEvaluationError] = [];
     has reports: list[AssessmentEvaluation] = [];
     has request_id: str = "";
@@ -70,6 +77,18 @@ walker evaluate_assessment {
     can observability_finish with Root exit { observe_walker_finish(self); }
 
     can evaluate with Root entry {
+        resolved = resolve_track_context(ResolveTrackContextInput(
+            learner_id=self.learner_id, assessment_id=self.assessment_id,
+            track_id=self.track_id, track_version_id=self.track_version_id,
+            enrollment_id=self.enrollment_id, language=self.language
+        ), "evaluate_assessment");
+        if not resolved.ok {
+            self.errors = self.errors + [AssessmentEvaluationError(
+                code=resolved.error.code if resolved.error is not None else "TRACK_CONTEXT_MISSING",
+                message=resolved.error.message if resolved.error is not None else "Track context is required."
+            )];
+            return;
+        }
         assessments = [root -->][?:Assessment, id == self.assessment_id];
         attempts: list[AssessmentAttempt] = [];
 

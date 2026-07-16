@@ -508,6 +508,9 @@ walker recommend_next_action {
     has learner_id: str;
     has roadmap_id: str = "";
     has language: str = "";
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
     has errors: list[TutorRecommendationError] = [];
     has reports: list[TutorRecommendationView] = [];
     has request_id: str = "";

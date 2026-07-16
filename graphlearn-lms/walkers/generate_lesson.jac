@@ -4,6 +4,8 @@ import from datetime { datetime }
 import from byllm.lib { ByLLMError }
 import from edges.domain_edges { assigned, contains, targets }
 import from lib.observability.instrumentation { ai_call_completed, ai_call_failed, ai_call_started, observe_walker_finish, observe_walker_start }
+import from lib.learning_track.context_resolver { ResolveTrackContextInput, TrackContext, resolve_track_context }
+import from lib.learning_track.service { seed_builtin_tracks }
 import from lib.ai.utilities {
     LessonContentContext,
     LessonGenerationResult,
@@ -81,6 +83,8 @@ obj GeneratedLessonView {
     has generation_status: str;
     has created_at: str;
     has updated_at: str;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
     has sections: list[LessonSectionView] = [];
     has examples: list[LessonExampleView] = [];
     has mini_exercises: list[LessonMiniExerciseView] = [];
@@ -367,7 +371,9 @@ def generated_lesson_to_view(lesson: GeneratedLesson) -> GeneratedLessonView {
         key_takeaways=takeaway_views,
         generation_status=lesson.generation_status.value,
         created_at=lesson.created_at,
-        updated_at=lesson.updated_at
+        updated_at=lesson.updated_at,
+        track_id=lesson.track_id,
+        track_version_id=lesson.track_version_id
     );
 }
 
@@ -375,7 +381,11 @@ walker generate_lesson {
     has learner_id: str;
     has roadmap_id: str;
     has roadmap_lesson_id: str;
-    has language: str;
+    has language: str = "";
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
+    has enrollment_id: str | None = None;
+    has idempotency_key: str | None = None;
     has errors: list[LessonGenerationError] = [];
     has reports: list[GeneratedLessonView] = [];
     has request_id: str = "";
@@ -385,7 +395,31 @@ walker generate_lesson {
     can observability_finish with Root exit { observe_walker_finish(self); }
 
     can generate with Root entry {
-        language_normalized = self.language.strip().lower();
+        _ = seed_builtin_tracks();
+        resolved = resolve_track_context(ResolveTrackContextInput(
+            learner_id=self.learner_id, roadmap_id=self.roadmap_id,
+            track_id=self.track_id, track_version_id=self.track_version_id,
+            enrollment_id=self.enrollment_id, language=self.language
+        ), "generate_lesson");
+        if not resolved.ok or resolved.value is None {
+            error_code = resolved.error.code if resolved.error is not None else "TRACK_CONTEXT_MISSING";
+            error_message = resolved.error.message if resolved.error is not None else "Track context is required.";
+            if error_code == "LEGACY_LANGUAGE_UNRESOLVED" {
+                error_code = "unsupported_language";
+                error_message = "Generated lessons currently support python and jac only.";
+            }
+            self.errors = self.errors + [LessonGenerationError(
+                code=error_code,
+                message=error_message
+            )];
+            return;
+        }
+        track_context = resolved.value as TrackContext;
+        if track_context.legacy_language is None {
+            self.errors = self.errors + [LessonGenerationError(code="UNSUPPORTED_ACTIVITY_TYPE", message="This track does not support programming lesson generation yet.")];
+            return;
+        }
+        language_normalized = "jac" if track_context.legacy_language == "jaseci" else track_context.legacy_language;
         if language_normalized not in ["python", "jac"] {
             self.errors = self.errors + [
                 LessonGenerationError(
