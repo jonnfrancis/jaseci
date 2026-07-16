@@ -12,6 +12,7 @@ import from lib.learning_track.course_management {
     get_course_service, list_courses_service, restore_course_service,
     update_configuration_service, update_course_service
 }
+import from lib.learning_track.lecturer_dashboard { get_lecturer_dashboard_service }
 import from lib.learning_track.repositories { repository_find_track }
 import from lib.learning_track.repository_types { ActorContext, IdempotencyContext, ServiceResult }
 import from nodes.authorization { AuthorizationActor, AuthorizationDecision, AuthorizationDecisionType, LecturerPermission }
@@ -20,6 +21,7 @@ import from nodes.learning_track {
     LearningTrackStatus, LearningTrackType, TrackOwnershipType,
     UpdateCourseTrackInput, UpdateTrackConfigurationInput
 }
+import from nodes.lecturer_dashboard { LecturerDashboardQuery }
 
 def _track_actor_context(actor: AuthorizationActor, request_id: str) -> ActorContext {
     return ActorContext(
@@ -112,6 +114,14 @@ def list_authorized_courses(status: LearningTrackStatus | None = None, search: s
     actor = resolve_authorization_actor(); decision = AuthorizationPolicyService().authorize_lecturer_action(actor, LecturerPermission.LIST_OWN_TRACKS, None);
     if decision.decision == AuthorizationDecisionType.DENY { return _authorization_error(decision); }
     return list_courses_service(_track_actor_context(actor, request_id), status, search, subject_area, page_size, cursor, sort);
+}
+
+def get_authorized_lecturer_dashboard(query: LecturerDashboardQuery, request_id: str = "") -> ServiceResult {
+    actor = resolve_authorization_actor(); decision = AuthorizationPolicyService().authorize_lecturer_action(actor, LecturerPermission.LIST_OWN_TRACKS, None);
+    if decision.decision == AuthorizationDecisionType.DENY { return _authorization_error(decision); }
+    profile = LecturerRepository().find_by_user_id(actor.user_id);
+    if profile is None { return service_error("LECTURER_PROFILE_REQUIRED", "An active lecturer profile is required."); }
+    return get_lecturer_dashboard_service(_track_actor_context(actor, request_id), profile.display_name, actor.can_publish_courses, query);
 }
 
 def update_authorized_course(input: UpdateCourseTrackInput, request_id: str = "") -> ServiceResult {

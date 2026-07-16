@@ -7,7 +7,7 @@ import type from lib.domain.index { Learner }
 import from services.challenge { open_challenge, start_challenge, submit_challenge_solution }
 import from services.course_management {
     archive_lecturer_course, create_lecturer_course, load_lecturer_course,
-    load_lecturer_courses, restore_lecturer_course,
+    load_lecturer_courses, get_lecturer_course_dashboard, restore_lecturer_course,
     save_lecturer_configuration, save_lecturer_course
 }
 import from services.authorization { list_my_authorized_tracks, migrate_my_lecturer_track_ownership }
@@ -43,6 +43,7 @@ import from walkers.course_track_management {
     get_lecturer_course, list_lecturer_courses, restore_course_track,
     update_course_track, update_course_track_configuration
 }
+import from walkers.lecturer_course_dashboard { get_lecturer_course_dashboard as lecturer_course_dashboard_walker }
 
 # Client-side UI
 cl {
