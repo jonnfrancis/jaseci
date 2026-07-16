@@ -84,7 +84,7 @@ def repository_list_visible(actor: ActorContext, page: PageRequest) -> PageResul
     tracks: list[LearningTrack] = [];
     for track in [catalogue ->:HAS_LEARNING_TRACK:->][?:LearningTrack] {
         public = track.status == LearningTrackStatus.PUBLISHED and track.visibility == LearningTrackVisibility.PUBLIC;
-        owned = track.owner_id is not None and track.owner_id == actor.user_id;
+        owned = track.owner_id is not None and actor.lecturer_id is not None and track.owner_id == actor.lecturer_id;
         institution = track.visibility == LearningTrackVisibility.INSTITUTION and track.institution_id is not None and track.institution_id in actor.institution_ids;
         if public or owned or institution { tracks.append(track); }
     }

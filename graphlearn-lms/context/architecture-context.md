@@ -84,13 +84,29 @@ after partial failure. Published or superseded curriculum is immutable through
 repository/domain mutation paths. Walkers remain transport adapters and are
 migrated to this boundary in Feature 34.
 
+## Authorization Policy Boundary
+
+Lecturer and administrator operations use `lib/authorization/` after private
+endpoint authentication. The authorization actor is rebuilt from the current
+root-owned role/profile graph for each operation; final authorization decisions
+are not cached. Resource contexts are constructed from repository-loaded graph
+relationships, including ownership, version, enrollment, and submission scope.
+Policies default to denial, map private ownership denials to safe not-found
+errors, and audit allow/deny outcomes without protected content.
+
+The initial publication model requires reviewer or administrator approval.
+Owner publication additionally requires the server-controlled profile capability
+and `ALLOW_LECTURER_SELF_PUBLISH`; owner self-approval is disabled by default.
+
 ---
 
 ## Core Domain Models
 
 ### User
 
-Represents a learner.
+Represents one authenticated account that may hold learner, lecturer, and
+administrator application roles. Authentication remains owned by Jac Scale;
+the stable domain `user_id` is derived from the authenticated persistent root.
 
 Stores:
 
@@ -425,3 +441,9 @@ Advantages:
 14. Shared curriculum identity is represented by stable `LearningTrack.track_id` values; legacy language strings are compatibility inputs, not primary curriculum identifiers.
 15. Published `TrackVersion` nodes are immutable, and a track's active version must be a published version belonging to that same track.
 16. The global learning catalogue is anchored under `root.shared`; learner-specific state must not be attached to catalogue tracks or versions.
+17. Application roles are authoritative only through root-owned `UserRoleAssignment` nodes; client role strings and cached workspace selection never grant permission.
+18. Lecturer operations require an ACTIVE lecturer assignment, an ACTIVE `LecturerProfile`, the relevant server-controlled capability, and resource authorization.
+19. Lecturer course ownership uses the server-resolved `lecturer_id`; email, username, display name, and caller-provided owner identifiers are never ownership authorities.
+20. Lecturer-owner authorization requires matching scalar ownership and `OWNS_TRACK`; a missing-edge scalar fallback is disabled by default, feature-flagged, and observable during migration.
+21. Published and superseded curriculum versions remain immutable for owners, collaborators, and administrators; changes require a new draft version.
+22. Lecturer learner/submission access must prove the complete same-track enrollment and version scope; identifier possession alone grants no access.

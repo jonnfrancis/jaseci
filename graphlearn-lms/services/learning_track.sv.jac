@@ -2,6 +2,9 @@
 
 import os;
 
+import from lib.authorization.actor { resolve_authorization_actor }
+import from lib.authorization.policy { AuthorizationPolicyService }
+
 import from lib.learning_track.service {
     find_track,
     list_discoverable_tracks,
@@ -19,6 +22,7 @@ import from nodes.learning_track {
     LearningTrackSummary
 }
 import from nodes.programming_track_migration { ProgrammingTrackMigrationReport }
+import from nodes.authorization { AdministrativePermission, AuthorizationDecisionType }
 
 obj LearningTrackResolutionView {
     has ok: bool;
@@ -101,10 +105,18 @@ def:priv resolve_legacy_learning_track(track_id: str | None = None, language: st
 }
 
 def:priv migrate_learning_tracks -> LearningTrackMigrationReport {
+    decision = AuthorizationPolicyService().authorize_admin_action(
+        resolve_authorization_actor(), AdministrativePermission.REPAIR_RESOURCE_OWNERSHIP, None
+    );
+    if decision.decision == AuthorizationDecisionType.DENY { raise PermissionError("FORBIDDEN"); }
     return seed_builtin_tracks();
 }
 
 def:priv execute_programming_track_migration(mode: str = "dry_run", batch_size: int = 100, scope_learner_id: str = "") -> ProgrammingTrackMigrationReport {
+    decision = AuthorizationPolicyService().authorize_admin_action(
+        resolve_authorization_actor(), AdministrativePermission.REPAIR_RESOURCE_OWNERSHIP, None
+    );
+    if decision.decision == AuthorizationDecisionType.DENY { raise PermissionError("FORBIDDEN"); }
     if os.getenv("PROGRAMMING_TRACK_MIGRATION_ENABLED", "false").strip().lower() not in ["1", "true", "yes", "on"] {
         raise Exception("Programming-track migration is disabled.");
     }
@@ -112,6 +124,10 @@ def:priv execute_programming_track_migration(mode: str = "dry_run", batch_size: 
 }
 
 def:priv rollback_programming_track_migration_v1() -> ProgrammingTrackMigrationReport {
+    decision = AuthorizationPolicyService().authorize_admin_action(
+        resolve_authorization_actor(), AdministrativePermission.REPAIR_RESOURCE_OWNERSHIP, None
+    );
+    if decision.decision == AuthorizationDecisionType.DENY { raise PermissionError("FORBIDDEN"); }
     if os.getenv("PROGRAMMING_TRACK_MIGRATION_ENABLED", "false").strip().lower() not in ["1", "true", "yes", "on"] {
         raise Exception("Programming-track migration is disabled.");
     }

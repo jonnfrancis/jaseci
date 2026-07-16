@@ -92,4 +92,5 @@ node ApplicationOperation {
     has updated_at: str;
     has entity_id: str | None = None;
     has error_code: str | None = None;
+    has payload_fingerprint: str = "";
 }

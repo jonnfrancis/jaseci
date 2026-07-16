@@ -98,7 +98,7 @@ def resolve_track_context_service(
 # LearningTrackDomainService
 def actor_can_manage(actor: ActorContext, track: LearningTrack) -> bool {
     if track.ownership_type == TrackOwnershipType.SYSTEM { return "system" in actor.roles; }
-    if track.owner_id is not None and track.owner_id == actor.user_id { return True; }
+    if track.ownership_type == TrackOwnershipType.LECTURER and track.owner_id is not None and track.owner_id == actor.lecturer_id { return True; }
     return track.institution_id is not None and track.institution_id in actor.institution_ids and "institution_admin" in actor.roles;
 }
 
@@ -133,14 +133,16 @@ def create_track_service(
     }
     input.owner_id = None;
     trusted_system = "system" in actor.roles;
-    created = create_track(input, actor.user_id, trusted_system=trusted_system);
+    owner_actor_id = actor.lecturer_id if input.ownership_type == TrackOwnershipType.LECTURER else actor.user_id;
+    if owner_actor_id is None { fail_operation(operation, "COURSE_OWNER_IDENTITY_INVALID"); return service_error("COURSE_OWNER_IDENTITY_INVALID", "A trusted lecturer identity is required."); }
+    created = create_track(input, owner_actor_id, trusted_system=trusted_system);
     if not created.ok or created.track is None {
         code = created.error.code if created.error is not None else "APPLICATION_OPERATION_INCOMPLETE";
         fail_operation(operation, code);
         return service_error(code, created.error.message if created.error is not None else "Track creation failed.");
     }
     track = created.track;
-    version_result = create_initial_version(track.track_id, actor.user_id);
+    version_result = create_initial_version(track.track_id, owner_actor_id);
     if not version_result.ok or version_result.version is None {
         fail_operation(operation, "APPLICATION_OPERATION_INCOMPLETE");
         track.status = LearningTrackStatus.FAILED;

@@ -1,5 +1,7 @@
 """Domain graph edge definitions."""
 
+import from nodes.authorization { TrackAccessRole }
+
 # Represents Skill -> Skill and Lesson -> Lesson.
 edge Prerequisite {}
 
@@ -72,6 +74,13 @@ edge HAS_TRACK_CONFIGURATION {}
 # Feature 32 graph-native curriculum and enrollment relationships.
 edge HAS_CATALOGUE {}
 edge OWNS_TRACK { has granted_at: str; }
+edge HAS_TRACK_ACCESS {
+    has access_role: TrackAccessRole;
+    has granted_by: str;
+    has granted_at: str;
+    has expires_at: str | None = None;
+    has revoked_at: str | None = None;
+}
 edge CONTAINS_MODULE { has order_index: int; }
 edge CONTAINS_SKILL { has order_index: int | None = None; }
 edge MODULE_CONTAINS_SKILL { has order_index: int; }
@@ -109,6 +118,13 @@ edge HAS_MASTERY {}
 edge HAS_LESSON_PROGRESS {}
 edge HAS_SUBMISSION {}
 edge HAS_RECOMMENDATION {}
+ 
+# Feature 35 authenticated identity relationships. The authenticated root is
+# the canonical parent for all private identity records.
+edge HAS_IDENTITY_PROFILE { has created_at: str; }
+edge HAS_ROLE_ASSIGNMENT { has created_at: str; }
+edge HAS_LEARNER_PROFILE { has created_at: str; }
+edge HAS_LECTURER_PROFILE { has created_at: str; }
 edge HAS_ROADMAP_ITEM { has order_index: int; }
 edge TARGETS_SKILL {}
 edge USES_LESSON_TEMPLATE {}

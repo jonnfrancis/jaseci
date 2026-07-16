@@ -5,11 +5,22 @@ Combines server-side endpoints with the client-side UI.
 
 import type from lib.domain.index { Learner }
 import from services.challenge { open_challenge, start_challenge, submit_challenge_solution }
+import from services.course_management {
+    archive_lecturer_course, create_lecturer_course, load_lecturer_course,
+    load_lecturer_courses, restore_lecturer_course,
+    save_lecturer_configuration, save_lecturer_course
+}
+import from services.authorization { list_my_authorized_tracks, migrate_my_lecturer_track_ownership }
 import from services.assessment_journey { generate_roadmap_for_journey }
 import from services.dashboard { load_dashboard }
 import from services.lesson { open_lesson }
 import from services.learning_track { execute_programming_track_migration, get_learning_track, list_learning_tracks, migrate_learning_tracks, resolve_legacy_learning_track, rollback_programming_track_migration_v1, supported_programming_tracks }
-import from services.identity { resolve_current_learner }
+import from services.identity {
+    activate_my_pending_lecturer_for_development, get_current_identity,
+    get_my_lecturer_profile, migrate_current_learner_roles,
+    request_lecturer_role, resolve_current_learner,
+    update_my_lecturer_profile
+}
 import from services.roadmap { load_roadmap }
 import from services.skill_map { load_skill_map }
 import from services.system { list_registered_functions }
@@ -27,6 +38,11 @@ import from walkers.submit_challenge { submit_challenge }
 import from walkers.submit_assessment { submit_assessment }
 import from walkers.unlock_next_lesson { unlock_next_lesson }
 import from walkers.update_mastery { update_mastery }
+import from walkers.course_track_management {
+    archive_course_track, create_course_track, duplicate_course_track,
+    get_lecturer_course, list_lecturer_courses, restore_course_track,
+    update_course_track, update_course_track_configuration
+}
 
 # Client-side UI
 cl {

@@ -82,16 +82,13 @@ def _profile_identity(profile: dict, identity_type: str) -> str {
 async def _resolve_learner_session(email: str, username: str, legacy_learner_id: str = "") -> dict {
     profile: dict = {};
     identity: any = None;
-    auth_user_id: str = "";
     profile = await _load_auth_profile();
-    auth_user_id = str(profile["user_id"] or "");
-    if auth_user_id == "" {
+    if str(profile["user_id"] or "") == "" {
         raise Exception("Authenticated account has no stable user id.");
     }
     resolved_email = email if email != "" else _profile_identity(profile, "email");
     resolved_username = username if username != "" else _profile_identity(profile, "username");
     identity = await resolve_current_learner(
-        auth_user_id,
         legacy_learner_id,
         resolved_username,
         resolved_email
@@ -100,6 +97,8 @@ async def _resolve_learner_session(email: str, username: str, legacy_learner_id:
         "authenticated": True,
         "token": _auth_token_from_storage(),
         "learner_id": identity.learner_id,
+        "lecturer_id": identity.lecturer_id or "",
+        "active_roles": [str(role) for role in identity.active_roles],
         "username": resolved_username if resolved_username != "" else resolved_email,
         "email": resolved_email
     };
@@ -130,6 +129,8 @@ def:pub current_auth_session() -> dict {
     learner_id_value: str = "";
     username_value: str = "";
     email_value: str = "";
+    lecturer_id_value: str = "";
+    active_roles_value: list[str] = [];
 
     stored = read_auth_session();
 
@@ -143,11 +144,15 @@ def:pub current_auth_session() -> dict {
     learner_id_value = str(stored["learner_id"] or "");
     username_value = str(stored["username"] or "");
     email_value = str(stored["email"] or "");
+    lecturer_id_value = str(stored["lecturer_id"] or "");
+    active_roles_value = stored["active_roles"] as list[str];
 
     return {
         "authenticated": authenticated_value,
         "token": token_value,
         "learner_id": learner_id_value,
+        "lecturer_id": lecturer_id_value,
+        "active_roles": active_roles_value,
         "username": username_value,
         "email": email_value
     };
@@ -192,6 +197,8 @@ async def:pub register_user(username: str, email: str, password: str) -> dict {
             "authenticated": False,
             "token": "",
             "learner_id": "",
+            "lecturer_id": "",
+            "active_roles": [],
             "username": username,
             "email": email
         };
@@ -215,6 +222,8 @@ async def:pub register_user(username: str, email: str, password: str) -> dict {
         "authenticated": False,
         "token": "",
         "learner_id": "",
+        "lecturer_id": "",
+        "active_roles": [],
         "username": username,
         "email": email
     };
@@ -232,6 +241,8 @@ async def:pub login_user(email: str, password: str) -> dict {
             "authenticated": False,
             "token": "",
             "learner_id": "",
+            "lecturer_id": "",
+            "active_roles": [],
             "username": "",
             "email": email
         };

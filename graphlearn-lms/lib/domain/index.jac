@@ -15,9 +15,22 @@ import from edges.domain_edges {
     mastered, progresses, requires, signals, submitted_for, targets, teaches, tracks,
     unlocked
 }
+import from nodes.identity {
+    AuthenticatedActor, IdentityError, IdentityResult, LecturerProfile,
+    LecturerProfileInput, LecturerProfileStatus, LecturerProfileSummary,
+    LecturerVerificationStatus, RoleAssignmentResult, RoleAssignmentSource,
+    RoleAssignmentStatus, UserIdentityProfile, UserRoleAssignment,
+    UserRoleMigrationRecord, UserRoleType
+}
 import from nodes.curriculum {
     ActivityTemplate, CourseBlueprint, CourseContentChunk, CourseDocument,
     CourseModule, LessonTemplate
+}
+import from nodes.authorization {
+    AdministrativePermission, AuthorizationActor, AuthorizationAuditEvent,
+    AuthorizationDecision, AuthorizationDecisionType, AuthorizationReasonCode,
+    AuthorizationResourceContext, AuthorizationScope, LecturerPermission,
+    OwnershipMigrationReport, TrackAccessRole
 }
 import from nodes.enrollment { Enrollment, RoadmapItem, Submission }
 import from nodes.graph_integrity {
