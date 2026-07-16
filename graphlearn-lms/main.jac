@@ -12,6 +12,7 @@ import from services.learning_track { execute_programming_track_migration, get_l
 import from services.identity { resolve_current_learner }
 import from services.roadmap { load_roadmap }
 import from services.skill_map { load_skill_map }
+import from services.system { list_registered_functions }
 import from services.tutor { load_tutor_recommendation }
 import from walkers.evaluate_assessment { evaluate_assessment }
 import from walkers.evaluate_submission { evaluate_submission }

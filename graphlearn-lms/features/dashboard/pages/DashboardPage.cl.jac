@@ -2,7 +2,6 @@
 
 import from "@jac/runtime" { useNavigate }
 import from "....lib.auth.auth_client" { restore_auth_session }
-import from "....lib.journey.journey_state" { read_journey_state }
 import from "...dashboard.components.DashboardComponents" {
     ChallengeSummaryCard,
     CurrentLessonCard,
@@ -45,10 +44,6 @@ def:pub DashboardPage() -> JsxElement {
         session: dict[str, any] = {};
         learner_id_raw: any = None;
         learner_id: str = "";
-        selected_language: str = "";
-        roadmap_id: str = "";
-        journey: any = None;
-
         try {
             session = (await restore_auth_session()) as dict[str, any];
             learner_id_raw = session["learner_id"];
@@ -62,11 +57,9 @@ def:pub DashboardPage() -> JsxElement {
                 return;
             }
 
-            journey = read_journey_state();
-            selected_language = str(journey.selected_language) if journey.selected_language else "";
-            roadmap_id = str(journey.roadmap_id) if journey.roadmap_id else "";
-
-            load_state = await load_dashboard(learner_id, selected_language, roadmap_id);
+            # Dashboard identity comes from the authenticated root. Browser journey
+            # recovery can belong to a previously logged-in account.
+            load_state = await load_dashboard(learner_id);
         } except Exception as e {
             print("Dashboard load failed:", e);
             failed = True;

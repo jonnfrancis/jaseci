@@ -37,6 +37,7 @@ import from nodes.roadmap {
     RoadmapWeek
 }
 import from nodes.skill { Skill }
+import from services.lesson { open_lesson }
 import from walkers.generate_lesson { generate_lesson, get_generated_lesson }
 
 def _unique_id(prefix: str) -> str {
@@ -332,4 +333,22 @@ test "generate lesson rejects invalid roadmap lesson" {
 
     assert len(result.reports) == 0;
     assert result.errors[0].code == "invalid_target_skills";
+}
+
+test "open lesson seeds track graph for legacy roadmap" {
+    prefix = _unique_id("lesson-legacy-open");
+    lesson = _seed_context(prefix, "python", "beginner", "python_variables", 50);
+    ai_utilities.llm = MockLLM(model_name="mockllm", config={"outputs": [_python_lesson_result()]});
+
+    state = open_lesson(
+        f"{prefix}-learner",
+        f"{prefix}-roadmap",
+        lesson.id
+    );
+
+    assert state.status == "ready";
+    assert state.generated_now;
+    assert state.lesson is not None;
+    assert state.lesson.track_id == "trk_builtin_python";
+    assert state.lesson.track_version_id == "trv_builtin_python_v1";
 }

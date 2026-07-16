@@ -140,3 +140,20 @@ test "assessment journey exposes only python and jac tracks" {
     assert tracks[0].name == "Python";
     assert tracks[1].name == "Jac";
 }
+
+test "new account starts assessment with track first context" {
+    tracks = supported_language_tracks();
+    python = tracks[0];
+    started = start_assessment_journey(
+        python.id,
+        "journey-track-first-learner",
+        "Track First Learner",
+        python.track_id,
+        python.track_version_id
+    );
+
+    assert started.status == "assessment";
+    assert started.selected_language == "Python";
+    assert started.track_id == "trk_builtin_python";
+    assert started.track_version_id == "trv_builtin_python_v1";
+}

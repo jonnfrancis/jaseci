@@ -1,6 +1,13 @@
 # Progress Tracker
 Update this file whenever the current phase, active feature, or implementation state changes.
 ## Current Phase
+- The current post-expansion account-flow issues are fixed. Dashboard loading no longer supplies assessment-journey values from browser storage as authoritative roadmap/language filters, preventing a newly authenticated account from inheriting another account's stale roadmap id; a learner without a roadmap now receives the existing normal `ready` dashboard projection with an onboarding state such as `no_assessment`.
+- Assessment-to-roadmap handoff now forwards track/version identifiers from the client and, independently, derives authoritative track context from the persisted learner-owned assessment on the server. Missing client context is repaired from the assessment, conflicting explicit context is rejected, and generated roadmaps retain the assessment's normalized track/version identifiers. This removes the new-account `Unable to resolve learning track` 500.
+- Scale compatibility now includes an explicit public `GET /functions` discovery endpoint in `services/system.sv.jac`, while callable application functions remain at `POST /function/<name>` and production Swagger remains disabled. This addresses the installed Scale server's omission of the core function-listing route; requests through the development UI port still require the Jac backend to be running because port 8001 is only the client/proxy surface.
+- Current issue verification passed: all 8 affected modules/tests and `main.jac` pass `jac check`; function discovery passes 1/1 tests, dashboard service passes 4/4 tests, and roadmap generation/handoff passes 7/7 tests. Faux route introspection lists `GET /functions` and 78 total endpoints, then exits nonzero only because the installed Scale/Jac faux shutdown calls the missing `JFastApiServer.server_close` method. Existing accumulated SQLite schema-drift notices remain informational.
+- Post-Feature 34 issue fixes are implemented. Legacy roadmaps without persisted track identifiers now seed the deterministic built-in catalogue before lesson/challenge track resolution, pass their available parent context into generation, and persist the resolver's normalized track/version identifiers on newly generated content. This removes the returning-learner `BUILTIN_TRACK_NOT_SEEDED` / "registered track graph is incomplete" lesson failure while retaining legacy language fallback.
+- New-account assessment selection now carries the server-issued `track_id` and `track_version_id` from the supported-track catalogue through the client callback into `start_assessment_journey`, while retaining the legacy language value for compatibility. This removes the `Unsupported assessment language` 500 caused by dropping canonical track context at the UI boundary.
+- Post-Feature 34 verification passed: the affected lesson/challenge walkers, lesson service, assessment page, both focused test modules, and `main.jac` pass `jac check`; all 7 lesson-generation tests and all 8 assessment-journey tests pass, including new legacy-roadmap seeding and new-account track-first regressions. Runs still emit pre-existing best-effort SQLite schema-drift notices from accumulated local graph data.
 - Feature 34 track-aware walker compatibility migration is implemented. Added the shared `lib/learning_track/context_resolver.jac` contract with explicit, parent-entity, enrollment, active-version, and legacy-language resolution; normalized typed track metadata; parent precedence; stable mismatch/conflict errors; learner ownership checks; and relationship-proven track/version validation over the Feature 33 repository boundary.
 - Feature 34 walker contracts are additive across assessment, roadmap, lesson, challenge, submission, mastery, progression, dashboard, skill-map, and recommendation flows. Existing names, legacy language inputs, and report consumers remain compatible; assessment/roadmap/content/evaluation mutations now resolve authoritative track context before their existing behavior, generated lesson/challenge views expose track/version IDs, and programming-only generators return stable unsupported-activity errors for non-programming tracks instead of changing track identity.
 - Feature 34's audited walker/call-site inventory is recorded in `context/migration-inventories/34-track-aware-walker-migration.md`. Client journey recovery continues to persist `selectedTrackId` and `selectedTrackVersionId` centrally while retaining the temporary language key.
@@ -90,11 +97,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## In Progress
 
-- No feature is currently in progress; Feature 33 is implemented and verified.
+- No feature is currently in progress; Feature 34 and its reported post-migration regressions are implemented and verified.
 
 ## Next Up
 
-- Implement Feature 34 track-aware walker migration over the Feature 33 repository and service boundary.
+- Proceed to the next isolated feature specification after Feature 34 verification.
 - Proceed to the next isolated feature specification after Feature 30 verification.
 - Choose the next isolated feature spec after Feature 22 dashboard-ui, likely recommendation UI, AI tutor summary, roadmap completion experience, certificates, or notifications when a spec asks for it.
 - Choose the next isolated feature spec after Feature 21 get-dashboard, likely dashboard UI, recommendation UI, AI tutor summary, or completion experience when a spec asks for it.

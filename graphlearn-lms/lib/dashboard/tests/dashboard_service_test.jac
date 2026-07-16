@@ -105,6 +105,24 @@ test "dashboard service returns missing learner without spawning invalid request
     assert state.dashboard is None;
 }
 
+test "new learner dashboard is a ready onboarding state without roadmap" {
+    learner_id = _unique_id("dashboard-new-account");
+    root ++> Learner(
+        id=learner_id,
+        name="New Dashboard Learner",
+        createdAt="2026-07-16",
+        updatedAt="2026-07-16"
+    );
+
+    state = load_dashboard(learner_id);
+
+    assert state.status == "ready";
+    assert state.dashboard is not None;
+    dashboard = state.dashboard as any;
+    assert dashboard.active_roadmap is None;
+    assert dashboard.dashboard_state == "no_assessment";
+}
+
 test "dashboard service projects ready dashboard" {
     ids = _seed_ready_dashboard(_unique_id("dashboard-service-ready"));
 

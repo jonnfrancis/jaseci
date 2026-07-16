@@ -504,8 +504,30 @@ def:priv generate_roadmap_for_journey(
     if learner_id.strip() == "" {
         raise Exception("Log in before generating a roadmap.");
     }
+    assessments = [root -->][?:Assessment, id == assessment_id];
+    if len(assessments) == 0 {
+        raise Exception("Assessment is unavailable.");
+    }
+    assessment = assessments[0];
+    if assessment.learner_id != learner_id {
+        raise Exception("Assessment does not belong to the current learner.");
+    }
+
     _ = seed_builtin_tracks();
-    context = resolve_track_context(track_id, track_version_id, language);
+    authoritative_track_id = assessment.track_id or track_id;
+    authoritative_track_version_id = assessment.track_version_id or track_version_id;
+    authoritative_language = _language_from_assessment(assessment) or language;
+    if assessment.track_id is not None and track_id is not None and assessment.track_id != track_id {
+        raise Exception("Assessment track does not match the requested learning track.");
+    }
+    if assessment.track_version_id is not None and track_version_id is not None and assessment.track_version_id != track_version_id {
+        raise Exception("Assessment track version does not match the requested learning track version.");
+    }
+    context = resolve_track_context(
+        authoritative_track_id,
+        authoritative_track_version_id,
+        authoritative_language
+    );
     if context is None or context.legacy_language is None { raise Exception("Unable to resolve learning track."); }
     result = root spawn generate_roadmap(
         learner_id=learner_id,
@@ -530,12 +552,7 @@ def:priv generate_roadmap_for_journey(
         raise Exception("Roadmap was generated but no roadmap id was returned.");
     }
 
-    assessments = [root -->][?:Assessment, id == assessment_id];
-    if len(assessments) == 0 {
-        raise Exception("Assessment is unavailable.");
-    }
-
-    state = _state_for_assessment(assessments[0], "results");
+    state = _state_for_assessment(assessment, "results");
     state.roadmap_id = roadmap_id;
     return state;
 }

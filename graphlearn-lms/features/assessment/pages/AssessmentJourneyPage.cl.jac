@@ -408,13 +408,17 @@ def:pub AssessmentJourneyPage() -> JsxElement {
             attempt_id: str = journey.attempt_id as str;
             evaluation_id: str = journey.evaluation.evaluation_id as str;
             selected_language: str = journey.selected_language as str;
+            selected_track_id: str = journey.track_id as str;
+            selected_track_version_id: str = journey.track_version_id as str;
 
             next_journey = await generate_roadmap_for_journey(
                 learner_id_value,
                 assessment_id,
                 attempt_id,
                 evaluation_id,
-                selected_language
+                selected_language,
+                selected_track_id or None,
+                selected_track_version_id or None
             );
             print("Generated journey returned to client:", next_journey);
             print("Generated journey roadmap id direct:", next_journey.roadmap_id);

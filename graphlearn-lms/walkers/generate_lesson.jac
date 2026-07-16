@@ -528,8 +528,8 @@ walker generate_lesson {
             created_at=timestamp,
             updated_at=timestamp,
             generation_status=LessonGenerationStatus.generated
-            , track_id=roadmap.track_id
-            , track_version_id=roadmap.track_version_id
+            , track_id=track_context.track_id
+            , track_version_id=track_context.track_version_id
         ))[0];
         learner +>:assigned:+> generated_lesson;
         roadmap +>:contains:+> generated_lesson;

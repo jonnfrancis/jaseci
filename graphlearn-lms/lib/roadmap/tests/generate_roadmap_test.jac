@@ -322,6 +322,34 @@ test "assessment journey service generates roadmap id for results handoff" {
     assert load_roadmap(state.roadmap_id).status == "ready";
 }
 
+test "assessment journey derives roadmap track from persisted assessment" {
+    prefix = _unique_id("roadmap-track-handoff");
+    evaluation = _seed_evaluated_attempt(
+        prefix,
+        55,
+        [SkillSignal(skill_id="python_functions", correct_count=1, incorrect_count=1, accuracy=0.5)]
+    );
+    assessments = [root -->][?:Assessment, id == evaluation.assessment_id];
+    assessment = assessments[0];
+    assessment.title = "Python readiness assessment";
+    assessment.track_id = "trk_builtin_python";
+    assessment.track_version_id = "trv_builtin_python_v1";
+    ai_utilities.llm = MockLLM(model_name="mockllm", config={"outputs": [_python_beginner_result()]});
+
+    state = generate_roadmap_for_journey(
+        evaluation.learner_id,
+        evaluation.assessment_id,
+        evaluation.assessment_attempt_id,
+        evaluation.id,
+        ""
+    );
+
+    assert state.roadmap_id != "";
+    roadmaps = [root -->][?:Roadmap, id == state.roadmap_id];
+    assert roadmaps[0].track_id == "trk_builtin_python";
+    assert roadmaps[0].track_version_id == "trv_builtin_python_v1";
+}
+
 test "generate roadmap rejects unsupported language" {
     prefix = _unique_id("roadmap-invalid-language");
     evaluation = _seed_evaluated_attempt(
