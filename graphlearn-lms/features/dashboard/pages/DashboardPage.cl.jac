@@ -1,6 +1,6 @@
 """Authenticated learner dashboard page."""
 
-import from "@jac/runtime" { useNavigate }
+import from "@jac/runtime" { Link, useNavigate }
 import from "....lib.auth.auth_client" { restore_auth_session }
 import from "...dashboard.components.DashboardComponents" {
     ChallengeSummaryCard,
@@ -151,6 +151,7 @@ def:pub DashboardPage() -> JsxElement {
             <main className="min-h-screen bg-base text-copy-primary">
                 <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-6">
                     <DashboardHeader dashboard={dashboard} />
+                    <Link to="/lecturer/onboarding" className="w-fit text-sm text-brand hover:underline">Teach on GraphLearn</Link>
                     <AiTutorPanel
                         learnerId={dashboard.learner.learner_id}
                         roadmapId={roadmap_id}
@@ -171,6 +172,7 @@ def:pub DashboardPage() -> JsxElement {
         <main className="min-h-screen bg-base text-copy-primary">
             <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-6">
                 <DashboardHeader dashboard={dashboard} />
+                <Link to="/lecturer/onboarding" className="w-fit text-sm text-brand hover:underline">Teach on GraphLearn</Link>
                 {dashboard.dashboard_state == "completed" and <DashboardStatePanel dashboard={dashboard} />}
                 <AiTutorPanel
                     learnerId={dashboard.learner.learner_id}

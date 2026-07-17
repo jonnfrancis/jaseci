@@ -1,26 +1,38 @@
 """Owned lecturer course overview and setup workspace."""
 
 import from "@jac/runtime" { Link, useParams }
-import from "...components.ui.button" { Button }
-import from "...components.ui.card" { Card, CardContent, CardDescription, CardHeader, CardTitle }
-import from "...components.ui.tabs" { Tabs, TabsContent, TabsList, TabsTrigger }
-sv import from ...services.course_management { LecturerCourseDetail, load_lecturer_course }
+import from "lucide-react" { AlertCircle, ArrowLeft, RefreshCw }
+import from "....components.ui.button" { Button }
+import from "....components.ui.card" { Card, CardContent, CardDescription, CardHeader, CardTitle }
+import from "....components.ui.tabs" { Tabs, TabsContent, TabsList, TabsTrigger }
+import from "..components.LecturerLoadingSkeleton" { LecturerLoadingSkeleton }
+sv import from ....services.course_management { LecturerCourseDetail, load_lecturer_course }
 
 def:pub CourseWorkspacePage() -> JsxElement {
     has course: LecturerCourseDetail | None = None, loading: bool = True, error_message: str = "";
     params = useParams(); raw_track_id = params["trackId"];
     track_id = str(raw_track_id) if raw_track_id else "";
 
-    async can with entry {
+    async def load_course() {
+        loading = True; error_message = "";
         if track_id != "" {
             try { course = await load_lecturer_course(track_id); }
-            except Exception { error_message = "Course could not be loaded or is outside your workspace."; }
+            except Exception { error_message = "This course could not be opened. It may still be syncing or may no longer be available in your teaching workspace."; }
+        } else {
+            error_message = "The course link is incomplete.";
         }
         loading = False;
     }
 
-    if loading { return <main className="min-h-screen bg-base p-6 text-copy-muted">Loading course…</main>; }
-    if course is None { return <main className="min-h-screen bg-base p-6 text-copy-primary"><p>{error_message}</p><Link to="/lecturer/courses" className="text-brand">Back to courses</Link></main>; }
+    async can with entry { await load_course(); }
+
+    if loading { return <LecturerLoadingSkeleton />; }
+    if course is None { return <main className="flex min-h-screen items-center justify-center bg-base p-6 text-copy-primary">
+        <Card className="w-full max-w-xl border-surface-border bg-surface text-copy-primary">
+            <CardHeader><div className="flex items-start gap-3"><div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-state-error/10 text-state-error"><AlertCircle className="size-5" /></div><div><CardTitle className="text-copy-primary">Course unavailable</CardTitle><CardDescription>{error_message if error_message != "" else "The course workspace could not be loaded."}</CardDescription></div></div></CardHeader>
+            <CardContent className="flex flex-col gap-3 sm:flex-row"><Button onClick={lambda (_e: MouseEvent) { load_course(); }}><RefreshCw className="size-4" />Try again</Button><Link to="/lecturer/courses" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-surface-border pl-4 pr-4 text-sm font-medium text-copy-primary"><ArrowLeft className="size-4" />Back to courses</Link></CardContent>
+        </Card>
+    </main>; }
     current = course as LecturerCourseDetail;
     return <main className="min-h-screen bg-base pt-8 pb-8 pl-6 pr-6 text-copy-primary">
         <div className="mx-auto flex max-w-6xl flex-col gap-6">

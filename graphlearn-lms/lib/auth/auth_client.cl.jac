@@ -2,6 +2,7 @@
 
 import from "@jac/runtime" { __getApiBaseUrl, jacIsLoggedIn, jacLogin,  jacLogout, jacSignup, jacSetToken }
 import from .auth_storage { clear_auth_session, read_auth_session, save_auth_session }
+import from .workspace_client { clear_workspace_preference }
 sv import from ...services.identity { resolve_current_learner }
 
 def _auth_token_from_storage() -> str {
@@ -262,4 +263,5 @@ async def:pub login_user(email: str, password: str) -> dict {
 def:pub logout_user() {
     jacLogout();
     clear_auth_session();
+    clear_workspace_preference();
 }

@@ -13,7 +13,7 @@ import from lib.learning_track.repository_types {
     ActorContext, IdempotencyContext, PageRequest, ServiceError, ServiceResult
 }
 import from lib.learning_track.service {
-    create_initial_version, create_track, track_configuration
+    create_initial_version_for_track, create_track, track_configuration
 }
 import from nodes.curriculum { CourseBlueprint, CourseDocument }
 import from nodes.learning_track {
@@ -210,7 +210,7 @@ def create_course_service(actor: ActorContext, input: CreateCourseTrackInput) ->
     created = create_track(base, actor.lecturer_id);
     if not created.ok or created.track is None { fail_operation(operation, "COURSE_AGGREGATE_CREATION_FAILED"); return service_error("COURSE_AGGREGATE_CREATION_FAILED", "Course aggregate could not be created."); }
     track = created.track;
-    version_result = create_initial_version(track.track_id, actor.lecturer_id);
+    version_result = create_initial_version_for_track(track, actor.lecturer_id);
     configuration = track_configuration(track);
     if not version_result.ok or version_result.version is None or configuration is None {
         track.status = LearningTrackStatus.FAILED; fail_operation(operation, "COURSE_AGGREGATE_INVALID");

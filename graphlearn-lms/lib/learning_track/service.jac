@@ -291,9 +291,7 @@ def create_track(
     return LearningTrackResult(ok=True, track=track);
 }
 
-def create_initial_version(track_id: str, actor_id: str, source_kind: TrackSourceKind = TrackSourceKind.MANUAL) -> LearningTrackResult {
-    track = find_track(track_id);
-    if track is None { return _error("LEARNING_TRACK_NOT_FOUND", "Learning track was not found.", {"track_id": track_id}); }
+def create_initial_version_for_track(track: LearningTrack, actor_id: str, source_kind: TrackSourceKind = TrackSourceKind.MANUAL) -> LearningTrackResult {
     if track.ownership_type == TrackOwnershipType.LECTURER and track.owner_id != actor_id {
         return _error("INVALID_TRACK_OWNER", "Only the track owner may create a version.");
     }
@@ -317,6 +315,12 @@ def create_initial_version(track_id: str, actor_id: str, source_kind: TrackSourc
     grant(version, level=ReadPerm);
     _emit("track_version.created", track, version, actor_id);
     return LearningTrackResult(ok=True, track=track, version=version);
+}
+
+def create_initial_version(track_id: str, actor_id: str, source_kind: TrackSourceKind = TrackSourceKind.MANUAL) -> LearningTrackResult {
+    track = find_track(track_id);
+    if track is None { return _error("LEARNING_TRACK_NOT_FOUND", "Learning track was not found.", {"track_id": track_id}); }
+    return create_initial_version_for_track(track, actor_id, source_kind);
 }
 
 def create_next_draft_version(track_id: str, actor_id: str, change_summary: str = "") -> LearningTrackResult {

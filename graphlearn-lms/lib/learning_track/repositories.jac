@@ -2,9 +2,9 @@
 
 import from edges.domain_edges {
     CONTAINS_MODULE, CONTAINS_SKILL, HAS_ACTIVITY_TEMPLATE, HAS_ASSESSMENT_ATTEMPT,
-    HAS_ENROLLMENT, HAS_LEARNING_TRACK, HAS_LESSON_PROGRESS, HAS_LESSON_TEMPLATE,
+    HAS_ENROLLMENT, HAS_LEARNING_TRACK, HAS_LECTURER_PROFILE, HAS_LESSON_PROGRESS, HAS_LESSON_TEMPLATE,
     HAS_MASTERY, HAS_RECOMMENDATION, HAS_ROADMAP, HAS_ROADMAP_ITEM, HAS_SUBMISSION,
-    HAS_TRACK_VERSION, LESSON_HAS_ACTIVITY, PREREQUISITE
+    HAS_TRACK_VERSION, LESSON_HAS_ACTIVITY, OWNS_TRACK, PREREQUISITE
 }
 import from lib.learning_track.repository_types { ActorContext, PageRequest, PageResult }
 import from lib.learning_track.service { existing_catalogue }
@@ -16,6 +16,7 @@ import from nodes.learning_track {
     TrackVersion, TrackVersionStatus
 }
 import from nodes.learner { Learner }
+import from nodes.identity { LecturerProfile }
 import from nodes.mastery { MasteryUpdateResult }
 import from nodes.progression { LessonProgress }
 import from nodes.roadmap { Roadmap }
@@ -49,9 +50,16 @@ def repository_catalogue -> LearningCatalogue | None { return existing_catalogue
 
 def repository_find_track(track_id: str) -> LearningTrack | None {
     catalogue = repository_catalogue();
-    if catalogue is None { return None; }
-    for track in [catalogue ->:HAS_LEARNING_TRACK:->][?:LearningTrack] {
-        if track.track_id == track_id { return track; }
+    if catalogue is not None {
+        for track in [catalogue ->:HAS_LEARNING_TRACK:->][?:LearningTrack] {
+            if track.track_id == track_id { return track; }
+        }
+    }
+    for profile in [root ->:HAS_LECTURER_PROFILE:->[?:LecturerProfile]] {
+        if profile.user_id != jid(root) { continue; }
+        for owned in [profile ->:OWNS_TRACK:->[?:LearningTrack]] {
+            if owned.track_id == track_id and owned.owner_id == profile.lecturer_id { return owned; }
+        }
     }
     return None;
 }
@@ -71,9 +79,13 @@ def repository_has_catalogue_membership(track: LearningTrack) -> bool {
 }
 
 def repository_list_owned(owner_id: str, page: PageRequest) -> PageResult {
-    catalogue = repository_catalogue();
-    if catalogue is None { return PageResult(items=[]); }
-    tracks: list[LearningTrack] = [t for t in [catalogue ->:HAS_LEARNING_TRACK:->][?:LearningTrack] if t.owner_id == owner_id];
+    tracks: list[LearningTrack] = [];
+    for profile in [root ->:HAS_LECTURER_PROFILE:->[?:LecturerProfile]] {
+        if profile.user_id != jid(root) or profile.lecturer_id != owner_id { continue; }
+        for track in [profile ->:OWNS_TRACK:->[?:LearningTrack]] {
+            if track.owner_id == owner_id and track not in tracks { tracks.append(track); }
+        }
+    }
     tracks.sort(key=lambda t: LearningTrack : t.title.lower());
     return page_values(tracks as list[object], page);
 }

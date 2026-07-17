@@ -11,6 +11,7 @@ import from "....components.ui.card" {
     CardTitle
 }
 import from "....lib.auth.auth_client" { login_user }
+import from "....lib.auth.workspace_client" { load_workspace_bootstrap }
 
 def:pub LoginPage() -> JsxElement {
     nav = useNavigate();
@@ -25,12 +26,17 @@ def:pub LoginPage() -> JsxElement {
         try {
             session = await login_user(email, password);
             if session["authenticated"] as bool {
-                nav("/dashboard", {"replace": True});
+                try {
+                    bootstrap = await load_workspace_bootstrap();
+                    nav(bootstrap.recommended_route, {"replace": True});
+                } except Exception {
+                    nav("/identity/recovery", {"replace": True});
+                }
             } else {
                 error_message = "Authentication failed. Check your credentials and try again.";
             }
-        } except Exception as e {
-            error_message = "Authentication failed: " + str(e);
+        } except Exception {
+            error_message = "Authentication failed. Check your credentials and try again.";
         }
         busy = False;
     }

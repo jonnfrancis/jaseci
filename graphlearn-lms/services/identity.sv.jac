@@ -5,14 +5,15 @@ import from lib.identity.repositories { IdentityRepository, LecturerRepository }
 import from lib.identity.services {
     assign_role, identity_error, identity_now, profile_summary, request_lecturer_onboarding,
     resolve_authenticated_actor, transition_lecturer_profile, transition_role,
-    update_lecturer_profile
+    submit_lecturer_onboarding, update_lecturer_profile
 }
 import from lib.authorization.policy { AuthorizationPolicyService, authorization_now }
 import from nodes.authorization { AdministrativePermission, AuthorizationActor, AuthorizationDecisionType, LecturerPermission }
 import from nodes.identity {
-    IdentityError, IdentityResult, LecturerProfile, LecturerProfileInput, LecturerProfileStatus,
+    AuthenticatedWorkspaceBootstrap, IdentityError, IdentityResult, LecturerOnboardingStep,
+    LecturerProfile, LecturerProfileInput, LecturerProfileStatus,
     RoleAssignmentSource, RoleAssignmentStatus, UserIdentityProfile,
-    UserRoleAssignment, UserRoleMigrationRecord, UserRoleType
+    UserRoleAssignment, UserRoleMigrationRecord, UserRoleType, WorkspaceAvailability, WorkspaceKind
 }
 import from nodes.learner { Learner }
 
@@ -144,6 +145,53 @@ def:priv update_my_lecturer_profile(input: LecturerProfileInput) -> IdentityResu
     return update_lecturer_profile(input);
 }
 def:priv request_lecturer_role(display_name: str = "") -> IdentityResult { return request_lecturer_onboarding(display_name); }
+def:priv submit_my_lecturer_onboarding -> IdentityResult { return submit_lecturer_onboarding(); }
+
+def:priv load_authenticated_workspace_bootstrap(preferred_workspace: WorkspaceKind | None = None) -> AuthenticatedWorkspaceBootstrap {
+    identity = resolve_authenticated_actor();
+    if not identity.ok or identity.actor is None { raise Exception(identity.error.code if identity.error is not None else "IDENTITY_BOOTSTRAP_FAILED"); }
+    actor = identity.actor; repository = IdentityRepository();
+    identity_profile = repository.find_identity_profile_by_user_id(actor.user_id);
+    lecturer = repository.find_lecturer_profile(actor.user_id);
+    learner_available = UserRoleType.LEARNER in actor.active_roles and actor.learner_id is not None;
+    lecturer_available = UserRoleType.LECTURER in actor.active_roles and lecturer is not None and lecturer.status == LecturerProfileStatus.ACTIVE;
+    step = LecturerOnboardingStep.NOT_STARTED;
+    lecturer_status: LecturerProfileStatus | None = None;
+    if lecturer is not None {
+        lecturer_status = lecturer.status;
+        if lecturer.status == LecturerProfileStatus.DRAFT { step = LecturerOnboardingStep.READY_TO_SUBMIT if lecturer.profile_completed else LecturerOnboardingStep.PROFILE_REQUIRED; }
+        elif lecturer.status == LecturerProfileStatus.PENDING_REVIEW { step = LecturerOnboardingStep.PENDING_APPROVAL; }
+        elif lecturer.status == LecturerProfileStatus.ACTIVE { step = LecturerOnboardingStep.ACTIVE; }
+        elif lecturer.status == LecturerProfileStatus.REJECTED { step = LecturerOnboardingStep.REJECTED; }
+        elif lecturer.status == LecturerProfileStatus.SUSPENDED { step = LecturerOnboardingStep.SUSPENDED; }
+        elif lecturer.status == LecturerProfileStatus.ARCHIVED { step = LecturerOnboardingStep.ARCHIVED; }
+    }
+    learner_route = "/dashboard" if learner_available else None;
+    lecturer_route: str | None = None;
+    if lecturer_available { lecturer_route = "/lecturer/courses"; }
+    elif step in [LecturerOnboardingStep.PROFILE_REQUIRED, LecturerOnboardingStep.READY_TO_SUBMIT, LecturerOnboardingStep.NOT_STARTED] { lecturer_route = "/lecturer/onboarding"; }
+    elif step in [LecturerOnboardingStep.PENDING_APPROVAL, LecturerOnboardingStep.REJECTED] { lecturer_route = "/lecturer/onboarding/status"; }
+    elif step in [LecturerOnboardingStep.SUSPENDED, LecturerOnboardingStep.ARCHIVED] { lecturer_route = "/lecturer/restricted"; }
+    recommended_workspace: WorkspaceKind | None = None; recommended_route = "/identity/recovery";
+    if learner_available and lecturer_available {
+        if preferred_workspace == WorkspaceKind.LEARNER { recommended_workspace = WorkspaceKind.LEARNER; recommended_route = "/dashboard"; }
+        elif preferred_workspace == WorkspaceKind.LECTURER { recommended_workspace = WorkspaceKind.LECTURER; recommended_route = "/lecturer/courses"; }
+        else { recommended_route = "/choose-workspace"; }
+    } elif lecturer is not None { recommended_workspace = WorkspaceKind.LECTURER; recommended_route = lecturer_route or "/identity/recovery"; }
+    elif learner_available { recommended_workspace = WorkspaceKind.LEARNER; recommended_route = "/dashboard"; }
+    return AuthenticatedWorkspaceBootstrap(
+        user_id=actor.user_id,
+        display_name=identity_profile.display_name if identity_profile is not None else "GraphLearn user",
+        active_roles=actor.active_roles.copy(), learner_id=actor.learner_id, lecturer_id=actor.lecturer_id,
+        lecturer_status=lecturer_status, lecturer_onboarding_step=step,
+        available_workspaces=[
+            WorkspaceAvailability(workspace=WorkspaceKind.LEARNER, available=learner_available, recommended_route=learner_route, reason_code=None if learner_available else "LEARNER_ROLE_INACTIVE"),
+            WorkspaceAvailability(workspace=WorkspaceKind.LECTURER, available=lecturer_available, recommended_route=lecturer_route, reason_code=None if lecturer_available else "LECTURER_ONBOARDING_REQUIRED")
+        ],
+        recommended_workspace=recommended_workspace, recommended_route=recommended_route,
+        can_request_lecturer_role=lecturer is None, generated_at=identity_now()
+    );
+}
 
 def:priv migrate_current_learner_roles -> UserRoleMigrationRecord {
     user_id = jid(root); learners = [root -->][?:Learner];

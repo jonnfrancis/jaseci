@@ -38,6 +38,27 @@ enum RoleAssignmentSource: str {
     MIGRATION = "MIGRATION"
 }
 
+enum RegistrationWorkspaceIntent: str {
+    STUDENT = "STUDENT",
+    LECTURER = "LECTURER"
+}
+
+enum WorkspaceKind: str {
+    LEARNER = "LEARNER",
+    LECTURER = "LECTURER"
+}
+
+enum LecturerOnboardingStep: str {
+    NOT_STARTED = "NOT_STARTED",
+    PROFILE_REQUIRED = "PROFILE_REQUIRED",
+    READY_TO_SUBMIT = "READY_TO_SUBMIT",
+    PENDING_APPROVAL = "PENDING_APPROVAL",
+    ACTIVE = "ACTIVE",
+    REJECTED = "REJECTED",
+    SUSPENDED = "SUSPENDED",
+    ARCHIVED = "ARCHIVED"
+}
+
 node UserIdentityProfile {
     has identity_profile_id: str;
     has user_id: str;
@@ -119,6 +140,30 @@ obj LecturerProfileSummary {
     has status: LecturerProfileStatus;
     has verification_status: LecturerVerificationStatus;
     has profile_completed: bool;
+    has biography: str = "";
+    has staff_number: str | None = None;
+}
+
+obj WorkspaceAvailability {
+    has workspace: WorkspaceKind;
+    has available: bool;
+    has recommended_route: str | None = None;
+    has reason_code: str | None = None;
+}
+
+obj AuthenticatedWorkspaceBootstrap {
+    has user_id: str;
+    has display_name: str;
+    has active_roles: list[UserRoleType];
+    has learner_id: str | None;
+    has lecturer_id: str | None;
+    has lecturer_status: LecturerProfileStatus | None;
+    has lecturer_onboarding_step: LecturerOnboardingStep;
+    has available_workspaces: list[WorkspaceAvailability];
+    has recommended_workspace: WorkspaceKind | None;
+    has recommended_route: str;
+    has can_request_lecturer_role: bool;
+    has generated_at: str;
 }
 
 obj RoleAssignmentResult {

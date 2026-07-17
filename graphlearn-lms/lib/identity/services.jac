@@ -35,6 +35,7 @@ def profile_summary(profile: LecturerProfile) -> LecturerProfileSummary {
         professional_title=profile.professional_title,
         institution_name=profile.institution_name, department=profile.department,
         areas_of_expertise=profile.areas_of_expertise.copy(), status=profile.status,
+        biography=profile.biography, staff_number=profile.staff_number,
         verification_status=profile.verification_status,
         profile_completed=profile.profile_completed
     );
@@ -211,20 +212,47 @@ def request_lecturer_onboarding(display_name: str = "") -> IdentityResult {
         if item.role_type == UserRoleType.LECTURER and item.status != RoleAssignmentStatus.REVOKED { assignment = item; break; }
     }
     if assignment is None {
-        assigned = assign_role(UserRoleType.LECTURER, RoleAssignmentSource.SYSTEM, active=(mode == "DEVELOPMENT_AUTO_ACTIVATE"));
+        assigned = assign_role(UserRoleType.LECTURER, RoleAssignmentSource.REGISTRATION, active=False);
         if not assigned.ok { return assigned; }
     }
     profile = repository.find_lecturer_profile(user_id);
     if profile is None { return identity_error("LECTURER_PROFILE_NOT_FOUND", "Lecturer profile was not found."); }
-    if mode == "ADMIN_APPROVAL" and profile.status == LecturerProfileStatus.DRAFT {
-        profile.status = LecturerProfileStatus.PENDING_REVIEW; profile.updated_at = identity_now();
-        _emit("lecturer_profile.submitted", "success", user_id, {"lecturer_id": profile.lecturer_id});
-    } elif mode == "DEVELOPMENT_AUTO_ACTIVATE" {
-        if not profile.profile_completed { return IdentityResult(ok=True, profile=profile_summary(profile), replayed=profile_result.replayed); }
-        return transition_lecturer_profile(profile, LecturerProfileStatus.ACTIVE, user_id);
-    }
     _emit("role.requested", "success", user_id);
     return IdentityResult(ok=True, profile=profile_summary(profile), replayed=profile_result.replayed);
+}
+
+def submit_lecturer_onboarding() -> IdentityResult {
+    mode = os.getenv("LECTURER_ONBOARDING_MODE", "ADMIN_APPROVAL").strip().upper();
+    if mode == "INVITATION_ONLY" { return identity_error("LECTURER_ONBOARDING_NOT_AVAILABLE", "Lecturer onboarding requires an invitation."); }
+    user_id = jid(root); repository = IdentityRepository();
+    profile = repository.find_lecturer_profile(user_id);
+    if profile is None { return identity_error("LECTURER_PROFILE_NOT_FOUND", "Lecturer profile was not found."); }
+    if profile.status in [LecturerProfileStatus.PENDING_REVIEW, LecturerProfileStatus.ACTIVE] {
+        return IdentityResult(ok=True, profile=profile_summary(profile), replayed=True);
+    }
+    if profile.status == LecturerProfileStatus.REJECTED {
+        reopened = transition_lecturer_profile(profile, LecturerProfileStatus.DRAFT, user_id);
+        if not reopened.ok { return reopened; }
+    }
+    if profile.status != LecturerProfileStatus.DRAFT { return identity_error("LECTURER_ONBOARDING_NOT_AVAILABLE", "This lecturer profile cannot be submitted."); }
+    if not profile.profile_completed { return identity_error("LECTURER_PROFILE_INCOMPLETE", "Display name, institution, and at least one expertise area are required."); }
+    assignment: UserRoleAssignment | None = None;
+    for item in repository.list_role_assignments(user_id) {
+        if item.role_type == UserRoleType.LECTURER and item.status != RoleAssignmentStatus.REVOKED { assignment = item; break; }
+    }
+    if assignment is None { return identity_error("ROLE_ASSIGNMENT_NOT_FOUND", "Lecturer onboarding was not started."); }
+    if mode == "DEVELOPMENT_AUTO_ACTIVATE" {
+        if assignment.status == RoleAssignmentStatus.PENDING {
+            role_result = transition_role(assignment, RoleAssignmentStatus.ACTIVE, user_id);
+            if not role_result.ok { return role_result; }
+        }
+        result = transition_lecturer_profile(profile, LecturerProfileStatus.ACTIVE, user_id);
+        if result.ok { _emit("lecturer_onboarding.activated", "success", user_id, {"lecturer_id": profile.lecturer_id}); }
+        return result;
+    }
+    result = transition_lecturer_profile(profile, LecturerProfileStatus.PENDING_REVIEW, user_id);
+    if result.ok { _emit("lecturer_onboarding.pending", "success", user_id, {"lecturer_id": profile.lecturer_id}); }
+    return result;
 }
 
 def resolve_course_owner_identity(actor: AuthenticatedActor) -> IdentityResult {
