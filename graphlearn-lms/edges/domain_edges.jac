@@ -106,6 +106,7 @@ edge HAS_SOURCE_DOCUMENT {
     has attached_by: str;
     has order_index: int = 0;
 }
+edge HAS_STORAGE_ORPHAN {}
 edge HAS_CONTENT_CHUNK { has order_index: int; }
 edge HAS_BLUEPRINT {}
 edge DERIVED_FROM {

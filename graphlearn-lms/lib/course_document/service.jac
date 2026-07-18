@@ -6,7 +6,8 @@ import os;
 import re;
 import uuid;
 import from lib.course_document.repositories { CourseDocumentRepository }
-import from lib.course_document.storage { CourseDocumentStorage, LocalCourseDocumentStorage }
+import from lib.course_document.storage_service { CourseDocumentStorageService }
+import from lib.course_document.storage_types { StoreCourseDocumentRequest }
 import from lib.learning_track.application_services { service_now }
 import from lib.learning_track.repositories { repository_find_track, repository_find_version, repository_version_belongs_to }
 import from lib.learning_track.repository_types { ActorContext }
@@ -21,8 +22,8 @@ import from nodes.learning_track { LearningTrackStatus, TrackVersionStatus }
 glob PDF_MIME: str = "application/pdf";
 glob DOCX_MIME: str = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-def _error(code: str, message: str, details: dict[str, str] = {}) -> CourseDocumentUploadResult {
-    return CourseDocumentUploadResult(ok=False, error=CourseDocumentError(code=code, message=message, details=details));
+def _error(code: str, message: str, details: dict[str, str] | None = None) -> CourseDocumentUploadResult {
+    return CourseDocumentUploadResult(ok=False, error=CourseDocumentError(code=code, message=message, details={} if details is None else details));
 }
 
 def _normalized_filename(filename: str) -> str | None {
@@ -51,14 +52,13 @@ def _result(document: CourseDocument, duplicate: bool = False, replaced_id: str 
         ok=True, document_id=document.document_id, track_id=document.track_id,
         track_version_id=document.track_version_id, filename=document.normalized_filename,
         mime_type=document.mime_type, file_size_bytes=document.file_size_bytes,
-        storage_key=document.storage_key, checksum=document.checksum,
         upload_status=str(document.upload_status), processing_status=str(document.processing_status),
         duplicate=duplicate, replaced_document_id=replaced_id
     );
 }
 
 obj CourseDocumentUploadService {
-    has storage: CourseDocumentStorage = LocalCourseDocumentStorage();
+    has storage_service: CourseDocumentStorageService = CourseDocumentStorageService();
     has repository: CourseDocumentRepository = CourseDocumentRepository();
 
     def upload(actor: ActorContext, input: UploadCourseDocumentInput) -> CourseDocumentUploadResult {
@@ -87,26 +87,26 @@ obj CourseDocumentUploadService {
         if duplicate is not None and duplicate.is_active { return _result(duplicate, True); }
         active = self.repository.find_active_for_version(version);
         if active is not None and not input.replace_existing { return _error("COURSE_DOCUMENT_REPLACEMENT_REQUIRED", "Confirm replacement of the current source document."); }
-        document_id = "doc_" + uuid.uuid4().hex; final_key = "course-documents/" + track.track_id + "/" + version.track_version_id + "/" + document_id + "/source." + extension; staging_key = final_key + ".uploading"; timestamp = service_now();
+        document_id = "doc_" + uuid.uuid4().hex; upload_id = "upl_" + uuid.uuid4().hex; timestamp = service_now();
         emit_event(ObservabilityEvent(timestamp=timestamp, level="info", event="course_document.upload_started", status="started", message="Course document upload started.", request_id=actor.request_id, correlation_id=actor.request_id, walker_name="upload_course_document", entity_ids={"track_id": track.track_id, "track_version_id": version.track_version_id}, attributes={"mime_type": input.mime_type, "file_size_bytes": input.file_size_bytes}));
         try {
-            if not self.storage.put(staging_key, content) or not self.storage.move(staging_key, final_key) or not self.storage.exists(final_key) { raise IOError("storage commit failed"); }
+            stored = self.storage_service.store_document(StoreCourseDocumentRequest(document_id=document_id, track_id=track.track_id, track_version_id=version.track_version_id, canonical_extension=extension, client_upload_id=upload_id, uploaded_by=actor.user_id, payload=content));
         } except Exception {
-            try { _ = self.storage.delete(staging_key); } except Exception {}
             emit_event(ObservabilityEvent(timestamp=service_now(), level="error", event="course_document.upload_failed", status="failed", message="Course document storage failed.", request_id=actor.request_id, correlation_id=actor.request_id, walker_name="upload_course_document", error_code="COURSE_DOCUMENT_STORAGE_FAILED", entity_ids={"track_id": track.track_id, "track_version_id": version.track_version_id}));
-            return _error("COURSE_DOCUMENT_STORAGE_FAILED", "The document could not be stored. Retry with the same request key.");
+            return _error("STORAGE_WRITE_FAILED", "The course document could not be stored. Retry with the same request key.");
         }
-        document = CourseDocument(document_id=document_id, track_id=track.track_id, track_version_id=version.track_version_id, original_filename=input.original_filename, normalized_filename=normalized, mime_type=input.mime_type, file_extension=extension, file_size_bytes=len(content), storage_provider=self.storage.provider_name(), storage_key=final_key, checksum_algorithm="sha256", checksum=checksum, upload_status=CourseDocumentUploadStatus.STORED, processing_status=CourseDocumentProcessingStatus.NOT_STARTED, uploaded_by=actor.user_id, uploaded_at=timestamp, updated_at=timestamp, idempotency_scope=scope);
+        document = CourseDocument(document_id=document_id, track_id=track.track_id, track_version_id=version.track_version_id, original_filename=input.original_filename, normalized_filename=normalized, mime_type=input.mime_type, file_extension=extension, file_size_bytes=stored.size_bytes, storage_provider=self.storage_service.storage.provider_name(), storage_key=stored.storage_key, checksum_algorithm="sha256", checksum=stored.checksum_sha256, upload_status=CourseDocumentUploadStatus.STORED_PENDING_COMMIT, processing_status=CourseDocumentProcessingStatus.NOT_STARTED, uploaded_by=actor.user_id, uploaded_at=timestamp, updated_at=timestamp, idempotency_scope=scope);
         # Re-check the one-active invariant immediately before graph attachment.
         concurrent = self.repository.find_active_for_version(version);
         if concurrent is not None and (active is None or concurrent.document_id != active.document_id) {
-            _ = self.storage.delete(final_key); return _error("COURSE_DOCUMENT_ALREADY_EXISTS", "Another source document became active. Reload and retry.");
+            _ = self.storage_service.register_orphan(stored.storage_key, upload_id, document_id, "CONCURRENT_ACTIVATION_LOST"); return _error("COURSE_DOCUMENT_ALREADY_EXISTS", "Another source document became active. Reload and retry.");
         }
         if not self.repository.attach_to_version(track, version, document, actor.user_id, timestamp) {
-            _ = self.storage.delete(final_key); return _error("TRACK_VERSION_MISMATCH", "Document could not be attached to the requested version.");
+            _ = self.storage_service.register_orphan(stored.storage_key, upload_id, document_id, "METADATA_COMMIT_FAILED"); return _error("TRACK_VERSION_MISMATCH", "Document could not be attached to the requested version.");
         }
+        document.upload_status = CourseDocumentUploadStatus.STORED;
         replaced_id: str | None = None;
-        if active is not None { replaced_id = active.document_id; self.repository.mark_inactive(active, timestamp); }
+        if active is not None { replaced_id = active.document_id; self.repository.mark_inactive(active, document.document_id, timestamp); }
         emit_event(ObservabilityEvent(timestamp=service_now(), level="info", event="course_document.upload_completed", status="completed", message="Course document upload completed.", request_id=actor.request_id, correlation_id=actor.request_id, walker_name="upload_course_document", entity_ids={"document_id": document.document_id, "track_id": track.track_id, "track_version_id": version.track_version_id}, attributes={"mime_type": document.mime_type, "file_size_bytes": document.file_size_bytes, "checksum_prefix": checksum[:12]}));
         return _result(document, False, replaced_id);
     }

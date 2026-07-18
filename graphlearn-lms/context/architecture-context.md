@@ -447,3 +447,6 @@ Advantages:
 20. Lecturer-owner authorization requires matching scalar ownership and `OWNS_TRACK`; a missing-edge scalar fallback is disabled by default, feature-flagged, and observable during migration.
 21. Published and superseded curriculum versions remain immutable for owners, collaborators, and administrators; changes require a new draft version.
 22. Lecturer learner/submission access must prove the complete same-track enrollment and version scope; identifier possession alone grants no access.
+23. Course source bytes live behind `CourseDocumentStorageService` and Jac `store()`; graph nodes retain metadata only, canonical object keys are server-generated and immutable, and no walker or client receives backend paths or credentials.
+24. A stored course source is usable only when its graph metadata, byte size, SHA-256, track/version scope, lifecycle state, and authorization context agree. Published source objects are protected from physical deletion by default.
+25. Replicated deployments must use a shared durable Jac storage backend. Local storage is development/single-server only and fails course-storage readiness when explicitly configured as multi-instance.

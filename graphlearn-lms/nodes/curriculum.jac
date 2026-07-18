@@ -49,8 +49,9 @@ node ActivityTemplate {
 }
 
 enum CourseDocumentUploadStatus: str {
-    PENDING = "PENDING", UPLOADING = "UPLOADING", STORED = "STORED",
-    FAILED = "FAILED", DELETED = "DELETED"
+    PENDING = "PENDING", UPLOADING = "UPLOADING", STORED_PENDING_COMMIT = "STORED_PENDING_COMMIT",
+    STORED = "STORED", REPLACED = "REPLACED", FAILED = "FAILED", ORPHANED = "ORPHANED",
+    DELETING = "DELETING", DELETED = "DELETED"
 }
 
 enum CourseDocumentProcessingStatus: str {
@@ -81,7 +82,20 @@ node CourseDocument {
     has processing_error_code: str | None = None;
     has processing_error_message: str | None = None;
     has is_active: bool = True;
+    has replaced_document_id: str | None = None;
     has deleted_at: str | None = None;
+}
+
+node StorageOrphanCandidate {
+    has orphan_id: str;
+    has storage_key: str;
+    has upload_id: str | None;
+    has document_id: str | None;
+    has reason: str;
+    has detected_at: str;
+    has eligible_for_cleanup_at: str;
+    has cleanup_status: str = "PENDING";
+    has cleanup_error_code: str | None = None;
 }
 
 obj UploadCourseDocumentInput {
@@ -109,8 +123,6 @@ obj CourseDocumentUploadResult {
     has filename: str | None = None;
     has mime_type: str | None = None;
     has file_size_bytes: int | None = None;
-    has storage_key: str | None = None;
-    has checksum: str | None = None;
     has upload_status: str | None = None;
     has processing_status: str | None = None;
     has duplicate: bool = False;
