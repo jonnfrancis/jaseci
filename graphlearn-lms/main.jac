@@ -46,6 +46,7 @@ import from walkers.course_track_management {
 }
 import from walkers.lecturer_course_dashboard { get_lecturer_course_dashboard as lecturer_course_dashboard_walker }
 import from walkers.course_document_upload { upload_course_document }
+import from walkers.course_document_processing { cancel_course_document_processing, get_course_document_processing_status, retry_course_document_processing }
 
 # Client-side UI
 cl {

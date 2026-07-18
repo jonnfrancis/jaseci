@@ -8,6 +8,7 @@ import uuid;
 import from lib.course_document.repositories { CourseDocumentRepository }
 import from lib.course_document.storage_service { CourseDocumentStorageService }
 import from lib.course_document.storage_types { StoreCourseDocumentRequest }
+import from lib.course_document.processing_service { DocumentProcessingOrchestrator }
 import from lib.course_document.validation_service { DocumentSecurityValidationService, DOCUMENT_VALIDATION_POLICY_VERSION }
 import from lib.course_document.extraction_service { DOCUMENT_EXTRACTION_SCHEMA_VERSION, DocumentTextExtractionService }
 import from lib.learning_track.application_services { service_now }
@@ -109,7 +110,8 @@ obj CourseDocumentUploadService {
         }
         document.upload_status = CourseDocumentUploadStatus.STORED;
         replaced_id: str | None = None;
-        if active is not None { replaced_id = active.document_id; self.repository.mark_inactive(active, document.document_id, timestamp); }
+        if active is not None { replaced_id = active.document_id; DocumentProcessingOrchestrator().request_cancel(active, "DOCUMENT_REPLACED"); self.repository.mark_inactive(active, document.document_id, timestamp); }
+        orchestrator = DocumentProcessingOrchestrator(); _ = orchestrator.start_pipeline(document, actor.request_id);
         # Validate the immutable stored object, never the client byte stream. The service
         # persists a terminal non-processable state on every policy/infrastructure failure.
         validation_result = DocumentSecurityValidationService(storage_service=self.storage_service, repository=self.repository).validate_document(
@@ -118,6 +120,7 @@ obj CourseDocumentUploadService {
                 track_version_id=document.track_version_id, actor_id=actor.user_id,
                 request_id=actor.request_id, validation_policy_version=DOCUMENT_VALIDATION_POLICY_VERSION)
         );
+        _ = orchestrator.reconcile_completed_artifacts(document);
         if validation_result.status == DocumentValidationStatus.VALIDATED and os.getenv("DOCUMENT_EXTRACTION_AUTO_START", "true").lower() in ["1", "true", "yes", "on"] {
             self.repository.mark_extraction_queued(document);
             _ = DocumentTextExtractionService(storage_service=self.storage_service, document_repository=self.repository).extract_document(
@@ -126,6 +129,7 @@ obj CourseDocumentUploadService {
                     track_version_id=document.track_version_id, request_id=actor.request_id, actor_id=actor.user_id,
                     extraction_schema_version=DOCUMENT_EXTRACTION_SCHEMA_VERSION)
             );
+            _ = orchestrator.reconcile_completed_artifacts(document);
         }
         emit_event(ObservabilityEvent(timestamp=service_now(), level="info", event="course_document.upload_completed", status="completed", message="Course document upload completed.", request_id=actor.request_id, correlation_id=actor.request_id, walker_name="upload_course_document", entity_ids={"document_id": document.document_id, "track_id": track.track_id, "track_version_id": version.track_version_id}, attributes={"mime_type": document.mime_type, "file_size_bytes": document.file_size_bytes, "checksum_prefix": checksum[:12]}));
         return _result(document, False, replaced_id);

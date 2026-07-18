@@ -109,7 +109,10 @@ edge HAS_SOURCE_DOCUMENT {
 edge HAS_STORAGE_ORPHAN {}
 edge HAS_EXTRACTION { has created_at: str; }
 edge HAS_EXTRACTION_BLOCK { has order_index: int; }
+edge HAS_CHUNK_SET { has created_at: str; }
 edge HAS_CONTENT_CHUNK { has order_index: int; }
+edge HAS_PROCESSING_JOB { has stage: str; has created_at: str; }
+edge HAS_JOB_ATTEMPT { has attempt_number: int; }
 edge HAS_BLUEPRINT {}
 edge DERIVED_FROM {
     has page_start: int | None = None;

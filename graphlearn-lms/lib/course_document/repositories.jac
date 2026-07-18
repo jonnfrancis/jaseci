@@ -2,7 +2,7 @@
 
 import from edges.domain_edges { HAS_LECTURER_PROFILE, HAS_SOURCE_DOCUMENT, HAS_STORAGE_ORPHAN, HAS_TRACK_VERSION, OWNS_TRACK }
 import from lib.learning_track.repositories { repository_version_belongs_to }
-import from nodes.curriculum { CourseDocument, CourseDocumentProcessingStatus, CourseDocumentUploadStatus, DocumentExtractionStatus, DocumentValidationStatus, StorageOrphanCandidate }
+import from nodes.curriculum { CourseDocument, CourseDocumentProcessingStatus, CourseDocumentUploadStatus, DocumentChunkingStatus, DocumentExtractionStatus, DocumentValidationStatus, StorageOrphanCandidate }
 import from nodes.learning_track { LearningTrack, TrackVersion }
 import from nodes.identity { LecturerProfile }
 
@@ -69,6 +69,9 @@ obj CourseDocumentRepository {
     def mark_ocr_required(document: CourseDocument, code: str, message: str, timestamp: str) { document.extraction_status = DocumentExtractionStatus.OCR_REQUIRED; document.processing_status = CourseDocumentProcessingStatus.OCR_REQUIRED; document.processing_error_code = code; document.processing_error_message = message; document.updated_at = timestamp; }
     def mark_no_extractable_text(document: CourseDocument, code: str, message: str, timestamp: str) { document.extraction_status = DocumentExtractionStatus.NO_EXTRACTABLE_TEXT; document.processing_status = CourseDocumentProcessingStatus.NO_EXTRACTABLE_TEXT; document.processing_error_code = code; document.processing_error_message = message; document.updated_at = timestamp; }
     def mark_extraction_failed(document: CourseDocument, code: str, message: str, timestamp: str) { document.extraction_status = DocumentExtractionStatus.EXTRACTION_FAILED; document.processing_status = CourseDocumentProcessingStatus.FAILED; document.processing_error_code = code; document.processing_error_message = message; document.updated_at = timestamp; }
+    def mark_chunking(document: CourseDocument, timestamp: str) -> bool { if document.chunking_status == DocumentChunkingStatus.CHUNKING { return False; } document.chunking_status = DocumentChunkingStatus.CHUNKING; document.processing_status = CourseDocumentProcessingStatus.CHUNKING; document.updated_at = timestamp; return True; }
+    def mark_chunked(document: CourseDocument, timestamp: str) { document.chunking_status = DocumentChunkingStatus.CHUNKED; document.processing_status = CourseDocumentProcessingStatus.ANALYZING; document.processing_error_code = None; document.processing_error_message = None; document.updated_at = timestamp; }
+    def mark_chunking_failed(document: CourseDocument, code: str, message: str, timestamp: str) { document.chunking_status = DocumentChunkingStatus.CHUNKING_FAILED; document.processing_status = CourseDocumentProcessingStatus.FAILED; document.processing_error_code = code; document.processing_error_message = message; document.updated_at = timestamp; }
     def attach_to_version(track: LearningTrack, version: TrackVersion, document: CourseDocument, actor_id: str, attached_at: str) -> bool {
         if not repository_version_belongs_to(track, version) or document.track_id != track.track_id or document.track_version_id != version.track_version_id { return False; }
         if document in [version ->:HAS_SOURCE_DOCUMENT:->[?:CourseDocument]] { return True; }

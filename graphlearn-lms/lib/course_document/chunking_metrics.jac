@@ -1,0 +1,4 @@
+"""Low-cardinality document chunking metrics."""
+glob DOCUMENT_CHUNKING_METRICS: dict[str, int] = {};
+def record_document_chunking(result: str, duration_ms: int, count: int = 0, tokens: int = 0) { for key in ["document_chunking_total", "document_chunking_" + result.lower() + "_total"] { DOCUMENT_CHUNKING_METRICS[key] = DOCUMENT_CHUNKING_METRICS.get(key, 0) + 1; } DOCUMENT_CHUNKING_METRICS["document_chunking_duration_ms_total"] = DOCUMENT_CHUNKING_METRICS.get("document_chunking_duration_ms_total", 0) + duration_ms; DOCUMENT_CHUNKING_METRICS["document_chunk_count"] = DOCUMENT_CHUNKING_METRICS.get("document_chunk_count", 0) + count; DOCUMENT_CHUNKING_METRICS["document_chunk_tokens_total"] = DOCUMENT_CHUNKING_METRICS.get("document_chunk_tokens_total", 0) + tokens; }
+def document_chunking_metric(name: str) -> int { return DOCUMENT_CHUNKING_METRICS.get(name, 0); }

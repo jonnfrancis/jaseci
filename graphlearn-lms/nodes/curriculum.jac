@@ -67,6 +67,33 @@ enum DocumentExtractionStatus: str {
     NO_EXTRACTABLE_TEXT = "NO_EXTRACTABLE_TEXT", EXTRACTION_FAILED = "EXTRACTION_FAILED"
 }
 
+enum DocumentChunkingStatus: str {
+    NOT_STARTED = "NOT_STARTED", QUEUED = "QUEUED", CHUNKING = "CHUNKING",
+    CHUNKED = "CHUNKED", CHUNKING_FAILED = "CHUNKING_FAILED"
+}
+
+enum DocumentProcessingStage: str {
+    STORAGE = "STORAGE", SECURITY_VALIDATION = "SECURITY_VALIDATION",
+    TEXT_EXTRACTION = "TEXT_EXTRACTION", CONTENT_CHUNKING = "CONTENT_CHUNKING",
+    BLUEPRINT_GENERATION = "BLUEPRINT_GENERATION", BLUEPRINT_VALIDATION = "BLUEPRINT_VALIDATION"
+}
+
+enum ProcessingJobStatus: str {
+    PENDING = "PENDING", QUEUED = "QUEUED", RUNNING = "RUNNING", RETRY_WAIT = "RETRY_WAIT",
+    SUCCEEDED = "SUCCEEDED", FAILED = "FAILED", CANCEL_REQUESTED = "CANCEL_REQUESTED",
+    CANCELLED = "CANCELLED", STALE = "STALE", BLOCKED = "BLOCKED"
+}
+
+enum DocumentProcessingState: str {
+    UPLOADED = "UPLOADED", STORED = "STORED", VALIDATION_PENDING = "VALIDATION_PENDING",
+    VALIDATING = "VALIDATING", VALIDATION_FAILED = "VALIDATION_FAILED", VALIDATED = "VALIDATED",
+    EXTRACTION_PENDING = "EXTRACTION_PENDING", EXTRACTING = "EXTRACTING", OCR_REQUIRED = "OCR_REQUIRED",
+    NO_EXTRACTABLE_TEXT = "NO_EXTRACTABLE_TEXT", EXTRACTION_FAILED = "EXTRACTION_FAILED",
+    EXTRACTED = "EXTRACTED", CHUNKING_PENDING = "CHUNKING_PENDING", CHUNKING = "CHUNKING",
+    CHUNKING_FAILED = "CHUNKING_FAILED", CHUNKED = "CHUNKED",
+    READY_FOR_BLUEPRINT = "READY_FOR_BLUEPRINT", CANCELLED = "CANCELLED", BLOCKED = "BLOCKED"
+}
+
 enum ExtractionQuality: str { HIGH = "HIGH", MEDIUM = "MEDIUM", LOW = "LOW" }
 
 enum ExtractionBlockType: str {
@@ -105,7 +132,9 @@ node CourseDocument {
     has uploaded_at: str;
     has updated_at: str;
     has idempotency_scope: str;
+    has processing_state: DocumentProcessingState = DocumentProcessingState.UPLOADED;
     has extraction_status: DocumentExtractionStatus = DocumentExtractionStatus.NOT_STARTED;
+    has chunking_status: DocumentChunkingStatus = DocumentChunkingStatus.NOT_STARTED;
     has validation_status: DocumentValidationStatus = DocumentValidationStatus.PENDING;
     has validation_version: int = 1;
     has validation_error_code: str | None = None;
@@ -314,17 +343,144 @@ obj CourseDocumentUploadResult {
     has error: CourseDocumentError | None = None;
 }
 
+obj HeadingPathItem { has level: int; has text: str; }
+
+obj LogicalSection {
+    has heading_path: list[HeadingPathItem];
+    has blocks: list[ExtractionBlock];
+    has page_start: int | None;
+    has page_end: int | None;
+    has character_count: int;
+}
+
+obj ChunkingConfig {
+    has target_tokens: int = 800;
+    has max_tokens: int = 1200;
+    has min_tokens: int = 150;
+    has overlap_tokens: int = 100;
+    has max_characters: int = 6000;
+    has max_chunks: int = 10000;
+    has include_footnotes: bool = True;
+    has include_captions: bool = True;
+    has include_headers: bool = False;
+    has include_footers: bool = False;
+    has strategy_name: str = "structural-v1";
+    has schema_version: int = 1;
+}
+
+obj ChunkingRequestContext {
+    has document_id: str; has track_id: str; has track_version_id: str;
+    has extraction_id: str; has request_id: str; has actor_id: str | None;
+    has config: ChunkingConfig; has force_rechunk: bool = False;
+}
+
+obj DocumentChunkingResult {
+    has document_id: str; has extraction_id: str; has status: DocumentChunkingStatus;
+    has chunk_count: int = 0; has total_characters: int = 0; has total_words: int = 0;
+    has total_estimated_tokens: int = 0; has average_chunk_tokens: float = 0.0;
+    has source_coverage_ratio: float = 0.0; has warnings: list[str] = [];
+    has error_code: str | None = None;
+}
+
+node DocumentChunkSet {
+    has chunk_set_id: str; has document_id: str; has extraction_id: str;
+    has track_id: str; has track_version_id: str; has source_checksum_sha256: str;
+    has schema_version: int; has strategy_name: str; has config_hash: str;
+    has status: DocumentChunkingStatus; has created_at: str;
+    has chunk_count: int = 0;
+    has total_characters: int = 0; has total_words: int = 0; has total_estimated_tokens: int = 0;
+    has average_chunk_tokens: float = 0.0; has source_coverage_ratio: float = 0.0;
+    has warnings_json: str = "[]"; has contains_untrusted_instruction_like_text: bool = False;
+    has is_active: bool = False; has completed_at: str | None = None;
+    has error_code: str | None = None;
+}
+
+node DocumentProcessingJob {
+    has job_id: str; has document_id: str; has track_id: str; has track_version_id: str;
+    has stage: DocumentProcessingStage; has status: ProcessingJobStatus;
+    has idempotency_key: str; has created_at: str; has updated_at: str;
+    has job_generation: int = 1; has attempt_number: int = 0; has max_attempts: int = 3;
+    has priority: int = 100; has queued_at: str | None = None; has started_at: str | None = None;
+    has completed_at: str | None = None; has next_retry_at: str | None = None;
+    has worker_id: str | None = None; has lease_expires_at: str | None = None;
+    has last_heartbeat_at: str | None = None; has progress_percent: int = 0;
+    has progress_message: str | None = None; has error_code: str | None = None;
+    has error_message: str | None = None; has retryable: bool | None = None;
+    has cancel_requested_at: str | None = None; has cancelled_at: str | None = None;
+    has cancellation_reason: str | None = None;
+}
+
+node ProcessingJobAttempt {
+    has attempt_id: str; has job_id: str; has attempt_number: int; has status: str;
+    has started_at: str; has worker_id: str | None = None; has completed_at: str | None = None;
+    has error_code: str | None = None; has error_message: str | None = None;
+    has retryable: bool | None = None; has duration_ms: int | None = None;
+    has metadata_json: str | None = None;
+}
+
+obj StageEligibility {
+    has eligible: bool; has stage: DocumentProcessingStage;
+    has blocking_stage: DocumentProcessingStage | None = None;
+    has error_code: str | None = None; has message: str | None = None;
+}
+
+obj ProcessingWorkerContext {
+    has worker_id: str; has job_id: str; has attempt_id: str; has request_id: str;
+    has cancellation_check_interval: int = 25;
+}
+
+obj StageExecutionResult {
+    has succeeded: bool; has retryable: bool; has error_code: str | None = None;
+    has error_message: str | None = None; has artifact_id: str | None = None;
+    has warnings: list[str] = [];
+}
+
+obj StageReconciliationResult {
+    has completed: bool; has artifact_id: str | None = None; has error_code: str | None = None;
+}
+
+obj DocumentProcessingSummary {
+    has document_id: str; has state: DocumentProcessingState; has overall_progress_percent: int;
+    has retry_available: bool; has cancel_available: bool; has updated_at: str;
+    has current_stage: DocumentProcessingStage | None = None; has progress_message: str | None = None;
+    has error_code: str | None = None; has user_message: str | None = None;
+    has started_at: str | None = None; has completed_at: str | None = None;
+}
+
+obj ProcessingStageSummary {
+    has stage: DocumentProcessingStage; has status: str; has attempt_count: int;
+    has started_at: str | None = None; has completed_at: str | None = None;
+    has error_code: str | None = None;
+}
+
+obj DocumentProcessingStatusView {
+    has summary: DocumentProcessingSummary; has stages: list[ProcessingStageSummary] = [];
+    has warnings: list[str] = [];
+}
+
 node CourseContentChunk {
     has chunk_id: str;
     has document_id: str;
+    has extraction_id: str;
     has track_id: str;
     has track_version_id: str;
+    has chunking_strategy: str;
     has order_index: int;
     has content: str;
-    has heading: str | None = None;
+    has character_count: int;
+    has word_count: int;
+    has estimated_token_count: int;
+    has source_block_ids_json: str;
+    has content_hash: str;
+    has created_at: str;
+    has chunking_schema_version: int = 1;
+    has title: str | None = None;
+    has heading_path_json: str | None = None;
     has page_start: int | None = None;
     has page_end: int | None = None;
-    has token_count: int = 0;
+    has source_locator_json: str | None = None;
+    has overlap_prefix_characters: int = 0;
+    has overlap_suffix_characters: int = 0;
 }
 
 node CourseBlueprint {
