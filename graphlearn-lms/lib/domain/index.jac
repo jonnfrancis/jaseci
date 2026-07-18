@@ -4,7 +4,7 @@ import from edges.domain_edges {
     ASSESSES_SKILL, CONTAINS_MODULE, CONTAINS_SKILL, DEPENDS_ON_ROADMAP_ITEM,
     DERIVED_FROM, EVIDENCE_FOR_MASTERY, FOR_TRACK, FOR_TRACK_VERSION,
     HAS_ACTIVITY_TEMPLATE, HAS_ASSESSMENT_ATTEMPT, HAS_BLUEPRINT, HAS_CATALOGUE,
-    HAS_CONTENT_CHUNK, HAS_ENROLLMENT, HAS_LEARNING_TRACK, HAS_LESSON_PROGRESS,
+    HAS_CONTENT_CHUNK, HAS_ENROLLMENT, HAS_EXTRACTION, HAS_EXTRACTION_BLOCK, HAS_LEARNING_TRACK, HAS_LESSON_PROGRESS,
     HAS_LESSON_TEMPLATE, HAS_MASTERY, HAS_RECOMMENDATION, HAS_ROADMAP,
     HAS_ROADMAP_ITEM, HAS_SOURCE_DOCUMENT, HAS_SUBMISSION, HAS_TRACK_CONFIGURATION,
     HAS_TRACK_VERSION, LESSON_HAS_ACTIVITY, MASTERY_OF_SKILL, MODULE_CONTAINS_SKILL,
@@ -23,9 +23,10 @@ import from nodes.identity {
     UserRoleMigrationRecord, UserRoleType
 }
 import from nodes.curriculum {
-    ActivityTemplate, CourseBlueprint, CourseContentChunk, CourseDocument,
+    ActivityTemplate, CourseBlueprint, CourseContentChunk, CourseDocument, DocumentExtraction, ExtractionBlock,
     CourseDocumentError, CourseDocumentProcessingStatus, CourseDocumentUploadResult,
-    CourseDocumentUploadStatus, CourseModule, LessonTemplate, UploadCourseDocumentInput
+    CourseDocumentUploadStatus, CourseModule, DocumentExtractionResult, DocumentExtractionStatus,
+    ExtractionBlockType, ExtractionQuality, ExtractionRequestContext, LessonTemplate, UploadCourseDocumentInput
 }
 import from nodes.authorization {
     AdministrativePermission, AuthorizationActor, AuthorizationAuditEvent,
