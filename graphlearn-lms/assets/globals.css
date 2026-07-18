@@ -58,6 +58,7 @@
   --color-brand: var(--accent-primary);
   --color-accent-dim: var(--accent-primary-dim);
   --color-ai: var(--accent-ai);
+  --color-ai-accent: var(--accent-ai);
   --color-ai-text: var(--accent-ai-text);
   --color-state-error: var(--state-error);
   --color-state-success: var(--state-success);

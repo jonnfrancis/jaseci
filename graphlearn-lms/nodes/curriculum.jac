@@ -458,6 +458,27 @@ obj DocumentProcessingStatusView {
     has warnings: list[str] = [];
 }
 
+obj CourseSourceDocumentView {
+    has document_id: str;
+    has filename: str;
+    has file_type: str;
+    has file_size_bytes: int;
+    has uploaded_at: str;
+    has is_active: bool;
+}
+
+obj CourseSourceWorkspaceView {
+    has track_id: str;
+    has track_version_id: str;
+    has source_required: bool;
+    has status_label: str;
+    has next_action_label: str;
+    has blocker_message: str;
+    has interpretation_eligible: bool;
+    has document: CourseSourceDocumentView | None = None;
+    has processing: DocumentProcessingStatusView | None = None;
+}
+
 node CourseContentChunk {
     has chunk_id: str;
     has document_id: str;

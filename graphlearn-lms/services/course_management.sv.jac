@@ -16,8 +16,8 @@ import from nodes.lecturer_dashboard {
     CourseDashboardAction, CourseReadinessState, LecturerCourseDashboardItem,
     LecturerCourseSort, LecturerDashboardQuery, LecturerDashboardResponse, SortDirection
 }
-import from lib.course_document.application_services { load_authorized_active_document, upload_authorized_course_document }
-import from nodes.curriculum { CourseDocument, CourseDocumentUploadResult, UploadCourseDocumentInput }
+import from lib.course_document.application_services { cancel_authorized_document_processing, load_authorized_active_document, load_authorized_source_workspace, retry_authorized_document_processing, upload_authorized_course_document }
+import from nodes.curriculum { CourseDocument, CourseDocumentUploadResult, CourseSourceWorkspaceView, UploadCourseDocumentInput }
 
 def _detail(result: ServiceResult) -> LecturerCourseDetail {
     if not result.ok or not isinstance(result.value, LecturerCourseDetail) {
@@ -69,3 +69,7 @@ def:priv load_course_source_document(track_id: str, track_version_id: str) -> Co
 def:priv upload_lecturer_course_document(input: UploadCourseDocumentInput) -> CourseDocumentUploadResult {
     return upload_authorized_course_document(input);
 }
+
+def:priv load_course_source_workspace(track_id: str, track_version_id: str) -> CourseSourceWorkspaceView { return load_authorized_source_workspace(track_id, track_version_id); }
+def:priv retry_lecturer_course_document(track_id: str, track_version_id: str, document_id: str) -> CourseSourceWorkspaceView { _ = retry_authorized_document_processing(track_id, track_version_id, document_id); return load_authorized_source_workspace(track_id, track_version_id); }
+def:priv cancel_lecturer_course_document(track_id: str, track_version_id: str, document_id: str) -> CourseSourceWorkspaceView { _ = cancel_authorized_document_processing(track_id, track_version_id, document_id); return load_authorized_source_workspace(track_id, track_version_id); }
