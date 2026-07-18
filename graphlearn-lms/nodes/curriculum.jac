@@ -48,17 +48,74 @@ node ActivityTemplate {
     has source_references_json: str = "[]";
 }
 
+enum CourseDocumentUploadStatus: str {
+    PENDING = "PENDING", UPLOADING = "UPLOADING", STORED = "STORED",
+    FAILED = "FAILED", DELETED = "DELETED"
+}
+
+enum CourseDocumentProcessingStatus: str {
+    NOT_STARTED = "NOT_STARTED", QUEUED = "QUEUED", EXTRACTING = "EXTRACTING",
+    CHUNKING = "CHUNKING", ANALYZING = "ANALYZING",
+    REVIEW_REQUIRED = "REVIEW_REQUIRED", COMPLETED = "COMPLETED", FAILED = "FAILED"
+}
+
 node CourseDocument {
     has document_id: str;
     has track_id: str;
     has track_version_id: str;
-    has filename: str;
+    has original_filename: str;
+    has normalized_filename: str;
     has mime_type: str;
+    has file_extension: str;
+    has file_size_bytes: int;
+    has storage_provider: str;
     has storage_key: str;
+    has checksum_algorithm: str;
     has checksum: str;
-    has processing_status: str;
+    has upload_status: CourseDocumentUploadStatus;
+    has processing_status: CourseDocumentProcessingStatus;
     has uploaded_by: str;
     has uploaded_at: str;
+    has updated_at: str;
+    has idempotency_scope: str;
+    has processing_error_code: str | None = None;
+    has processing_error_message: str | None = None;
+    has is_active: bool = True;
+    has deleted_at: str | None = None;
+}
+
+obj UploadCourseDocumentInput {
+    has track_id: str;
+    has track_version_id: str;
+    has original_filename: str;
+    has mime_type: str;
+    has file_size_bytes: int;
+    has idempotency_key: str;
+    has content_base64: str;
+    has replace_existing: bool = False;
+}
+
+obj CourseDocumentError {
+    has code: str;
+    has message: str;
+    has details: dict[str, str] = {};
+}
+
+obj CourseDocumentUploadResult {
+    has ok: bool;
+    has document_id: str | None = None;
+    has track_id: str | None = None;
+    has track_version_id: str | None = None;
+    has filename: str | None = None;
+    has mime_type: str | None = None;
+    has file_size_bytes: int | None = None;
+    has storage_key: str | None = None;
+    has checksum: str | None = None;
+    has upload_status: str | None = None;
+    has processing_status: str | None = None;
+    has duplicate: bool = False;
+    has replaced_document_id: str | None = None;
+    has error: CourseDocumentError | None = None;
 }
 
 node CourseContentChunk {

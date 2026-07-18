@@ -101,7 +101,11 @@ edge LESSON_HAS_ACTIVITY {
     has required: bool = True;
 }
 edge ASSESSES_SKILL { has assessment_weight: float = 1.0; }
-edge HAS_SOURCE_DOCUMENT { has order_index: int; }
+edge HAS_SOURCE_DOCUMENT {
+    has attached_at: str;
+    has attached_by: str;
+    has order_index: int = 0;
+}
 edge HAS_CONTENT_CHUNK { has order_index: int; }
 edge HAS_BLUEPRINT {}
 edge DERIVED_FROM {

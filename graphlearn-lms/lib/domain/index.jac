@@ -24,7 +24,8 @@ import from nodes.identity {
 }
 import from nodes.curriculum {
     ActivityTemplate, CourseBlueprint, CourseContentChunk, CourseDocument,
-    CourseModule, LessonTemplate
+    CourseDocumentError, CourseDocumentProcessingStatus, CourseDocumentUploadResult,
+    CourseDocumentUploadStatus, CourseModule, LessonTemplate, UploadCourseDocumentInput
 }
 import from nodes.authorization {
     AdministrativePermission, AuthorizationActor, AuthorizationAuditEvent,

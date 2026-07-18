@@ -16,6 +16,8 @@ import from nodes.lecturer_dashboard {
     CourseDashboardAction, CourseReadinessState, LecturerCourseDashboardItem,
     LecturerCourseSort, LecturerDashboardQuery, LecturerDashboardResponse, SortDirection
 }
+import from lib.course_document.application_services { load_authorized_active_document, upload_authorized_course_document }
+import from nodes.curriculum { CourseDocument, CourseDocumentUploadResult, UploadCourseDocumentInput }
 
 def _detail(result: ServiceResult) -> LecturerCourseDetail {
     if not result.ok or not isinstance(result.value, LecturerCourseDetail) {
@@ -58,4 +60,12 @@ def:priv archive_lecturer_course(track_id: str, expected_revision: int, reason: 
 
 def:priv restore_lecturer_course(track_id: str, expected_revision: int) -> LecturerCourseDetail {
     return _detail(restore_authorized_course(track_id, expected_revision));
+}
+
+def:priv load_course_source_document(track_id: str, track_version_id: str) -> CourseDocument | None {
+    return load_authorized_active_document(track_id, track_version_id);
+}
+
+def:priv upload_lecturer_course_document(input: UploadCourseDocumentInput) -> CourseDocumentUploadResult {
+    return upload_authorized_course_document(input);
 }

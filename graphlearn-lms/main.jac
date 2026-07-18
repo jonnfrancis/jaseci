@@ -8,7 +8,8 @@ import from services.challenge { open_challenge, start_challenge, submit_challen
 import from services.course_management {
     archive_lecturer_course, create_lecturer_course, load_lecturer_course,
     load_lecturer_courses, get_lecturer_course_dashboard, restore_lecturer_course,
-    save_lecturer_configuration, save_lecturer_course
+    save_lecturer_configuration, save_lecturer_course,
+    load_course_source_document, upload_lecturer_course_document
 }
 import from services.authorization { list_my_authorized_tracks, migrate_my_lecturer_track_ownership }
 import from services.assessment_journey { generate_roadmap_for_journey }
@@ -44,6 +45,7 @@ import from walkers.course_track_management {
     update_course_track, update_course_track_configuration
 }
 import from walkers.lecturer_course_dashboard { get_lecturer_course_dashboard as lecturer_course_dashboard_walker }
+import from walkers.course_document_upload { upload_course_document }
 
 # Client-side UI
 cl {

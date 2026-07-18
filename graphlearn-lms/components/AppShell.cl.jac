@@ -41,7 +41,7 @@ def:pub AppShell() -> JsxElement {
                 <Route path="/lecturer/courses/new" element={<LecturerGuard><CreateCoursePage /></LecturerGuard>} />
                 <Route path="/lecturer/courses" element={<LecturerGuard><CourseListPage /></LecturerGuard>} />
                 <Route path="/lecturer/courses/:trackId" element={<LecturerGuard><CourseWorkspacePage /></LecturerGuard>} />
-                <Route path="/lecturer/courses/:trackId/documents" element={<LecturerGuard><div className="min-h-screen bg-base p-6 text-copy-primary"><h1 className="text-3xl font-bold tracking-tight">Course documents</h1><p className="mt-4 text-copy-muted">Document upload is coming next. No files are accepted yet.</p></div></LecturerGuard>} />
+                <Route path="/lecturer/courses/:trackId/documents" element={<LecturerGuard><CourseWorkspacePage /></LecturerGuard>} />
             </Routes>
         </Router>;
 }
