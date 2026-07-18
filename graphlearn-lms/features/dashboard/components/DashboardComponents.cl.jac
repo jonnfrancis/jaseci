@@ -14,6 +14,7 @@ import from "lucide-react" {
     RefreshCcw
 }
 import from "@jac/runtime" { Link }
+import from "....lib.utils" { format_datetime }
 import from "....components.ui.button" { Button }
 import from "....components.ui.card" {
     Card,
@@ -480,7 +481,7 @@ def:pub RecentActivityList(activities: list[DashboardRecentActivity]) -> JsxElem
                                 </div>
                                 <div className="min-w-0">
                                     <p className="font-medium text-copy-primary">{activity.title}</p>
-                                    <p className="mt-1 text-xs text-copy-muted">{_title_case(activity.type)} - {activity.timestamp}</p>
+                                    <p className="mt-1 text-xs text-copy-muted">{_title_case(activity.type)} - {format_datetime(activity.timestamp)}</p>
                                     {activity.description != "" and <p className="mt-2 text-sm text-copy-secondary">{activity.description}</p>}
                                 </div>
                             </li>

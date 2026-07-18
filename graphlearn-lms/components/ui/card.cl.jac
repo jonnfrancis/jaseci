@@ -35,7 +35,7 @@ def:pub CardTitle(props: any) -> JsxElement {
             {**attrs}
             data-slot="card-title"
             className={cn(
-                "text-base leading-snug font-medium group-data-[size=sm]/card:text-sm text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",
+                "text-copy-primary text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",
                 props["className"]
             )}
         />;
@@ -48,7 +48,7 @@ def:pub CardDescription(props: any) -> JsxElement {
             {**attrs}
             data-slot="card-description"
             className={cn(
-                "text-muted-foreground text-sm text-muted-foreground text-sm", props["className"]
+                "text-copy-muted text-sm", props["className"]
             )}
         />;
 }

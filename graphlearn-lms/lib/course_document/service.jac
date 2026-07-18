@@ -9,6 +9,7 @@ import from lib.course_document.repositories { CourseDocumentRepository }
 import from lib.course_document.storage_service { CourseDocumentStorageService }
 import from lib.course_document.storage_types { StoreCourseDocumentRequest }
 import from lib.course_document.processing_service { DocumentProcessingOrchestrator }
+import from lib.course_document.processing_workers { DocumentProcessingWorkerService }
 import from lib.course_document.validation_service { DocumentSecurityValidationService, DOCUMENT_VALIDATION_POLICY_VERSION }
 import from lib.course_document.extraction_service { DOCUMENT_EXTRACTION_SCHEMA_VERSION, DocumentTextExtractionService }
 import from lib.learning_track.application_services { service_now }
@@ -120,6 +121,13 @@ obj CourseDocumentUploadService {
                 track_version_id=document.track_version_id, actor_id=actor.user_id,
                 request_id=actor.request_id, validation_policy_version=DOCUMENT_VALIDATION_POLICY_VERSION)
         );
+        if validation_result.status != DocumentValidationStatus.VALIDATED {
+            inline_job = orchestrator.claim_job(document, "inline-validation");
+            if inline_job is not None {
+                retryable_validation = validation_result.status == DocumentValidationStatus.VALIDATION_FAILED;
+                _ = orchestrator.fail_job(document, inline_job, "inline-validation", validation_result.error_code or "DOCUMENT_VALIDATION_FAILED", validation_result.user_message or "Document validation failed.", retryable_validation);
+            }
+        }
         _ = orchestrator.reconcile_completed_artifacts(document);
         if validation_result.status == DocumentValidationStatus.VALIDATED and os.getenv("DOCUMENT_EXTRACTION_AUTO_START", "true").lower() in ["1", "true", "yes", "on"] {
             self.repository.mark_extraction_queued(document);
@@ -130,6 +138,12 @@ obj CourseDocumentUploadService {
                     extraction_schema_version=DOCUMENT_EXTRACTION_SCHEMA_VERSION)
             );
             _ = orchestrator.reconcile_completed_artifacts(document);
+            # Reconciliation queues content chunking after the inline extraction
+            # artifact is committed. Dispatch that durable job in the local upload
+            # workflow so it cannot remain QUEUED without a background scheduler.
+            _ = DocumentProcessingWorkerService(orchestrator=orchestrator).run_next(
+                document, "inline-chunking", actor.request_id
+            );
         }
         emit_event(ObservabilityEvent(timestamp=service_now(), level="info", event="course_document.upload_completed", status="completed", message="Course document upload completed.", request_id=actor.request_id, correlation_id=actor.request_id, walker_name="upload_course_document", entity_ids={"document_id": document.document_id, "track_id": track.track_id, "track_version_id": version.track_version_id}, attributes={"mime_type": document.mime_type, "file_size_bytes": document.file_size_bytes, "checksum_prefix": checksum[:12]}));
         return _result(document, False, replaced_id);

@@ -23,7 +23,8 @@ glob PDF_MIME_TYPE: str = "application/pdf";
 glob DOCX_MIME_TYPE: str = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 def _message(code: str) -> str {
-    if code in ["DOCUMENT_TOO_SMALL", "DOCUMENT_TOO_LARGE"] { return "This file is outside the allowed size range. Please upload a smaller valid document."; }
+    if code == "DOCUMENT_TOO_SMALL" { return "This file is too small to be a valid course document. Please upload the complete PDF or DOCX file."; }
+    if code == "DOCUMENT_TOO_LARGE" { return "This file exceeds the allowed size limit. Please upload a smaller PDF or DOCX file."; }
     if code == "DOCUMENT_ENCRYPTED_UNSUPPORTED" { return "This document is password-protected or encrypted. Please upload an unprotected PDF or DOCX version."; }
     if code in ["DOCUMENT_MACRO_CONTENT_DETECTED", "DOCUMENT_ACTIVE_CONTENT_DETECTED", "DOCUMENT_EMBEDDED_EXECUTABLE_DETECTED"] { return "This document contains unsupported active or embedded content. Please upload a clean PDF or DOCX version."; }
     if code in ["DOCUMENT_MALWARE_DETECTED", "DOCUMENT_MALWARE_SUSPICIOUS", "DOCUMENT_QUARANTINED"] { return "This file could not be accepted for security reasons. Please upload a clean copy of the document."; }

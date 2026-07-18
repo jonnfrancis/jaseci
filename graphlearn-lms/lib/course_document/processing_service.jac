@@ -42,7 +42,14 @@ obj DocumentProcessingProjectionService {
             if job.status == ProcessingJobStatus.CANCELLED { state = DocumentProcessingState.CANCELLED; }
             elif job.status == ProcessingJobStatus.BLOCKED { state = DocumentProcessingState.BLOCKED; }
         }
-        if document.validation_status == DocumentValidationStatus.REJECTED or document.validation_status == DocumentValidationStatus.QUARANTINED or document.validation_status == DocumentValidationStatus.VALIDATION_FAILED { state = DocumentProcessingState.VALIDATION_FAILED; }
+        if document.validation_status == DocumentValidationStatus.REJECTED or document.validation_status == DocumentValidationStatus.QUARANTINED or document.validation_status == DocumentValidationStatus.VALIDATION_FAILED {
+            state = DocumentProcessingState.VALIDATION_FAILED;
+            error_code = document.validation_error_code;
+            user_message = document.validation_error_message or "This source document did not pass validation.";
+            message = user_message;
+            retry = document.validation_status == DocumentValidationStatus.VALIDATION_FAILED;
+            cancel = False;
+        }
         if document.extraction_status == DocumentExtractionStatus.OCR_REQUIRED { state = DocumentProcessingState.OCR_REQUIRED; } elif document.extraction_status == DocumentExtractionStatus.NO_EXTRACTABLE_TEXT { state = DocumentProcessingState.NO_EXTRACTABLE_TEXT; }
         if document.chunking_status == DocumentChunkingStatus.CHUNKED { state = DocumentProcessingState.READY_FOR_BLUEPRINT; percent = 100; message = "Ready for course generation"; retry = False; cancel = False; }
         document.processing_state = state;

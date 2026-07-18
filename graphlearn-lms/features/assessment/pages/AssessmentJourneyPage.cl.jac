@@ -12,6 +12,7 @@ import from "lucide-react" {
     RotateCcw
 }
 import from "@jac/runtime" { useNavigate }
+import from "....lib.utils" { format_datetime }
 import from "....components.ui.button" { Button }
 import from "....components.ui.card" {
     Card,
@@ -765,7 +766,7 @@ def:pub ResultsScreen(
                     </CardHeader>
                     <CardContent className="grid gap-3 md:grid-cols-3">
                         <SummaryMetric label="Questions answered" value={f"{evaluation.question_count}"} />
-                        <SummaryMetric label="Submission timestamp" value={evaluation.submitted_at} />
+                        <SummaryMetric label="Submission timestamp" value={format_datetime(evaluation.submitted_at)} />
                         <SummaryMetric label="Completion time" value={evaluation.completion_time} />
                     </CardContent>
                 </Card>

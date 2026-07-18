@@ -1,13 +1,15 @@
 """Feature 39 course-document upload tests."""
 
 import base64;
+import lib.course_document.tests.security_fixtures as fixtures;
 import from uuid { uuid4 }
 import from lib.course_document.repositories { CourseDocumentRepository }
+import from lib.course_document.processing_job_repository { DocumentProcessingJobRepository }
 import from lib.course_document.service { CourseDocumentUploadService, PDF_MIME }
 import from lib.learning_track.course_management { create_course_service }
 import from lib.learning_track.repositories { repository_find_track, repository_versions }
 import from lib.learning_track.repository_types { ActorContext }
-import from nodes.curriculum { CourseDocumentUploadStatus, UploadCourseDocumentInput }
+import from nodes.curriculum { CourseDocumentUploadStatus, DocumentChunkingStatus, DocumentProcessingStage, ProcessingJobStatus, UploadCourseDocumentInput }
 import from nodes.learning_track { CreateCourseTrackInput, LearningTrack, LecturerCourseDetail, TrackVersionStatus }
 
 def _actor(suffix: str) -> ActorContext { return ActorContext(user_id="user_" + suffix, lecturer_id="lecturer_" + suffix, request_id="request_" + suffix, roles=["LECTURER"]); }
@@ -28,6 +30,17 @@ test "valid PDF is stored and attached to its draft version" {
     assert result.ok and result.document_id is not None and result.upload_status == "STORED" and result.processing_status == "NOT_STARTED";
     assert active is not None and active.document_id == result.document_id and active.upload_status == CourseDocumentUploadStatus.STORED;
     assert active.track_id == track.track_id and active.track_version_id == version_id and "/" + active.document_id + "/source.pdf" in active.storage_key;
+}
+
+test "successful extraction dispatches queued course section preparation" {
+    suffix = uuid4().hex; (actor, track, version_id) = _setup(suffix);
+    payload = fixtures.text_pdf(["Course sections explain relational database design, normalization, keys, and dependable schema evolution.", "Transactions cover atomicity, consistency, isolation, durability, and practical recovery strategies."]) as bytes;
+    result = CourseDocumentUploadService().upload(actor, _pdf_input(track.track_id, version_id, "pipeline_" + suffix, payload));
+    version = repository_versions(track)[0]; document = CourseDocumentRepository().find_active_for_version(version); assert result.ok and document is not None;
+    jobs = DocumentProcessingJobRepository().list_jobs_for_document(document);
+    chunking_jobs = [job for job in jobs if job.stage == DocumentProcessingStage.CONTENT_CHUNKING];
+    assert len(chunking_jobs) == 1 and chunking_jobs[0].attempt_number == 1;
+    assert chunking_jobs[0].status == ProcessingJobStatus.SUCCEEDED and document.chunking_status == DocumentChunkingStatus.CHUNKED;
 }
 
 test "duplicate retry and checksum are idempotent" {

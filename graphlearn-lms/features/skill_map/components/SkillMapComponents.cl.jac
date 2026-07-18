@@ -12,6 +12,7 @@ import from "lucide-react" {
     TrendingUp
 }
 import from "@jac/runtime" { Link }
+import from "....lib.utils" { format_datetime }
 import from "....components.ui.button" { Button }
 import from "....components.ui.card" {
     Card,
@@ -165,7 +166,7 @@ def:pub SkillMapHeader(skillMap: SkillMapView, roadmapTitle: str = "") -> JsxEle
                         </span>
                     }
                     <span className="inline-flex items-center gap-1 rounded-xl border border-surface-border-subtle bg-elevated px-2.5 py-1 text-xs text-copy-muted">
-                        Generated {skillMap.generated_at}
+                        Generated {format_datetime(skillMap.generated_at)}
                     </span>
                     <Button asChild={True} variant="outline">
                         <Link to={back_url}>
