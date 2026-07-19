@@ -15,4 +15,14 @@ node Skill {
     has order_hint: int | None = None;
     has created_at: str = "";
     has updated_at: str = "";
+    has canonical_name: str | None = None;
+    has concept_type: str = "CORE";
+    has aliases_json: str = "[]";
+    has key_terms_json: str = "[]";
+    has status: str = "ACTIVE";
+    has blueprint_id: str | None = None;
+    has blueprint_concept_key: str | None = None;
+    has graph_generation_id: str | None = None;
+    has evidence_json: str = "[]";
+    has topological_rank: int | None = None;
 }

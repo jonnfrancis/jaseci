@@ -82,12 +82,18 @@ edge HAS_TRACK_ACCESS {
     has revoked_at: str | None = None;
 }
 edge CONTAINS_MODULE { has order_index: int; }
-edge CONTAINS_SKILL { has order_index: int | None = None; }
+edge CONTAINS_SKILL { has order_index: int | None = None; has primary: bool = True; has graph_generation_id: str | None = None; }
 edge MODULE_CONTAINS_SKILL { has order_index: int; }
 edge PREREQUISITE {
     has strength: float = 1.0;
     has required_mastery: float = 0.80;
     has relation_type: str = "REQUIRED";
+    has rationale: str | None = None;
+    has confidence: str | None = None;
+    has source_blueprint_prerequisite_id: str | None = None;
+    has evidence_json: str = "[]";
+    has graph_generation_id: str | None = None;
+    has created_at: str = "";
 }
 edge HAS_LESSON_TEMPLATE { has order_index: int | None = None; }
 edge MODULE_HAS_LESSON { has order_index: int; }
@@ -114,6 +120,20 @@ edge HAS_CONTENT_CHUNK { has order_index: int; }
 edge HAS_PROCESSING_JOB { has stage: str; has created_at: str; }
 edge HAS_JOB_ATTEMPT { has attempt_number: int; }
 edge HAS_BLUEPRINT {}
+edge HAS_BLUEPRINT_CONCEPT {}
+edge HAS_BLUEPRINT_OUTCOME {}
+edge HAS_BLUEPRINT_MODULE { has order_index: int; }
+edge HAS_BLUEPRINT_PREREQUISITE {}
+edge HAS_BLUEPRINT_WARNING {}
+edge HAS_BLUEPRINT_GENERATION_RUN {}
+edge HAS_CURRICULUM_GRAPH_GENERATION {}
+edge HAS_LEARNING_OUTCOME {}
+edge TARGETS_OUTCOME {}
+edge HAS_BLUEPRINT_DOMAIN_MAPPING {}
+edge HAS_VALIDATION_REPORT {}
+edge HAS_VALIDATION_ISSUE {}
+edge HAS_CHUNK_ANALYSIS_ARTIFACT {}
+edge HAS_MERGED_CONCEPT_ARTIFACT {}
 edge DERIVED_FROM {
     has page_start: int | None = None;
     has page_end: int | None = None;
