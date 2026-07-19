@@ -7,6 +7,7 @@ import from lib.course_blueprint.planner { default_blueprint_generation_config }
 import from lib.course_document.chunk_repository { DocumentChunkRepository }
 import from lib.course_document.extraction_repository { DocumentExtractionRepository }
 import from lib.course_document.repositories { CourseDocumentRepository }
+import from lib.course_document.processing_workers { DocumentProcessingWorkerService }
 import from lib.learning_track.repositories { repository_find_track, repository_find_version }
 import from nodes.authorization { AuthorizationActor, AuthorizationDecisionType, LecturerPermission }
 import from nodes.curriculum { BlueprintGenerationContext, BlueprintGenerationResult, BlueprintGenerationStatus, BlueprintGenerationStatusView }
@@ -21,3 +22,10 @@ def generate_authorized_course_blueprint(track_id: str, track_version_id: str, r
 
 def get_authorized_blueprint_generation_status(track_id: str, track_version_id: str) -> BlueprintGenerationStatusView { _ = _authorize(track_id, track_version_id, LecturerPermission.VIEW_COURSE_DOCUMENT); return CourseBlueprintGenerationService().get_generation_status(track_id, track_version_id); }
 def retry_authorized_blueprint_generation(track_id: str, track_version_id: str, request_id: str = "") -> BlueprintGenerationResult { return generate_authorized_course_blueprint(track_id, track_version_id, request_id, False); }
+def dispatch_authorized_blueprint_generation(track_id: str, track_version_id: str, request_id: str = "") -> bool {
+    actor = _authorize(track_id, track_version_id, LecturerPermission.PROCESS_COURSE_DOCUMENT); track = repository_find_track(track_id);
+    if track is None { return False; } version = repository_find_version(track, track_version_id);
+    if version is None { return False; } document = CourseDocumentRepository().find_active_for_version(version);
+    if document is None { return False; }
+    return DocumentProcessingWorkerService().run_next(document, "blueprint-dispatch:" + actor.user_id, request_id);
+}

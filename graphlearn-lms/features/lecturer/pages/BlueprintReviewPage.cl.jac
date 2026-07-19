@@ -2,14 +2,16 @@
 import from "@jac/runtime" { Link, Navigate, useParams }
 import from "....components.ui.button" { Button }
 import from "....components.ui.card" { Card, CardContent, CardDescription, CardHeader, CardTitle }
+import from "..components.CourseBuildLifecycle" { CourseBuildLifecycle, WorkflowBlockers }
 import from "..components.LecturerLoadingSkeleton" { LecturerLoadingSkeleton }
-sv import from ....services.course_management { BlueprintApprovalRequest, LecturerBlueprintReviewView, LecturerCourseDetail, approve_course_blueprint, get_lecturer_blueprint_review, load_lecturer_course }
+sv import from ....services.course_management { BlueprintApprovalRequest, CourseBuildWorkflowView, LecturerBlueprintReviewView, approve_course_blueprint, get_course_build_workflow, get_lecturer_blueprint_review, load_lecturer_course }
 
 def:pub BlueprintReviewPage() -> JsxElement {
     has loading: bool = True, approving: bool = False;
     has error_message: str = "";
     has track_version_id: str = "";
     has review: LecturerBlueprintReviewView | None = None;
+    has workflow: CourseBuildWorkflowView | None = None;
     params = useParams(); raw_track_id = params["trackId"];
     track_id = str(raw_track_id) if raw_track_id else "";
 
@@ -20,6 +22,7 @@ def:pub BlueprintReviewPage() -> JsxElement {
                 if course.draft_version is not None {
                     track_version_id = course.draft_version.track_version_id;
                     review = await get_lecturer_blueprint_review(track_id, course.draft_version.track_version_id);
+                    workflow = await get_course_build_workflow(track_id, course.draft_version.track_version_id);
                 } else { error_message = "This course has no editable draft version."; }
             } except Exception { error_message = "The blueprint is not ready for lecturer review."; }
         }
@@ -41,10 +44,12 @@ def:pub BlueprintReviewPage() -> JsxElement {
     return <main className="min-h-screen bg-base px-5 py-8 text-copy-primary">
         <div className="mx-auto max-w-7xl space-y-5">
             <Link to={"/lecturer/courses/" + track_id} className="text-sm text-brand hover:underline">Back to course</Link>
+            {if workflow is not None { <><CourseBuildLifecycle workflow={workflow as CourseBuildWorkflowView}/><WorkflowBlockers workflow={workflow as CourseBuildWorkflowView}/></> }}
             {if review is not None {
                 <header className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-6 md:flex-row md:items-center md:justify-between">
                     <div><p className="text-xs font-semibold uppercase tracking-wider text-copy-muted">Blueprint review · Revision {str(review.blueprint_revision)}</p><h1 className="mt-1 text-3xl font-semibold">{review.course_title}</h1><p className="mt-2 max-w-3xl text-copy-secondary">{review.course_summary}</p></div>
                     <Button onClick={handle_approve} disabled={not review.approval_available or approving}>{"Approving..." if approving else "Approve blueprint"}</Button>
+                    {if str(review.review_status) == "APPROVED" { <Link to={"/lecturer/courses/" + track_id + "/publication"} className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-base">Continue to publication</Link> }}
                 </header>
                 <Card><CardHeader><CardTitle>Validation summary</CardTitle><CardDescription>{review.validation_summary.status + " · " + str(review.validation_summary.warning_count) + " warnings · " + str(review.validation_summary.blocking_issue_count) + " blocking"}</CardDescription></CardHeader><CardContent><div className="grid gap-3 sm:grid-cols-4"><p>Source {str(round(review.validation_summary.source_coverage_ratio * 100.0))}%</p><p>Concepts {str(round(review.validation_summary.concept_coverage_ratio * 100.0))}%</p><p>Modules {str(round(review.validation_summary.module_coverage_ratio * 100.0))}%</p><p>Grounding {str(round(review.validation_summary.grounding_ratio * 100.0))}%</p></div></CardContent></Card>
                 <div className="grid gap-5 lg:grid-cols-[18rem_1fr]">

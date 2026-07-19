@@ -13,13 +13,17 @@ import from "....components.ui.card" {
 import from "....components.ui.tabs" { Tabs, TabsContent, TabsList, TabsTrigger }
 import from "..components.LecturerLoadingSkeleton" { LecturerLoadingSkeleton }
 import from "..components.CourseSourceWorkspace" { CourseSourceWorkspace }
+import from "..components.CourseBuildLifecycle" { CourseBuildLifecycle, WorkflowBlockers }
 sv import from ....services.course_management {
+    CourseBuildWorkflowView,
     LecturerCourseDetail,
+    get_course_build_workflow,
     load_lecturer_course
 }
 
 def:pub CourseWorkspacePage() -> JsxElement {
     has course: LecturerCourseDetail | None = None;
+    has workflow: CourseBuildWorkflowView | None = None;
     has loading: bool = True;
     has error_message: str = "";
     params = useParams();
@@ -32,6 +36,9 @@ def:pub CourseWorkspacePage() -> JsxElement {
         if track_id != "" {
             try {
                 course = await load_lecturer_course(track_id);
+                loaded = course as LecturerCourseDetail;
+                version = loaded.draft_version if loaded.draft_version is not None else loaded.active_version;
+                if version is not None { workflow = await get_course_build_workflow(track_id, version.track_version_id); }
             } except Exception {
                 error_message = "This course could not be opened. It may still be syncing or may no longer be available in your teaching workspace.";
             }
@@ -116,6 +123,7 @@ def:pub CourseWorkspacePage() -> JsxElement {
                         {str(current.track.status)}
                     </span>
                 </div>
+                {if workflow is not None { <><CourseBuildLifecycle workflow={workflow as CourseBuildWorkflowView}/><WorkflowBlockers workflow={workflow as CourseBuildWorkflowView}/></> }}
                 {current.track.status == "DRAFT"
                 and <div
                     className="rounded-2xl border border-brand/30 bg-accent-dim p-4 text-sm text-brand"
@@ -235,24 +243,10 @@ def:pub CourseWorkspacePage() -> JsxElement {
                         <CourseSourceWorkspace track_id={track_id} course={current}/>
                     </TabsContent>
                     <TabsContent value="curriculum" className="mt-0 pt-6">
-                        <Card className="border-surface-border bg-surface text-copy-primary">
-                            <CardHeader>
-                                <CardTitle>Curriculum</CardTitle>
-                                <CardDescription>
-                                    Curriculum generation is locked until source material is ready.
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
+                        {if workflow is not None { current_flow = workflow as CourseBuildWorkflowView; <Card className="border-surface-border bg-surface text-copy-primary"><CardHeader><CardTitle>Curriculum · {current_flow.stage_label}</CardTitle><CardDescription>{str(current_flow.blueprint.progress_percent) + "% · " + str(current_flow.blueprint.warning_count) + " warnings"}</CardDescription></CardHeader><CardContent className="space-y-4"><p className="text-sm text-copy-secondary">{current_flow.source.blocker_message if not current_flow.source.interpretation_eligible and current_flow.blueprint.blueprint_id is None else "Continue the authoritative blueprint workflow from its current durable state."}</p>{if str(current_flow.current_stage) in ["READY_FOR_GENERATION", "GENERATING_BLUEPRINT", "GENERATION_FAILED", "VALIDATING_BLUEPRINT"] { <Link to={"/lecturer/courses/" + track_id + "/interpretation"} className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-semibold text-base">{"View generation" if str(current_flow.current_stage) != "READY_FOR_GENERATION" else "Generate blueprint"}</Link> } elif str(current_flow.current_stage) in ["READY_FOR_REVIEW", "REVIEW_IN_PROGRESS", "CHANGES_REQUIRED"] { <Link to={"/lecturer/courses/" + track_id + "/blueprint"} className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-semibold text-base">Review blueprint</Link> } elif str(current_flow.current_stage) in ["APPROVED", "PUBLICATION_BLOCKED", "READY_TO_PUBLISH"] { <Link to={"/lecturer/courses/" + track_id + "/publication"} className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-semibold text-base">Continue to publication</Link> } elif str(current_flow.current_stage) == "PUBLISHED" { <p className="rounded-md border border-success/40 bg-success/10 p-3 text-success">Published immutable version {str(current_flow.version_number)}</p> }}</CardContent></Card> }}
                     </TabsContent>
                     <TabsContent value="publishing" className="mt-0 pt-6">
-                        <Card className="border-surface-border bg-surface text-copy-primary">
-                            <CardHeader>
-                                <CardTitle>Publishing</CardTitle>
-                                <CardDescription>
-                                    Resolve readiness blockers before requesting publication.
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
+                        {if workflow is not None { current_flow = workflow as CourseBuildWorkflowView; <Card className="border-surface-border bg-surface text-copy-primary"><CardHeader><CardTitle>Publishing</CardTitle><CardDescription>{"Active version " + (current_flow.active_version_id or "None") + " · Visibility " + str(current.track.visibility) + " · Enrollment " + ("open" if current.track.is_enrollment_open else "closed")}</CardDescription></CardHeader><CardContent className="space-y-4">{if current_flow.review is not None { <p>{"Approval: " + (current_flow.review.status if current_flow.review is not None else "Not approved") + " · Revision " + str(current_flow.review.revision if current_flow.review is not None else 0)}</p> }}<WorkflowBlockers workflow={current_flow}/><Link to={"/lecturer/courses/" + track_id + "/publication"} className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-semibold text-base">{"View published version" if str(current_flow.current_stage) == "PUBLISHED" else "View publication readiness"}</Link></CardContent></Card> }}
                     </TabsContent>
                 </Tabs>
             </div>

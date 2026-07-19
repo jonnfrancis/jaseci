@@ -1,7 +1,7 @@
 """Lecturer-owned course aggregate management and safe projections."""
 
 import re;
-import from edges.domain_edges { HAS_BLUEPRINT, HAS_SOURCE_DOCUMENT, HAS_TRACK_VERSION }
+import from edges.domain_edges { HAS_BLUEPRINT, HAS_SOURCE_DOCUMENT, HAS_TRACK_CONFIGURATION, HAS_TRACK_VERSION }
 import from lib.learning_track.application_services {
     begin_operation, complete_operation, fail_operation, service_error, service_now
 }
@@ -158,9 +158,24 @@ def course_summary(track: LearningTrack) -> LecturerCourseSummary {
     );
 }
 
+def ensure_course_configuration(track: LearningTrack) -> TrackConfiguration | None {
+    configuration = track_configuration(track);
+    if configuration is not None { return configuration; }
+    if track.track_type != LearningTrackType.LECTURER_COURSE or track.owner_id is None { return None; }
+    timestamp = service_now();
+    repaired = (track +>:HAS_TRACK_CONFIGURATION:+> TrackConfiguration(
+        configuration_id="cfg_" + track.track_id,
+        track_id=track.track_id,
+        created_at=timestamp,
+        updated_at=timestamp,
+        last_modified_by="aggregate-repair"
+    ))[0];
+    return repaired;
+}
+
 def course_detail(track: LearningTrack) -> LecturerCourseDetail | None {
     if track.owner_id is None { return None; }
-    configuration = track_configuration(track);
+    configuration = ensure_course_configuration(track);
     if configuration is None { return None; }
     draft: TrackVersion | None = None;
     for version in repository_versions(track) {

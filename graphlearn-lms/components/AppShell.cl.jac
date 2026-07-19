@@ -15,6 +15,7 @@ import from "..features.lecturer.pages.CreateCoursePage" { CreateCoursePage }
 import from "..features.lecturer.pages.CourseWorkspacePage" { CourseWorkspacePage }
 import from "..features.lecturer.pages.CourseInterpretationPage" { CourseInterpretationPage }
 import from "..features.lecturer.pages.BlueprintReviewPage" { BlueprintReviewPage }
+import from "..features.lecturer.pages.CoursePublicationPage" { CoursePublicationPage }
 import from "..features.lecturer.pages.CourseListPage" { CourseListPage }
 import from "..features.lecturer.pages.LecturerOnboardingPage" { LecturerOnboardingPage }
 import from "..features.lecturer.pages.LecturerStatusPage" { LecturerStatusPage }
@@ -46,6 +47,7 @@ def:pub AppShell() -> JsxElement {
                 <Route path="/lecturer/courses/:trackId/documents" element={<LecturerGuard><CourseWorkspacePage /></LecturerGuard>} />
                 <Route path="/lecturer/courses/:trackId/interpretation" element={<LecturerGuard><CourseInterpretationPage /></LecturerGuard>} />
                 <Route path="/lecturer/courses/:trackId/blueprint" element={<LecturerGuard><BlueprintReviewPage /></LecturerGuard>} />
+                <Route path="/lecturer/courses/:trackId/publication" element={<LecturerGuard><CoursePublicationPage /></LecturerGuard>} />
             </Routes>
         </Router>;
 }

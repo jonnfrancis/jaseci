@@ -1,27 +1,42 @@
-"""Guarded placeholder for the next AI-owned course interpretation feature."""
-
+"""Durable blueprint generation, progress, retry, and regeneration workspace."""
 import from "@jac/runtime" { Link, Navigate, useParams }
-import from "....components.ui.card" { Card, CardDescription, CardHeader, CardTitle }
+import from react { useEffect }
+import from "....components.ui.button" { Button }
+import from "....components.ui.card" { Card, CardContent, CardDescription, CardHeader, CardTitle }
+import from "....components.ui.dialog" { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle }
+import from "..components.CourseBuildLifecycle" { CourseBuildLifecycle, WorkflowBlockers }
 import from "..components.LecturerLoadingSkeleton" { LecturerLoadingSkeleton }
-sv import from ....services.course_management { CourseSourceWorkspaceView, LecturerCourseDetail, load_course_source_workspace, load_lecturer_course }
+sv import from ....services.course_management { BlueprintGenerationStatusView, CourseBuildWorkflowView, dispatch_course_blueprint_generation, generate_course_blueprint, get_course_blueprint_generation_status, get_course_build_workflow, load_lecturer_course, retry_course_blueprint_generation }
+
+def _active(status: str) -> bool { return status in ["QUEUED", "ANALYZING_CHUNKS", "MERGING_CONCEPTS", "SYNTHESIZING_BLUEPRINT", "INFERRING_PREREQUISITES", "CRITIQUING", "VALIDATING"]; }
+def _safe_error(code: str | None) -> str { if code == "BLUEPRINT_SOURCE_NOT_READY" { return "Source processing must finish before generation."; } if code == "BLUEPRINT_GENERATION_ALREADY_RUNNING" { return "Blueprint generation is already running."; } return "This operation could not be completed safely. Refresh and try again."; }
 
 def:pub CourseInterpretationPage() -> JsxElement {
-    has loading: bool = True, allowed: bool = False;
-    params = useParams(); raw_track_id = params["trackId"];
-    track_id = str(raw_track_id) if raw_track_id else "";
-    async can with entry {
-        if track_id != "" {
-            try {
-                course = await load_lecturer_course(track_id);
-                if course.draft_version is not None {
-                    source = await load_course_source_workspace(track_id, course.draft_version.track_version_id);
-                    allowed = source.interpretation_eligible;
-                }
-            } except Exception { allowed = False; }
-        }
-        loading = False;
-    }
+    has loading: bool = True, busy: bool = False, regeneration_open: bool = False;
+    has poll_count: int = 0, error_message: str = "", track_version_id: str = "";
+    has workflow: CourseBuildWorkflowView | None = None;
+    has status: BlueprintGenerationStatusView | None = None;
+    params = useParams(); raw_track_id = params["trackId"]; track_id = str(raw_track_id) if raw_track_id else "";
+    async def refresh(version_id: str = "") -> BlueprintGenerationStatusView | None { resolved_version_id = version_id if version_id != "" else track_version_id; if track_id == "" or resolved_version_id == "" { return None; } try { current_status = await get_course_blueprint_generation_status(track_id, resolved_version_id); status = current_status; workflow = await get_course_build_workflow(track_id, resolved_version_id); poll_count += 1; return current_status; } except Exception { error_message = "Generation status could not be refreshed."; return None; } }
+    async can with entry { try { course = await load_lecturer_course(track_id); version = course.draft_version if course.draft_version is not None else course.active_version; if version is not None { resolved_version_id = version.track_version_id; track_version_id = resolved_version_id; initial_status = await refresh(resolved_version_id); if initial_status is not None and str(initial_status.status) == "QUEUED" { run_worker("resume-" + resolved_version_id, resolved_version_id); } } else { error_message = "This course has no buildable version."; } } except Exception { error_message = "This course build could not be loaded."; } loading = False; }
+    active = status is not None and _active(str((status as BlueprintGenerationStatusView).status));
+    useEffect(lambda { timer = setInterval(lambda { if active { refresh(); } }, 5000 if poll_count >= 15 else 2000); return lambda { clearInterval(timer); }; }, [active, poll_count >= 15]); # jac:ignore[W2001,W6002]
+    async def run_worker(request_id: str, version_id: str = "") { resolved_version_id = version_id if version_id != "" else track_version_id; try { _ = await dispatch_course_blueprint_generation(track_id, resolved_version_id, request_id); await refresh(resolved_version_id); } except Exception { error_message = "The background worker could not be started. Retry generation."; } }
+    async def start(force: bool = False) { if busy or track_version_id == "" { return; } busy = True; error_message = ""; regeneration_open = False; try { request_id = "blueprint-" + track_version_id; result = await generate_course_blueprint(track_id, track_version_id, request_id, force); if result.error_code is not None { error_message = _safe_error(result.error_code); } elif str(result.status) == "QUEUED" { run_worker(request_id); } _ = await refresh(); } except Exception { error_message = "Blueprint generation could not be started. Refresh and try again."; } busy = False; }
+    async def retry() { if busy { return; } busy = True; try { request_id = "retry-" + track_version_id; result = await retry_course_blueprint_generation(track_id, track_version_id, request_id); if result.error_code is None and str(result.status) == "QUEUED" { run_worker(request_id); } _ = await refresh(); } except Exception { error_message = "Blueprint generation could not be retried."; } busy = False; }
     if loading { return <LecturerLoadingSkeleton/>; }
+    if workflow is None or status is None { return <main className="min-h-screen bg-base p-6 text-copy-primary"><div className="mx-auto max-w-3xl"><Link to={"/lecturer/courses/" + track_id} className="text-brand">Back to course</Link><p role="alert" className="mt-5 rounded-lg border border-danger/40 bg-danger/10 p-4 text-danger">{error_message}</p></div></main>; }
+    current_workflow = workflow as CourseBuildWorkflowView; current_status = status as BlueprintGenerationStatusView; state = str(current_status.status);
+    allowed = current_workflow.source.interpretation_eligible or _active(state) or (state == "FAILED" and current_status.retry_available) or current_status.blueprint_id is not None;
     if not allowed { return <Navigate to={"/lecturer/courses/" + track_id} replace={True}/>; }
-    return <main className="min-h-screen bg-base px-6 py-8 text-copy-primary"><div className="mx-auto max-w-3xl"><Link to={"/lecturer/courses/" + track_id} className="text-sm text-brand hover:underline">← Back to course</Link><Card className="mt-5 border-ai-accent/40 bg-surface"><CardHeader><CardTitle>Ready for AI course interpretation</CardTitle><CardDescription>The verified source handoff is ready. Blueprint generation belongs to the next feature and has not started.</CardDescription></CardHeader></Card></div></main>;
+    return <main className="min-h-screen bg-base px-5 py-8 text-copy-primary"><div className="mx-auto max-w-5xl space-y-5">
+        <Link to={"/lecturer/courses/" + track_id} className="text-sm text-brand hover:underline">Back to course</Link><CourseBuildLifecycle workflow={current_workflow}/><WorkflowBlockers workflow={current_workflow}/>
+        <header><p className="text-xs font-semibold uppercase tracking-wider text-copy-muted">Blueprint generation</p><h1 className="mt-1 text-3xl font-semibold" tabIndex={-1}>Build a grounded curriculum blueprint</h1></header>
+        {if state == "NOT_STARTED" { <Card><CardHeader><CardTitle>Ready to generate</CardTitle><CardDescription>{current_workflow.source.document.filename if current_workflow.source.document is not None else "Verified source"}</CardDescription></CardHeader><CardContent className="space-y-4"><p className="text-copy-secondary">GraphLearn will identify modules, concepts, learning outcomes, evidence, and prerequisite relationships. Every result remains grounded in the verified source and must pass validation and lecturer review.</p><p className="text-sm text-copy-muted">After generation, review the proposed curriculum, resolve issues, and explicitly approve it before publication.</p><Button onClick={lambda (_e: MouseEvent) { start(False); }} disabled={busy}>{"Starting..." if busy else "Generate blueprint"}</Button></CardContent></Card> }
+        elif active { <Card aria-live="polite"><CardHeader><CardTitle>{current_status.current_step}</CardTitle><CardDescription>Background processing is durable. You can leave this page safely and return later.</CardDescription></CardHeader><CardContent className="space-y-4"><div className="h-2 overflow-hidden rounded-full bg-subtle"><div className="h-full bg-brand transition-[width] motion-reduce:transition-none" style={{"width": str(current_status.progress_percent) + "%"}}/></div><p>{str(current_status.progress_percent) + "% complete · " + str(current_status.warning_count) + " warnings"}</p><Link to={"/lecturer/courses/" + track_id} className="inline-flex rounded-md border border-border px-4 py-2 text-sm">Leave page safely</Link></CardContent></Card> }
+        elif state in ["GENERATED", "REVIEW_REQUIRED"] { <Card className="border-success/40"><CardHeader><CardTitle>Blueprint generated and validated</CardTitle><CardDescription>The backend has marked this blueprint eligible for lecturer review.</CardDescription></CardHeader><CardContent className="flex flex-wrap gap-3"><Link to={"/lecturer/courses/" + track_id + "/blueprint"} className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-base">Review generated blueprint</Link><Button variant="outline" onClick={lambda (_e: MouseEvent) { regeneration_open = True; }}>Regenerate blueprint</Button></CardContent></Card> }
+        elif state == "FAILED" { <Card className="border-danger/40"><CardHeader><CardTitle>Generation could not finish</CardTitle><CardDescription>{_safe_error(current_status.error_code)}</CardDescription></CardHeader><CardContent className="flex flex-wrap gap-3">{if current_status.retry_available { <Button onClick={lambda (_e: MouseEvent) { retry(); }} disabled={busy}>Retry generation</Button> }}<Link to={"/lecturer/courses/" + track_id} className="rounded-md border border-border px-4 py-2 text-sm">Replace source material</Link><Link to={"/lecturer/courses/" + track_id} className="rounded-md border border-border px-4 py-2 text-sm">Back to course</Link></CardContent></Card> }}
+        {if error_message != "" { <p role="alert" className="rounded-lg border border-danger/40 bg-danger/10 p-4 text-sm text-danger">{error_message}</p> }}
+        <Dialog open={regeneration_open} onOpenChange={lambda (open: bool) { regeneration_open = open; }}><DialogContent><DialogHeader><DialogTitle>Generate a new blueprint?</DialogTitle><DialogDescription>A new generation may supersede the current review. Manual changes will not be silently overwritten, and publication approval will become stale.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={lambda (_e: MouseEvent) { regeneration_open = False; }}>Keep current blueprint</Button><Button onClick={lambda (_e: MouseEvent) { start(True); }} disabled={busy}>Generate new blueprint</Button></DialogFooter></DialogContent></Dialog>
+    </div></main>;
 }

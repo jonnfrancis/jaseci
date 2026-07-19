@@ -28,10 +28,13 @@ enum TrackOwnershipType: str {
 
 enum TrackVersionStatus: str {
     DRAFT = "DRAFT",
+    PROCESSING = "PROCESSING",
     REVIEW_REQUIRED = "REVIEW_REQUIRED",
     APPROVED = "APPROVED",
+    PUBLISHING = "PUBLISHING",
     PUBLISHED = "PUBLISHED",
     SUPERSEDED = "SUPERSEDED",
+    PUBLICATION_FAILED = "PUBLICATION_FAILED",
     FAILED = "FAILED",
     ARCHIVED = "ARCHIVED"
 }
@@ -95,6 +98,9 @@ node TrackVersion {
     has superseded_at: str | None = None;
     has revision: int = 1;
     has last_modified_by: str | None = None;
+    has created_from_version_id: str | None = None;
+    has sealed_at: str | None = None;
+    has sealed_by: str | None = None;
 }
 
 node TrackConfiguration {

@@ -450,3 +450,6 @@ Advantages:
 23. Course source bytes live behind `CourseDocumentStorageService` and Jac `store()`; graph nodes retain metadata only, canonical object keys are server-generated and immutable, and no walker or client receives backend paths or credentials.
 24. A stored course source is usable only when its graph metadata, byte size, SHA-256, track/version scope, lifecycle state, and authorization context agree. Published source objects are protected from physical deletion by default.
 25. Replicated deployments must use a shared durable Jac storage backend. Local storage is development/single-server only and fails course-storage readiness when explicitly configured as multi-instance.
+26. Course publication is represented by an immutable `CoursePublication` snapshot binding the exact blueprint revision, approval, validation report, curriculum graph generation, source document checksum, extraction, and chunk set.
+27. At most one `TrackVersion` per track may be `PUBLISHED`; activating a newer version supersedes the prior version without changing any existing enrollment's pinned `track_version_id`.
+28. Published and superseded versions are sealed. Curriculum mutation must begin from a distinct draft version, and rollback reactivates an intact historical snapshot rather than modifying it.

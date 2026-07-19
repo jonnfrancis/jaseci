@@ -2,7 +2,7 @@
 
 import from uuid { uuid4 }
 import from lib.learning_track.course_management {
-    archive_course_service, create_course_service, get_course_service,
+    archive_course_service, course_detail, create_course_service, get_course_service,
     restore_course_service, update_course_service
 }
 import from lib.learning_track.repositories { repository_find_track, repository_versions }
@@ -67,4 +67,18 @@ test "unpublished course archives and restores without opening enrollment" {
     restored = restore_course_service(actor, detail.track.track_id, archived_detail.track.revision);
     assert restored.ok and (restored.value as LecturerCourseDetail).track.status == LearningTrackStatus.DRAFT;
     assert not (restored.value as LecturerCourseDetail).track.is_enrollment_open;
+}
+
+test "legacy course projection repairs a missing configuration" {
+    suffix = str(uuid4()).replace("-", ""); actor = _actor(suffix);
+    created = create_course_service(actor, CreateCourseTrackInput(title="Legacy Course Repair", client_request_id="repair_" + suffix));
+    detail = created.value as LecturerCourseDetail;
+    track = repository_find_track(detail.track.track_id) as LearningTrack;
+    old_configuration = track_configuration(track);
+    assert old_configuration is not None;
+    del old_configuration;
+    repaired = course_detail(track);
+    assert repaired is not None;
+    assert track_configuration(track) is not None;
+    assert (repaired as LecturerCourseDetail).configuration.revision == 1;
 }

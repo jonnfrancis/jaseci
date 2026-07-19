@@ -505,7 +505,7 @@ def:pub CourseSourceWorkspace(
                                 aria-describedby="interpretation-blocker"
                                 className="min-h-10 w-full rounded-xl bg-surface-border px-4 text-sm text-copy-muted"
                             >
-                                Continue to course interpretation
+                                Continue to blueprint generation
                             </button>}
                             <p
                                 id="interpretation-blocker"
