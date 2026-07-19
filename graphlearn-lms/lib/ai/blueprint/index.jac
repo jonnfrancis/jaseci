@@ -1,0 +1,6 @@
+"""Public Feature 45 blueprint AI contract surface."""
+import from lib.ai.blueprint.contracts { BlueprintConfidence, BlueprintCritique, BlueprintCritiqueInput, BlueprintEvidenceRef, BlueprintLearningOutcome, BlueprintPrerequisiteCandidate, BlueprintSynthesisInput, BlueprintWarning, BlueprintWarningType, ByLLMExecutionMetadata, ConceptMergeInput, CourseBlueprintContext, CourseBlueprintDraft, CourseChunkAnalysis, CourseChunkAnalysisInput, CourseChunkEvidence, CourseConceptCandidate, CourseConceptType, CourseModuleDraft, EvidenceStrength, LearningObjectiveLevel, MergedCourseConcept, ModuleImportance, PrerequisiteInferenceInput, PrerequisiteStrength }
+import from lib.ai.blueprint.errors { BlueprintAIErrorCode, BlueprintValidationIssue, BlueprintValidationResult, blueprint_user_message, transient_blueprint_error }
+import from lib.ai.blueprint.execution { chunk_analysis_cache_key, finish_blueprint_execution, start_blueprint_execution }
+import from lib.ai.blueprint.llm_functions { analyze_course_chunk, critique_course_blueprint, infer_course_prerequisites, merge_course_concepts, synthesize_course_blueprint }
+import from lib.ai.blueprint.validation { prerequisite_cycle, validate_blueprint, validate_chunk_analysis, validate_merged_concepts }

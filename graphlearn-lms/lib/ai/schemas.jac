@@ -45,3 +45,31 @@ import from lib.ai.utilities {
     TutorRecommendationType,
     TutorRecommendedResource
 }
+
+import from lib.ai.blueprint.contracts {
+    BlueprintConfidence,
+    BlueprintCritique,
+    BlueprintCritiqueInput,
+    BlueprintEvidenceRef,
+    BlueprintLearningOutcome,
+    BlueprintPrerequisiteCandidate,
+    BlueprintSynthesisInput,
+    BlueprintWarning,
+    BlueprintWarningType,
+    ByLLMExecutionMetadata,
+    ConceptMergeInput,
+    CourseBlueprintContext,
+    CourseBlueprintDraft,
+    CourseChunkAnalysis,
+    CourseChunkAnalysisInput,
+    CourseChunkEvidence,
+    CourseConceptCandidate,
+    CourseConceptType,
+    CourseModuleDraft,
+    EvidenceStrength,
+    LearningObjectiveLevel,
+    MergedCourseConcept,
+    ModuleImportance,
+    PrerequisiteInferenceInput,
+    PrerequisiteStrength
+}
