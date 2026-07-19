@@ -12,7 +12,8 @@ import from services.course_management {
     load_course_source_document, load_course_source_workspace,
     retry_lecturer_course_document, cancel_lecturer_course_document,
     upload_lecturer_course_document, generate_course_blueprint,
-    get_course_blueprint_generation_status, retry_course_blueprint_generation
+    get_course_blueprint_generation_status, retry_course_blueprint_generation,
+    get_lecturer_blueprint_review, update_blueprint_entity, approve_course_blueprint
 }
 import from services.authorization { list_my_authorized_tracks, migrate_my_lecturer_track_ownership }
 import from services.assessment_journey { generate_roadmap_for_journey }
