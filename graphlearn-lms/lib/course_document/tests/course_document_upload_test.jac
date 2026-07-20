@@ -9,7 +9,7 @@ import from lib.course_document.service { CourseDocumentUploadService, PDF_MIME 
 import from lib.learning_track.course_management { create_course_service }
 import from lib.learning_track.repositories { repository_find_track, repository_versions }
 import from lib.learning_track.repository_types { ActorContext }
-import from nodes.curriculum { CourseDocumentUploadStatus, DocumentChunkingStatus, DocumentProcessingStage, ProcessingJobStatus, UploadCourseDocumentInput }
+import from nodes.curriculum { CourseDocumentProcessingStatus, CourseDocumentUploadStatus, DocumentChunkingStatus, DocumentProcessingStage, ProcessingJobStatus, UploadCourseDocumentInput }
 import from nodes.learning_track { CreateCourseTrackInput, LearningTrack, LecturerCourseDetail, TrackVersionStatus }
 
 def _actor(suffix: str) -> ActorContext { return ActorContext(user_id="user_" + suffix, lecturer_id="lecturer_" + suffix, request_id="request_" + suffix, roles=["LECTURER"]); }
@@ -41,6 +41,7 @@ test "successful extraction dispatches queued course section preparation" {
     chunking_jobs = [job for job in jobs if job.stage == DocumentProcessingStage.CONTENT_CHUNKING];
     assert len(chunking_jobs) == 1 and chunking_jobs[0].attempt_number == 1;
     assert chunking_jobs[0].status == ProcessingJobStatus.SUCCEEDED and document.chunking_status == DocumentChunkingStatus.CHUNKED;
+    assert document.processing_status == CourseDocumentProcessingStatus.COMPLETED and document.processing_state == "READY_FOR_BLUEPRINT";
 }
 
 test "duplicate retry and checksum are idempotent" {

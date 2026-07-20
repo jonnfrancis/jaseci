@@ -10,6 +10,7 @@ def _admin_permissions -> list[AdministrativePermission] {
     return [
         AdministrativePermission.VIEW_ANY_LECTURER_PROFILE,
         AdministrativePermission.APPROVE_LECTURER_PROFILE,
+        AdministrativePermission.MANAGE_LECTURER_CAPABILITIES,
         AdministrativePermission.SUSPEND_LECTURER_PROFILE,
         AdministrativePermission.REINSTATE_LECTURER_PROFILE,
         AdministrativePermission.VIEW_ANY_TRACK, AdministrativePermission.ARCHIVE_ANY_TRACK,

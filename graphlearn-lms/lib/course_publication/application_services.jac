@@ -11,7 +11,19 @@ import from nodes.learning_track { TrackVersion }
 
 def _authorize_version(track_id: str, track_version_id: str, permission: LecturerPermission) -> AuthorizationActor { actor = resolve_authorization_actor(); resource = version_resource_context(track_id, track_version_id, actor.lecturer_id); if resource is None { raise PermissionError("COURSE_PUBLICATION_NOT_AUTHORIZED"); } decision = AuthorizationPolicyService().authorize_lecturer_action(actor, permission, resource); if decision.decision == AuthorizationDecisionType.DENY { raise PermissionError(public_error_code(decision)); } return actor; }
 def _authorize_track(track_id: str, permission: LecturerPermission) -> AuthorizationActor { actor = resolve_authorization_actor(); resource = track_resource_context(track_id, actor.lecturer_id); if resource is None { raise PermissionError("COURSE_PUBLICATION_NOT_AUTHORIZED"); } decision = AuthorizationPolicyService().authorize_lecturer_action(actor, permission, resource); if decision.decision == AuthorizationDecisionType.DENY { raise PermissionError(public_error_code(decision)); } return actor; }
-def get_authorized_publication_readiness(track_id: str, track_version_id: str) -> PublicationReadinessResult { _ = _authorize_version(track_id, track_version_id, LecturerPermission.PUBLISH_VERSION); return CoursePublicationReadinessService().check(track_id, track_version_id); }
+def get_authorized_publication_readiness(track_id: str, track_version_id: str) -> PublicationReadinessResult {
+    actor = _authorize_version(track_id, track_version_id, LecturerPermission.VIEW_TRACK_VERSION);
+    readiness = CoursePublicationReadinessService().check(track_id, track_version_id);
+    resource = version_resource_context(track_id, track_version_id, actor.lecturer_id);
+    publish_decision = AuthorizationPolicyService().authorize_lecturer_action(actor, LecturerPermission.PUBLISH_VERSION, resource);
+    if publish_decision.decision == AuthorizationDecisionType.DENY {
+        readiness.ready = False;
+        if "COURSE_PUBLICATION_PERMISSION_REQUIRED" not in readiness.blocking_codes {
+            readiness.blocking_codes.append("COURSE_PUBLICATION_PERMISSION_REQUIRED");
+        }
+    }
+    return readiness;
+}
 def publish_authorized_approved_version(request: PublishCourseVersionRequest) -> CoursePublicationResult { actor = _authorize_version(request.track_id, request.track_version_id, LecturerPermission.PUBLISH_VERSION); return CoursePublicationService().publish_course_version(request, actor.user_id); }
 def rollback_authorized_publication(request: RollbackPublicationRequest) -> CoursePublicationResult { actor = _authorize_version(request.track_id, request.target_track_version_id, LecturerPermission.SUPERSEDE_VERSION); return CoursePublicationService().rollback_publication(request, actor.user_id); }
 def list_authorized_publication_history(track_id: str) -> list[PublicationHistoryItem] { _ = _authorize_track(track_id, LecturerPermission.VIEW_TRACK_VERSION); return CoursePublicationService().history(track_id); }

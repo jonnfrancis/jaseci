@@ -1,6 +1,8 @@
 """Identity, role-management, lecturer-profile, and onboarding services."""
 
 import os;
+import from uuid { UUID }
+import from jaclang { JacRuntime as Jac }
 import from datetime { datetime, timezone }
 import from uuid { uuid4 }
 import from edges.domain_edges { HAS_LEARNER_PROFILE }
@@ -8,7 +10,7 @@ import from lib.identity.repositories { IdentityRepository, LecturerRepository }
 import from lib.observability.events { ObservabilityEvent }
 import from lib.observability.logger { emit_event }
 import from nodes.identity {
-    AuthenticatedActor, IdentityError, IdentityResult, LecturerProfile,
+    AdminManagementAuthorizationResult, AuthenticatedActor, IdentityError, IdentityResult, LecturerProfile,
     LecturerProfileInput, LecturerProfileStatus, LecturerProfileSummary,
     LecturerVerificationStatus, RoleAssignmentResult, RoleAssignmentSource,
     RoleAssignmentStatus, UserRoleAssignment, UserRoleType
@@ -19,6 +21,44 @@ def identity_now -> str { return datetime.now(timezone.utc).isoformat().replace(
 def identity_id(prefix: str) -> str { return prefix + "_" + str(uuid4()).replace("-", ""); }
 def identity_error(code: str, message: str, details: dict[str, str] | None = None) -> IdentityResult {
     return IdentityResult(ok=False, error=IdentityError(code=code, message=message, details=details if details is not None else {}));
+}
+
+def configured_application_admin_root_ids -> list[str] {
+    configured = os.getenv("APPLICATION_ADMIN_ROOT_IDS", "").strip();
+    environment = os.getenv("APP_ENV", "development").strip().lower();
+    if configured == "" and environment not in ["production", "prod"] {
+        configured = os.getenv("DEVELOPMENT_ADMIN_USER_ID", "").strip();
+    }
+    admin_root_ids: list[str] = [];
+    for candidate in configured.split(",") {
+        clean = candidate.strip().replace("-", "");
+        if clean != "" and clean not in admin_root_ids { admin_root_ids.append(clean); }
+    }
+    return admin_root_ids;
+}
+
+def authorize_current_lecturer_admin_management -> AdminManagementAuthorizationResult {
+    user_id = jid(root); repository = IdentityRepository();
+    profile = repository.find_lecturer_profile(user_id);
+    if profile is None { return AdminManagementAuthorizationResult(ok=False, user_id=user_id, error_code="LECTURER_PROFILE_NOT_FOUND", message="Lecturer profile was not found."); }
+    assignments = [item for item in repository.list_role_assignments(user_id) if item.role_type == UserRoleType.LECTURER and item.status != RoleAssignmentStatus.REVOKED];
+    if len(assignments) != 1 { return AdminManagementAuthorizationResult(ok=False, user_id=user_id, error_code="LECTURER_ROLE_ASSIGNMENT_NOT_FOUND", message="Exactly one lecturer role assignment is required."); }
+    admin_root_ids = configured_application_admin_root_ids();
+    if len(admin_root_ids) == 0 { return AdminManagementAuthorizationResult(ok=False, user_id=user_id, error_code="APPLICATION_ADMIN_ROOTS_NOT_CONFIGURED", message="APPLICATION_ADMIN_ROOT_IDS is not configured."); }
+    granted = 0;
+    try {
+        for admin_root_id in admin_root_ids {
+            admin_uuid = UUID(admin_root_id);
+            Jac.allow_root(profile, admin_uuid, WritePerm); # jac:ignore[E1053]
+            Jac.allow_root(assignments[0], admin_uuid, WritePerm); # jac:ignore[E1053]
+            granted += 2;
+        }
+        profile.admin_management_root_ids = admin_root_ids.copy();
+        profile.updated_at = identity_now();
+    } except Exception {
+        return AdminManagementAuthorizationResult(ok=False, user_id=user_id, admin_root_ids=admin_root_ids, granted_node_count=granted, error_code="APPLICATION_ADMIN_GRANT_FAILED", message="Application administrator access could not be granted.");
+    }
+    return AdminManagementAuthorizationResult(ok=True, user_id=user_id, admin_root_ids=admin_root_ids, granted_node_count=granted, message="Application administrator management access granted.");
 }
 
 def _emit(event: str, status: str, user_id: str, attributes: dict[str, object] | None = None) {
@@ -217,6 +257,7 @@ def request_lecturer_onboarding(display_name: str = "") -> IdentityResult {
     }
     profile = repository.find_lecturer_profile(user_id);
     if profile is None { return identity_error("LECTURER_PROFILE_NOT_FOUND", "Lecturer profile was not found."); }
+    if len(configured_application_admin_root_ids()) > 0 { _ = authorize_current_lecturer_admin_management(); }
     _emit("role.requested", "success", user_id);
     return IdentityResult(ok=True, profile=profile_summary(profile), replayed=profile_result.replayed);
 }

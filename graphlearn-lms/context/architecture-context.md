@@ -97,6 +97,11 @@ errors, and audit allow/deny outcomes without protected content.
 The initial publication model requires reviewer or administrator approval.
 Owner publication additionally requires the server-controlled profile capability
 and `ALLOW_LECTURER_SELF_PUBLISH`; owner self-approval is disabled by default.
+Application administrators manage cross-root lecturer onboarding and publishing
+capabilities through private, policy-gated endpoints. Blueprint approval authority
+is a revocable course-scoped `REVIEWER` access edge, never a global lecturer flag.
+Development administrator bootstrap is explicitly environment-gated, bound to one
+configured root ID, and disabled in production.
 
 ---
 

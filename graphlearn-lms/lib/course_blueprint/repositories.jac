@@ -23,7 +23,7 @@ obj CourseBlueprintRepository {
 }
 
 obj BlueprintGenerationArtifactRepository {
-    def list_runs(version: TrackVersion) -> list[BlueprintGenerationRun] { return [version ->:HAS_BLUEPRINT_GENERATION_RUN:->[?:BlueprintGenerationRun]]; }
+    def list_runs(version: TrackVersion) -> list[BlueprintGenerationRun] { runs: list[BlueprintGenerationRun] = [version ->:HAS_BLUEPRINT_GENERATION_RUN:->[?:BlueprintGenerationRun]]; return sorted(runs, key=lambda item: BlueprintGenerationRun : item.started_at); }
     def find_generation_run(version: TrackVersion, config_hash: str, chunk_set_id: str) -> BlueprintGenerationRun | None { for item in self.list_runs(version) { if item.generation_config_hash == config_hash and item.chunk_set_id == chunk_set_id and item.status not in ["FAILED", "CANCELLED"] { return item; } } return None; }
     def save_run(version: TrackVersion, run: BlueprintGenerationRun) { version +>:HAS_BLUEPRINT_GENERATION_RUN:+> run; }
     def save_checkpoint(run: BlueprintGenerationRun, step: str, status: str, updated_at: str) { run.current_step = step; run.status = status; run.updated_at = updated_at; }

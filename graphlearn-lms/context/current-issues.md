@@ -1,34 +1,37 @@
 
 ## Current problems:
 
+Status: issues 1 and 2 were implemented in the current issue-fix unit. Issue 3 now has admin-protected onboarding, publishing-capability, and course-reviewer endpoints plus a development invocation script documented in `context/approval-publication-test-plan.md`; authorization-aware action-state UX remains a required follow-up before production launch.
+
 Problems occuring after implementing the expand, Features 29 - 34
-1. Logged into the new account, was redirected to the Dashboard as I should but I got an error: load_dashboard functions returns the error:[{
-    "ok": true,
-    "type": "response",
-    "data": {
-        "result": {
-            "_jac_type": "DashboardLoadState",
-            "_jac_id": "bf823601a5124080825904a58d0ff159",
-            "_jac_archetype": "archetype",
-            "dashboard": null,
-            "message": "Roadmap does not exist.",
-            "status": "missing_roadmap"
-        },
-        "reports": []
-    },
-    "error": null,
-    "meta": {
-        "extra": {
-            "http_status": 200
-        }
-    }
-}] so I clicked the assessment was redirected to the "Choose your starting track and this time it doesn't quickly fail, because of the last issue fix I think, so I was able to start assessment, and even submit_and evaluate work as it should, but when I clicked the "Generate My Roadmap" button I got errors: [{
+1. the document’s processing_status remains ANALYZING even after reaching READY_FOR_BLUEPRINT. That field is stale/confusing, although the authoritative processing state and completed jobs show success. 
+
+The blueprint status endpoint also hardcodes warning_count=0, so it cannot report the three validation warnings. See [generation_service.jac (line 87)].
+
+2. In the route /courses/:courseId, the Curriculum and Publishing tabs are empty I need them to show their respective data, like their Source Material counterpart. 
+
+3. I need a gameplan on how I can test approval and publication of the blueprint and how I will handle the same test and approval in production. I need you to investigate and document the way forward here. Here is the current issue: [Why approval fails
+Your account owns this course. The authorization policy allows blueprint approval only when:
+The actor has the assigned REVIEWER role, or
+The actor owns the course and ALLOW_LECTURER_SELF_APPROVAL=true.
+Self-approval defaults to false, both in the code and .env.example. See [policy.jac (line 153)].
+Therefore, the request is rejected before the validation-based approval service runs. The UI incorrectly enables the button because approval_available only checks validation freshness and blocking issues; it does not incorporate the current actor’s approval permission. See [blueprint review service (line 54)].
+The client then catches every possible exception and replaces the real authorization error with:
+  `Approval was blocked. Refresh the review and resolve validation issues.`
+
+That message is misleading here. See [BlueprintReviewPage.cl.jac (line 36)].
+One additional blocker awaits publication: the persisted lecturer profile has can_publish_courses: false. Even after a reviewer approves the blueprint, this owner cannot publish until that server-controlled capability is enabled; publication authorization checks it in [policy.jac (line 158)]]
+
+Documented resolution: follow `context/approval-publication-test-plan.md`. The production-equivalent test uses separate owner and reviewer accounts; the single-account self-approval flag is a development-only shortcut.
+
+
+I have experience an irregularity, although not consistently, my course dashboard function get_lecturer_course_dashboard has been giving me this error. Investigate and ignore if everything is okay, but if not suggest, then implement a fix. [{
     "ok": false,
     "type": "error",
     "data": null,
     "error": {
         "code": "EXECUTION_ERROR",
-        "message": "Unable to resolve learning track."
+        "message": "DASHBOARD_LOAD_FAILED"
     },
     "meta": {
         "extra": {
@@ -36,10 +39,3 @@ Problems occuring after implementing the expand, Features 29 - 34
         }
     }
 }]
-
-2. my localhost:8001/functions endpoints doesnt work. I get a 503 service unavailable. what's that about.
-
-## Resolution
-
-1. Fixed the account-flow failures at both boundaries. The dashboard now loads only from the authenticated learner graph rather than passing potentially cross-account journey recovery values. Roadmap generation forwards the selected track identifiers and also derives them authoritatively from the persisted, learner-owned assessment when the client omits them.
-2. Added a Scale-compatible `GET /functions` discovery route. Individual functions use `POST /function/<name>`. Port 8001 is the development client/proxy, so it returns 503 whenever the Jac backend is not running; the direct backend surface is normally port 8000. Production API docs remain intentionally disabled by `docs_enabled = false`.

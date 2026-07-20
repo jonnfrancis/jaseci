@@ -4,13 +4,14 @@ import from edges.domain_edges { HAS_IDENTITY_PROFILE, HAS_LEARNER_PROFILE, HAS_
 import from lib.identity.repositories { IdentityRepository, LecturerRepository }
 import from lib.identity.services {
     assign_role, identity_error, identity_now, profile_summary, request_lecturer_onboarding,
+    authorize_current_lecturer_admin_management,
     resolve_authenticated_actor, transition_lecturer_profile, transition_role,
     submit_lecturer_onboarding, update_lecturer_profile
 }
 import from lib.authorization.policy { AuthorizationPolicyService, authorization_now }
 import from nodes.authorization { AdministrativePermission, AuthorizationActor, AuthorizationDecisionType, LecturerPermission }
 import from nodes.identity {
-    AuthenticatedWorkspaceBootstrap, IdentityError, IdentityResult, LecturerOnboardingStep,
+    AdminManagementAuthorizationResult, AuthenticatedWorkspaceBootstrap, IdentityError, IdentityResult, LecturerOnboardingStep,
     LecturerProfile, LecturerProfileInput, LecturerProfileStatus,
     RoleAssignmentSource, RoleAssignmentStatus, UserIdentityProfile,
     UserRoleAssignment, UserRoleMigrationRecord, UserRoleType, WorkspaceAvailability, WorkspaceKind
@@ -146,6 +147,7 @@ def:priv update_my_lecturer_profile(input: LecturerProfileInput) -> IdentityResu
 }
 def:priv request_lecturer_role(display_name: str = "") -> IdentityResult { return request_lecturer_onboarding(display_name); }
 def:priv submit_my_lecturer_onboarding -> IdentityResult { return submit_lecturer_onboarding(); }
+def:priv authorize_my_application_admin_management -> AdminManagementAuthorizationResult { return authorize_current_lecturer_admin_management(); }
 
 def:priv load_authenticated_workspace_bootstrap(preferred_workspace: WorkspaceKind | None = None) -> AuthenticatedWorkspaceBootstrap {
     identity = resolve_authenticated_actor();

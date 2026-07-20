@@ -1,16 +1,17 @@
 """Feature 38 lecturer dashboard projection tests."""
 
 import from uuid { uuid4 }
-import from edges.domain_edges { HAS_LECTURER_PROFILE, OWNS_TRACK }
+import from edges.domain_edges { HAS_LECTURER_PROFILE, HAS_SOURCE_DOCUMENT, OWNS_TRACK }
 import from lib.identity.services { identity_now }
 import from lib.learning_track.course_management { archive_course_service, create_course_service }
 import from lib.learning_track.lecturer_dashboard { get_lecturer_dashboard_service }
-import from lib.learning_track.repositories { repository_find_track }
+import from lib.learning_track.repositories { repository_find_track, repository_versions }
 import from lib.learning_track.repository_types { ActorContext }
-import from nodes.learning_track { CreateCourseTrackInput, LecturerCourseDetail }
+import from nodes.curriculum { CourseDocument, CourseDocumentProcessingStatus, CourseDocumentUploadStatus, DocumentProcessingState }
+import from nodes.learning_track { CreateCourseTrackInput, LecturerCourseDetail, LearningTrack, TrackVersion }
 import from nodes.identity { LecturerProfile, LecturerProfileStatus, LecturerVerificationStatus }
 import from nodes.lecturer_dashboard {
-    CourseDashboardAction, CourseReadinessState, LecturerDashboardQuery, LecturerDashboardResponse
+    CourseDashboardAction, CourseProcessingState, CourseReadinessState, LecturerDashboardQuery, LecturerDashboardResponse
 }
 
 def _dashboard_actor(suffix: str) -> ActorContext {
@@ -73,4 +74,24 @@ test "archived courses are excluded unless requested" {
     shown = (get_lecturer_dashboard_service(actor, "Lecturer", False, LecturerDashboardQuery(include_archived=True)).value as LecturerDashboardResponse);
     assert hidden.total_items == 0 and hidden.summary.total_courses == 0;
     assert shown.total_items == 1 and shown.courses[0].readiness_state == CourseReadinessState.ARCHIVED;
+}
+
+test "dashboard uses the active document and authoritative processing state" {
+    suffix = str(uuid4()).replace("-", ""); actor = _dashboard_actor(suffix);
+    created = create_course_service(actor, CreateCourseTrackInput(title="Processing Course " + suffix, short_description="A complete description.", client_request_id="processing_" + suffix));
+    detail = created.value as LecturerCourseDetail; _attach_dashboard_owner(actor, detail);
+    track = repository_find_track(detail.track.track_id) as LearningTrack;
+    versions: list[TrackVersion] = repository_versions(track);
+    assert len(versions) == 1;
+    version = versions[0];
+    inactive = CourseDocument(document_id="inactive_" + suffix, track_id=track.track_id, track_version_id=version.track_version_id, original_filename="old.pdf", normalized_filename="old.pdf", mime_type="application/pdf", file_extension="pdf", file_size_bytes=10, storage_provider="test", storage_key="test/old.pdf", checksum_algorithm="sha256", checksum="old_" + suffix, upload_status=CourseDocumentUploadStatus.REPLACED, processing_status=CourseDocumentProcessingStatus.ANALYZING, uploaded_by=actor.user_id, uploaded_at=identity_now(), updated_at=identity_now(), idempotency_scope="inactive_" + suffix, processing_state=DocumentProcessingState.CHUNKING, is_active=False);
+    active = CourseDocument(document_id="active_" + suffix, track_id=track.track_id, track_version_id=version.track_version_id, original_filename="current.pdf", normalized_filename="current.pdf", mime_type="application/pdf", file_extension="pdf", file_size_bytes=10, storage_provider="test", storage_key="test/current.pdf", checksum_algorithm="sha256", checksum="active_" + suffix, upload_status=CourseDocumentUploadStatus.STORED, processing_status=CourseDocumentProcessingStatus.ANALYZING, uploaded_by=actor.user_id, uploaded_at=identity_now(), updated_at=identity_now(), idempotency_scope="active_" + suffix, processing_state=DocumentProcessingState.READY_FOR_BLUEPRINT);
+    version +>:HAS_SOURCE_DOCUMENT(attached_at=identity_now(), attached_by=actor.user_id):+> inactive;
+    version +>:HAS_SOURCE_DOCUMENT(attached_at=identity_now(), attached_by=actor.user_id):+> active;
+    result = get_lecturer_dashboard_service(actor, "Lecturer", False, LecturerDashboardQuery());
+    assert result.ok and isinstance(result.value, LecturerDashboardResponse);
+    dashboard = result.value as LecturerDashboardResponse;
+    assert len(dashboard.courses) == 1 and dashboard.courses[0].source_document_count == 1;
+    assert dashboard.courses[0].processing_state == CourseProcessingState.COMPLETED;
+    assert dashboard.courses[0].readiness_state == CourseReadinessState.DOCUMENT_UPLOADED;
 }

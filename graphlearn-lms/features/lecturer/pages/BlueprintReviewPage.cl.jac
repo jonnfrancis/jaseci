@@ -4,7 +4,25 @@ import from "....components.ui.button" { Button }
 import from "....components.ui.card" { Card, CardContent, CardDescription, CardHeader, CardTitle }
 import from "..components.CourseBuildLifecycle" { CourseBuildLifecycle, WorkflowBlockers }
 import from "..components.LecturerLoadingSkeleton" { LecturerLoadingSkeleton }
-sv import from ....services.course_management { BlueprintApprovalRequest, CourseBuildWorkflowView, LecturerBlueprintReviewView, approve_course_blueprint, get_course_build_workflow, get_lecturer_blueprint_review, load_lecturer_course }
+sv import from ....services.course_management { CourseBuildWorkflowView, LecturerBlueprintReviewView, approve_course_blueprint_from_review, get_course_build_workflow, get_lecturer_blueprint_review, load_lecturer_course }
+
+def _approval_error_message(error: any) -> str {
+    detail = str(error);
+    normalized = detail.lower();
+    if "stale" in normalized or "revision" in normalized {
+        return "The blueprint changed after this review loaded. Refresh the page and approve the latest revision. Server response: " + detail;
+    }
+    if "validation" in normalized or "blocking" in normalized {
+        return "Blueprint validation blocked approval. Review the blocking issues before trying again. Server response: " + detail;
+    }
+    if "unauthorized" in normalized or "forbidden" in normalized or "permission" in normalized or "403" in normalized {
+        return "Your account is not authorized to approve this blueprint. Ask an administrator to grant course reviewer access. Server response: " + detail;
+    }
+    if "422" in normalized or "field required" in normalized or "input" in normalized {
+        return "The server rejected the approval request. Refresh and try again; if it repeats, use the server response below. Server response: " + detail;
+    }
+    return "Blueprint approval failed. Server response: " + detail;
+}
 
 def:pub BlueprintReviewPage() -> JsxElement {
     has loading: bool = True, approving: bool = False;
@@ -33,9 +51,13 @@ def:pub BlueprintReviewPage() -> JsxElement {
         if review is None or track_version_id == "" { return; }
         approving = True; error_message = "";
         try {
-            _ = await approve_course_blueprint(track_id, track_version_id, BlueprintApprovalRequest(blueprint_id=review.blueprint_id, expected_revision=review.blueprint_revision));
+            blueprint_id = review.blueprint_id;
+            expected_revision = review.blueprint_revision;
+            approval_note = "";
+            _ = await approve_course_blueprint_from_review(track_id, track_version_id, blueprint_id, expected_revision, approval_note);
             review = await get_lecturer_blueprint_review(track_id, track_version_id);
-        } except Exception { error_message = "Approval was blocked. Refresh the review and resolve validation issues."; }
+            workflow = await get_course_build_workflow(track_id, track_version_id);
+        } except Exception as error { error_message = _approval_error_message(error); }
         approving = False;
     }
 

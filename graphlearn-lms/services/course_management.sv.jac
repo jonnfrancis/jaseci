@@ -87,9 +87,36 @@ def:priv dispatch_course_blueprint_generation(track_id: str, track_version_id: s
 def:priv get_lecturer_blueprint_review(track_id: str, track_version_id: str) -> LecturerBlueprintReviewView { return get_authorized_lecturer_blueprint_review(track_id, track_version_id); }
 def:priv update_blueprint_entity(track_id: str, track_version_id: str, request: BlueprintEntityPatchRequest) -> LecturerBlueprintReviewView { return update_authorized_blueprint_entity(track_id, track_version_id, request); }
 def:priv approve_course_blueprint(track_id: str, track_version_id: str, request: BlueprintApprovalRequest) -> BlueprintApproval { return approve_authorized_course_blueprint(track_id, track_version_id, request); }
+def:priv approve_course_blueprint_from_review(track_id: str, track_version_id: str, blueprint_id: str, expected_revision: int, approval_note: str = "") -> BlueprintApproval {
+    request = BlueprintApprovalRequest(
+        blueprint_id=blueprint_id,
+        expected_revision=expected_revision,
+        approval_note=approval_note if approval_note.strip() != "" else None
+    );
+    return approve_authorized_course_blueprint(track_id, track_version_id, request);
+}
 def:priv get_course_publication_readiness(track_id: str, track_version_id: str) -> PublicationReadinessResult { return get_authorized_publication_readiness(track_id, track_version_id); }
 def:priv publish_approved_course_version(request: PublishCourseVersionRequest) -> CoursePublicationResult { return publish_authorized_approved_version(request); }
+def:priv publish_approved_course_version_from_page(track_id: str, track_version_id: str, expected_revision: int, idempotency_key: str, publish_note: str = "") -> CoursePublicationResult {
+    request = PublishCourseVersionRequest(
+        track_id=track_id,
+        track_version_id=track_version_id,
+        expected_revision=expected_revision,
+        idempotency_key=idempotency_key,
+        publish_note=publish_note if publish_note.strip() != "" else None
+    );
+    return publish_authorized_approved_version(request);
+}
 def:priv create_course_draft_version(request: CreateDraftVersionRequest) -> DraftVersionResult { return create_authorized_course_draft_version(request); }
+def:priv create_course_draft_version_from_page(track_id: str, idempotency_key: str, base_version_id: str = "", clone_curriculum: bool = True) -> DraftVersionResult {
+    request = CreateDraftVersionRequest(
+        track_id=track_id,
+        idempotency_key=idempotency_key,
+        base_version_id=base_version_id if base_version_id.strip() != "" else None,
+        clone_curriculum=clone_curriculum
+    );
+    return create_authorized_course_draft_version(request);
+}
 def:priv rollback_course_publication(request: RollbackPublicationRequest) -> CoursePublicationResult { return rollback_authorized_publication(request); }
 def:priv list_course_publication_history(track_id: str) -> list[PublicationHistoryItem] { return list_authorized_publication_history(track_id); }
 def:priv audit_course_publication_state(track_id: str) -> PublicationStateAudit { return audit_authorized_publication_state(track_id); }

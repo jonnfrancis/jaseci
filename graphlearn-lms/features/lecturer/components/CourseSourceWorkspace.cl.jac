@@ -80,6 +80,9 @@ def _active_state(view: CourseSourceWorkspaceView | None) -> bool {
 }
 
 def _stage_label(stage: str) -> str {
+    if stage == "STORAGE" {
+        return "Secure upload";
+    }
     if stage == "SECURITY_VALIDATION" {
         return "Safety checks";
     }
@@ -89,7 +92,13 @@ def _stage_label(stage: str) -> str {
     if stage == "CONTENT_CHUNKING" {
         return "Preparing course sections";
     }
-    return "Secure upload";
+    if stage == "BLUEPRINT_GENERATION" {
+        return "Generating blueprint";
+    }
+    if stage == "BLUEPRINT_VALIDATION" {
+        return "Validating blueprint";
+    }
+    return "Processing";
 }
 
 def:pub CourseSourceWorkspace(

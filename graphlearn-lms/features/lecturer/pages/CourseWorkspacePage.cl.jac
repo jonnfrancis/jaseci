@@ -26,6 +26,7 @@ def:pub CourseWorkspacePage() -> JsxElement {
     has workflow: CourseBuildWorkflowView | None = None;
     has loading: bool = True;
     has error_message: str = "";
+    has workflow_error_message: str = "";
     params = useParams();
     raw_track_id = params["trackId"];
     track_id = str(raw_track_id) if raw_track_id else "";
@@ -33,12 +34,16 @@ def:pub CourseWorkspacePage() -> JsxElement {
     async def load_course() {
         loading = True;
         error_message = "";
+        workflow_error_message = "";
         if track_id != "" {
             try {
-                course = await load_lecturer_course(track_id);
-                loaded = course as LecturerCourseDetail;
+                loaded = await load_lecturer_course(track_id);
+                course = loaded;
                 version = loaded.draft_version if loaded.draft_version is not None else loaded.active_version;
-                if version is not None { workflow = await get_course_build_workflow(track_id, version.track_version_id); }
+                if version is not None {
+                    try { workflow = await get_course_build_workflow(track_id, version.track_version_id); }
+                    except Exception { workflow_error_message = "Course-build details could not be loaded. Refresh to try again."; }
+                } else { workflow_error_message = "This course does not have a version to build yet."; }
             } except Exception {
                 error_message = "This course could not be opened. It may still be syncing or may no longer be available in your teaching workspace.";
             }
@@ -244,9 +249,11 @@ def:pub CourseWorkspacePage() -> JsxElement {
                     </TabsContent>
                     <TabsContent value="curriculum" className="mt-0 pt-6">
                         {if workflow is not None { current_flow = workflow as CourseBuildWorkflowView; <Card className="border-surface-border bg-surface text-copy-primary"><CardHeader><CardTitle>Curriculum · {current_flow.stage_label}</CardTitle><CardDescription>{str(current_flow.blueprint.progress_percent) + "% · " + str(current_flow.blueprint.warning_count) + " warnings"}</CardDescription></CardHeader><CardContent className="space-y-4"><p className="text-sm text-copy-secondary">{current_flow.source.blocker_message if not current_flow.source.interpretation_eligible and current_flow.blueprint.blueprint_id is None else "Continue the authoritative blueprint workflow from its current durable state."}</p>{if str(current_flow.current_stage) in ["READY_FOR_GENERATION", "GENERATING_BLUEPRINT", "GENERATION_FAILED", "VALIDATING_BLUEPRINT"] { <Link to={"/lecturer/courses/" + track_id + "/interpretation"} className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-semibold text-base">{"View generation" if str(current_flow.current_stage) != "READY_FOR_GENERATION" else "Generate blueprint"}</Link> } elif str(current_flow.current_stage) in ["READY_FOR_REVIEW", "REVIEW_IN_PROGRESS", "CHANGES_REQUIRED"] { <Link to={"/lecturer/courses/" + track_id + "/blueprint"} className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-semibold text-base">Review blueprint</Link> } elif str(current_flow.current_stage) in ["APPROVED", "PUBLICATION_BLOCKED", "READY_TO_PUBLISH"] { <Link to={"/lecturer/courses/" + track_id + "/publication"} className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-semibold text-base">Continue to publication</Link> } elif str(current_flow.current_stage) == "PUBLISHED" { <p className="rounded-md border border-success/40 bg-success/10 p-3 text-success">Published immutable version {str(current_flow.version_number)}</p> }}</CardContent></Card> }}
+                        {if workflow is None { <Card className="border-surface-border bg-surface text-copy-primary"><CardHeader><CardTitle>Curriculum status unavailable</CardTitle><CardDescription>{workflow_error_message or "Course-build details have not loaded yet."}</CardDescription></CardHeader><CardContent><Button onClick={lambda (_e: MouseEvent) { load_course(); }}><RefreshCw className="size-4"/>Refresh curriculum</Button></CardContent></Card> }}
                     </TabsContent>
                     <TabsContent value="publishing" className="mt-0 pt-6">
                         {if workflow is not None { current_flow = workflow as CourseBuildWorkflowView; <Card className="border-surface-border bg-surface text-copy-primary"><CardHeader><CardTitle>Publishing</CardTitle><CardDescription>{"Active version " + (current_flow.active_version_id or "None") + " · Visibility " + str(current.track.visibility) + " · Enrollment " + ("open" if current.track.is_enrollment_open else "closed")}</CardDescription></CardHeader><CardContent className="space-y-4">{if current_flow.review is not None { <p>{"Approval: " + (current_flow.review.status if current_flow.review is not None else "Not approved") + " · Revision " + str(current_flow.review.revision if current_flow.review is not None else 0)}</p> }}<WorkflowBlockers workflow={current_flow}/><Link to={"/lecturer/courses/" + track_id + "/publication"} className="inline-flex rounded-md bg-brand px-4 py-2 text-sm font-semibold text-base">{"View published version" if str(current_flow.current_stage) == "PUBLISHED" else "View publication readiness"}</Link></CardContent></Card> }}
+                        {if workflow is None { <Card className="border-surface-border bg-surface text-copy-primary"><CardHeader><CardTitle>Publishing status unavailable</CardTitle><CardDescription>{workflow_error_message or "Publication details have not loaded yet."}</CardDescription></CardHeader><CardContent className="space-y-3"><p>{"Visibility " + str(current.track.visibility) + " · Enrollment " + ("open" if current.track.is_enrollment_open else "closed")}</p><Button onClick={lambda (_e: MouseEvent) { load_course(); }}><RefreshCw className="size-4"/>Refresh publishing</Button></CardContent></Card> }}
                     </TabsContent>
                 </Tabs>
             </div>

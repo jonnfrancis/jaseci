@@ -6,9 +6,9 @@ import from "....components.ui.dialog" { Dialog, DialogContent, DialogDescriptio
 import from "....components.ui.textarea" { Textarea }
 import from "..components.CourseBuildLifecycle" { CourseBuildLifecycle }
 import from "..components.LecturerLoadingSkeleton" { LecturerLoadingSkeleton }
-sv import from ....services.course_management { CourseBuildWorkflowView, CreateDraftVersionRequest, LearnerIntegrationHandoffView, PublicationHistoryItem, PublicationReadinessResult, PublishCourseVersionRequest, create_course_draft_version, get_course_build_workflow, get_course_publication_readiness, get_learner_integration_handoff, list_course_publication_history, load_lecturer_course, publish_approved_course_version }
+sv import from ....services.course_management { CourseBuildWorkflowView, LearnerIntegrationHandoffView, PublicationHistoryItem, PublicationReadinessResult, create_course_draft_version_from_page, get_course_build_workflow, get_course_publication_readiness, get_learner_integration_handoff, list_course_publication_history, load_lecturer_course, publish_approved_course_version_from_page }
 
-def _safe_error(code: str | None) -> str { if code == "COURSE_PUBLICATION_APPROVAL_STALE" { return "The course changed after approval. Approve the latest revision again."; } if code == "COURSE_PUBLICATION_SOURCE_STALE" { return "The approved source no longer matches this version."; } if code == "COURSE_PUBLICATION_VERSION_CONFLICT" { return "Publication readiness changed. Refresh before publishing."; } if code == "COURSE_VERSION_IMMUTABLE" { return "Published curriculum cannot be edited. Create a new version."; } return "This operation could not be completed safely. Refresh and try again."; }
+def _safe_error(code: str | None) -> str { if code == "COURSE_PUBLICATION_APPROVAL_STALE" { return "The course changed after approval. Approve the latest revision again."; } if code == "COURSE_PUBLICATION_SOURCE_STALE" { return "The approved source no longer matches this version."; } if code == "COURSE_PUBLICATION_VERSION_CONFLICT" { return "Publication readiness changed. Refresh before publishing."; } if code == "COURSE_PUBLICATION_PERMISSION_REQUIRED" { return "Publishing permission has not been granted to this lecturer. Ask an administrator to enable course publishing."; } if code == "COURSE_VERSION_IMMUTABLE" { return "Published curriculum cannot be edited. Create a new version."; } return "This operation could not be completed safely. Refresh and try again."; }
 
 def:pub CoursePublicationPage() -> JsxElement {
     has loading: bool = True, publishing: bool = False, publish_open: bool = False, draft_open: bool = False, creating: bool = False;
@@ -19,7 +19,12 @@ def:pub CoursePublicationPage() -> JsxElement {
     async def load() {
         try {
             course = await load_lecturer_course(track_id); version = course.draft_version if course.draft_version is not None else course.active_version;
-            if version is not None { track_version_id = version.track_version_id; workflow = await get_course_build_workflow(track_id, track_version_id); try { readiness = await get_course_publication_readiness(track_id, track_version_id); } except Exception {} }
+            if version is not None {
+                version_id = version.track_version_id;
+                track_version_id = version_id;
+                workflow = await get_course_build_workflow(track_id, version_id);
+                try { readiness = await get_course_publication_readiness(track_id, version_id); } except Exception {}
+            }
             history = await list_course_publication_history(track_id); handoff = await get_learner_integration_handoff(track_id);
         } except Exception { message = "Publication state could not be loaded."; }
         loading = False;
@@ -30,13 +35,26 @@ def:pub CoursePublicationPage() -> JsxElement {
         if publishing or readiness is None or not (readiness as PublicationReadinessResult).ready { return; }
         publishing = True; publish_open = False; current = readiness as PublicationReadinessResult;
         if idempotency_key == "" { idempotency_key = "publish-" + track_version_id + "-" + str(current.blueprint_revision or 0); }
-        try { result = await publish_approved_course_version(PublishCourseVersionRequest(track_id=track_id, track_version_id=track_version_id, expected_revision=current.blueprint_revision or 0, idempotency_key=idempotency_key, publish_note=release_note if release_note.strip() != "" else None)); if result.error_code is not None { message = _safe_error(result.error_code); } await load(); }
+        try {
+            expected_revision = current.blueprint_revision or 0;
+            publish_key = idempotency_key;
+            publish_note = release_note;
+            result = await publish_approved_course_version_from_page(track_id, track_version_id, expected_revision, publish_key, publish_note);
+            if result.error_code is not None { message = _safe_error(result.error_code); }
+            await load();
+        }
         except Exception { message = "Publication outcome is unknown. Readiness and history were reloaded before another attempt."; await load(); }
         publishing = False;
     }
     async def create_draft() {
         if creating { return; } creating = True; draft_open = False;
-        try { result = await create_course_draft_version(CreateDraftVersionRequest(track_id=track_id, idempotency_key="new-version-" + track_id + "-" + track_version_id, base_version_id=track_version_id, clone_curriculum=True)); if result.error_code is not None { message = _safe_error(result.error_code); } else { navigate("/lecturer/courses/" + track_id); } }
+        try {
+            draft_key = "new-version-" + track_id + "-" + track_version_id;
+            base_version_id = track_version_id;
+            clone_curriculum = True;
+            result = await create_course_draft_version_from_page(track_id, draft_key, base_version_id, clone_curriculum);
+            if result.error_code is not None { message = _safe_error(result.error_code); } else { navigate("/lecturer/courses/" + track_id); }
+        }
         except Exception { message = "A new draft version could not be created."; }
         creating = False;
     }

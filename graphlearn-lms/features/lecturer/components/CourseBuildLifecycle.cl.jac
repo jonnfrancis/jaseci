@@ -6,8 +6,8 @@ def:pub CourseBuildLifecycle(workflow: CourseBuildWorkflowView, compact: bool = 
     steps: list[dict[str, object]] = [
         {"label": "Source", "stages": ["SOURCE_REQUIRED", "SOURCE_PROCESSING", "SOURCE_FAILED"]},
         {"label": "Generate", "stages": ["READY_FOR_GENERATION", "GENERATING_BLUEPRINT", "GENERATION_FAILED", "VALIDATING_BLUEPRINT"]},
-        {"label": "Review", "stages": ["READY_FOR_REVIEW", "REVIEW_IN_PROGRESS", "CHANGES_REQUIRED", "APPROVED"]},
-        {"label": "Publish", "stages": ["PUBLICATION_BLOCKED", "READY_TO_PUBLISH", "PUBLISHING"]},
+        {"label": "Review", "stages": ["READY_FOR_REVIEW", "REVIEW_IN_PROGRESS", "CHANGES_REQUIRED"]},
+        {"label": "Publish", "stages": ["APPROVED", "PUBLICATION_BLOCKED", "READY_TO_PUBLISH", "PUBLISHING"]},
         {"label": "Learner ready", "stages": ["PUBLISHED"]},
     ];
     return <section aria-label="Course build lifecycle" className="rounded-xl border border-border bg-surface p-4">

@@ -21,12 +21,13 @@ import from services.course_management {
     get_course_build_workflow, get_learner_integration_handoff
 }
 import from services.authorization { list_my_authorized_tracks, migrate_my_lecturer_track_ownership }
+import from services.admin { admin_approve_lecturer_onboarding, admin_grant_course_reviewer, admin_revoke_course_reviewer, admin_set_lecturer_capabilities, bootstrap_application_admin_for_development, list_pending_lecturer_onboarding }
 import from services.assessment_journey { generate_roadmap_for_journey }
 import from services.dashboard { load_dashboard }
 import from services.lesson { open_lesson }
 import from services.learning_track { execute_programming_track_migration, get_learning_track, list_learning_tracks, migrate_learning_tracks, resolve_legacy_learning_track, rollback_programming_track_migration_v1, supported_programming_tracks }
 import from services.identity {
-    activate_my_pending_lecturer_for_development, get_current_identity,
+    activate_my_pending_lecturer_for_development, authorize_my_application_admin_management, get_current_identity,
     get_my_lecturer_profile, migrate_current_learner_roles,
     request_lecturer_role, resolve_current_learner,
     update_my_lecturer_profile

@@ -84,6 +84,16 @@ node UserRoleAssignment {
     has activated_at: str | None = None;
     has suspended_at: str | None = None;
     has revoked_at: str | None = None;
+
+    def activate_by_administrator(actor_user_id: str, timestamp: str) -> bool {
+        if self.status not in [RoleAssignmentStatus.PENDING, RoleAssignmentStatus.SUSPENDED, RoleAssignmentStatus.ACTIVE] { return False; }
+        self.status = RoleAssignmentStatus.ACTIVE;
+        self.updated_at = timestamp;
+        self.granted_by = actor_user_id;
+        self.activated_at = timestamp;
+        self.suspended_at = None;
+        return True;
+    }
 }
 
 node LecturerProfile {
@@ -105,9 +115,28 @@ node LecturerProfile {
     has can_create_courses: bool = False;
     has can_publish_courses: bool = False;
     has can_review_grading: bool = False;
+    has admin_management_root_ids: list[str] = [];
     has activated_at: str | None = None;
     has suspended_at: str | None = None;
     has archived_at: str | None = None;
+
+    def activate_by_administrator(can_publish_courses: bool, timestamp: str) -> bool {
+        if not self.profile_completed or self.status not in [LecturerProfileStatus.DRAFT, LecturerProfileStatus.PENDING_REVIEW, LecturerProfileStatus.SUSPENDED, LecturerProfileStatus.ACTIVE] { return False; }
+        self.status = LecturerProfileStatus.ACTIVE;
+        self.updated_at = timestamp;
+        self.activated_at = timestamp;
+        self.suspended_at = None;
+        self.can_create_courses = True;
+        self.can_publish_courses = can_publish_courses;
+        return True;
+    }
+
+    def set_capabilities_by_administrator(can_publish_courses: bool, timestamp: str) -> bool {
+        if self.status != LecturerProfileStatus.ACTIVE { return False; }
+        self.can_publish_courses = can_publish_courses;
+        self.updated_at = timestamp;
+        return True;
+    }
 }
 
 obj AuthenticatedActor {
@@ -198,4 +227,35 @@ obj UserRoleMigrationRecord {
     has lecturer_id: str | None = None;
     has message: str = "";
     has migrated_at: str | None = None;
+}
+
+obj AdminLecturerView {
+    has user_id: str;
+    has lecturer_id: str;
+    has display_name: str;
+    has profile_status: LecturerProfileStatus;
+    has role_status: RoleAssignmentStatus;
+    has profile_completed: bool;
+    has can_create_courses: bool;
+    has can_publish_courses: bool;
+    has can_review_grading: bool;
+}
+
+obj AdminLecturerOperationResult {
+    has ok: bool;
+    has operation: str;
+    has lecturer: AdminLecturerView | None = None;
+    has track_id: str | None = None;
+    has access_role: str | None = None;
+    has error_code: str | None = None;
+    has message: str = "";
+}
+
+obj AdminManagementAuthorizationResult {
+    has ok: bool;
+    has user_id: str;
+    has admin_root_ids: list[str] = [];
+    has granted_node_count: int = 0;
+    has error_code: str | None = None;
+    has message: str = "";
 }

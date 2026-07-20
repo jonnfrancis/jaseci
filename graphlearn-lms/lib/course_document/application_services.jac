@@ -9,7 +9,7 @@ import from lib.course_document.processing_service { DocumentProcessingOrchestra
 import from lib.learning_track.repositories { repository_find_track, repository_find_version }
 import from lib.learning_track.repository_types { ActorContext }
 import from nodes.authorization { AuthorizationDecisionType, LecturerPermission }
-import from nodes.curriculum { CourseDocument, CourseDocumentError, CourseDocumentUploadResult, CourseSourceDocumentView, CourseSourceWorkspaceView, DocumentProcessingState, DocumentProcessingStatusView, UploadCourseDocumentInput }
+import from nodes.curriculum { CourseDocument, CourseDocumentError, CourseDocumentUploadResult, CourseSourceDocumentView, CourseSourceWorkspaceView, DocumentProcessingStage, DocumentProcessingState, DocumentProcessingStatusView, ProcessingStageSummary, UploadCourseDocumentInput }
 
 def _denied(code: str) -> CourseDocumentUploadResult { return CourseDocumentUploadResult(ok=False, error=CourseDocumentError(code=code, message="The requested course document operation is not permitted.")); }
 
@@ -51,10 +51,13 @@ def load_authorized_source_workspace(track_id: str, track_version_id: str) -> Co
     processing = DocumentProcessingOrchestrator().projection.project(active);
     state = processing.summary.state;
     ready = active.is_active and state == DocumentProcessingState.READY_FOR_BLUEPRINT;
+    source_stages: list[ProcessingStageSummary] = [stage for stage in processing.stages if stage.stage in [DocumentProcessingStage.STORAGE, DocumentProcessingStage.SECURITY_VALIDATION, DocumentProcessingStage.TEXT_EXTRACTION, DocumentProcessingStage.CONTENT_CHUNKING]];
+    if ready { processing.summary.error_code = None; processing.summary.user_message = None; processing.summary.retry_available = False; processing.summary.cancel_available = False; }
+    source_processing = DocumentProcessingStatusView(summary=processing.summary, stages=source_stages, warnings=processing.warnings);
     attention = state in [DocumentProcessingState.VALIDATION_FAILED, DocumentProcessingState.OCR_REQUIRED, DocumentProcessingState.NO_EXTRACTABLE_TEXT, DocumentProcessingState.EXTRACTION_FAILED, DocumentProcessingState.CHUNKING_FAILED, DocumentProcessingState.BLOCKED, DocumentProcessingState.CANCELLED];
     status_label = "Ready" if ready else ("Needs attention" if attention else "Processing");
     next_action = "Interpret course" if ready else (("Retry" if processing.summary.retry_available else "Replace") if attention else "Wait");
     blocker = "" if ready else (processing.summary.user_message or processing.summary.progress_message or "Course interpretation unlocks after source processing completes.");
     safe_document = CourseSourceDocumentView(document_id=active.document_id, filename=active.original_filename, file_type="PDF" if active.file_extension.lower() == ".pdf" else "DOCX", file_size_bytes=active.file_size_bytes, uploaded_at=active.uploaded_at, is_active=active.is_active);
-    return CourseSourceWorkspaceView(track_id=track_id, track_version_id=track_version_id, source_required=False, status_label=status_label, next_action_label=next_action, blocker_message=blocker, interpretation_eligible=ready, document=safe_document, processing=processing);
+    return CourseSourceWorkspaceView(track_id=track_id, track_version_id=track_version_id, source_required=False, status_label=status_label, next_action_label=next_action, blocker_message=blocker, interpretation_eligible=ready, document=safe_document, processing=source_processing);
 }

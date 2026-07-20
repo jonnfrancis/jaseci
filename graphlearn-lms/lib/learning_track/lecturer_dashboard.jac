@@ -5,7 +5,7 @@ import from lib.learning_track.course_management { compute_course_readiness }
 import from lib.learning_track.repositories { repository_list_owned, repository_versions }
 import from lib.learning_track.repository_types { ActorContext, PageRequest, ServiceResult }
 import from lib.learning_track.application_services { service_error, service_now }
-import from nodes.curriculum { CourseBlueprint, CourseDocument }
+import from nodes.curriculum { CourseBlueprint, CourseDocument, DocumentProcessingState }
 import from nodes.learning_track { LearningTrack, LearningTrackStatus, LearningTrackType, TrackVersion, TrackVersionStatus }
 import from nodes.lecturer_dashboard {
     CourseDashboardAction, CourseDashboardPermissions, CourseProcessingState, CourseReadinessState,
@@ -19,10 +19,22 @@ def _readiness(track: LearningTrack, versions: list[TrackVersion]) -> tuple[Cour
     for version in versions { if version.status in [TrackVersionStatus.DRAFT, TrackVersionStatus.REVIEW_REQUIRED, TrackVersionStatus.APPROVED] { draft = version; } }
     documents: list[CourseDocument] = [];
     blueprints: list[CourseBlueprint] = [];
-    if draft is not None { documents = [draft ->:HAS_SOURCE_DOCUMENT:->[?:CourseDocument]]; blueprints = [draft ->:HAS_BLUEPRINT:->[?:CourseBlueprint]]; }
+    if draft is not None {
+        documents = [document for document in [draft ->:HAS_SOURCE_DOCUMENT:->[?:CourseDocument]] if document.is_active];
+        blueprints = [draft ->:HAS_BLUEPRINT:->[?:CourseBlueprint]];
+    }
     processing: CourseProcessingState | None = None; error_code: str | None = None;
     for document in documents {
-        state = document.processing_status.upper();
+        # The durable processing_state is authoritative. processing_status is
+        # retained as a compatibility projection for older persisted rows.
+        durable_state = str(document.processing_state);
+        state = str(document.processing_status);
+        if durable_state == str(DocumentProcessingState.READY_FOR_BLUEPRINT) { state = "COMPLETED"; }
+        elif durable_state in [str(DocumentProcessingState.VALIDATING), str(DocumentProcessingState.VALIDATION_PENDING)] { state = "VALIDATING"; }
+        elif durable_state in [str(DocumentProcessingState.EXTRACTION_PENDING), str(DocumentProcessingState.EXTRACTING)] { state = "EXTRACTING"; }
+        elif durable_state in [str(DocumentProcessingState.CHUNKING_PENDING), str(DocumentProcessingState.CHUNKING)] { state = "CHUNKING"; }
+        elif durable_state in [str(DocumentProcessingState.VALIDATION_FAILED), str(DocumentProcessingState.EXTRACTION_FAILED), str(DocumentProcessingState.CHUNKING_FAILED), str(DocumentProcessingState.BLOCKED)] { state = "FAILED"; }
+        elif durable_state == str(DocumentProcessingState.CANCELLED) { state = "CANCELLED"; }
         if state == "FAILED" { processing = CourseProcessingState.FAILED; error_code = "DOCUMENT_PROCESSING_FAILED"; }
         elif state == "QUEUED" { processing = CourseProcessingState.QUEUED; }
         elif state == "EXTRACTING" { processing = CourseProcessingState.EXTRACTING; }

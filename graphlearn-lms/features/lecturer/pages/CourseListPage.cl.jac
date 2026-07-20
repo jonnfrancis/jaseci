@@ -89,9 +89,6 @@ def:pub CourseListPage() -> JsxElement {
         refreshing = False;
     }
 
-    async can with entry {
-        await load();
-    }
     useEffect(
         lambda {
             timer = setTimeout(lambda { load(1); }, 350);
